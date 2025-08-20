@@ -193,107 +193,111 @@ export default function StudentDashboard() {
     <GlassmorphismLayout>
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
-        <div className="glassmorphism rounded-2xl p-8 mb-8 animate-fade-in">
-          <div className="flex items-center justify-between">
+        <div className="glassmorphism-strong rounded-2xl p-6 sm:p-8 mb-6 sm:mb-8 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-bold text-white mb-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
                 Hello, {user?.fullName?.split(' ')[0] || 'Student'}!
               </h2>
-              <p className="text-white/80">Your personalized learning and assignment portal</p>
+              <p className="text-slate-200/90 text-sm sm:text-base">Your personalized learning and assignment portal</p>
             </div>
-            <div className="text-right">
-              <p className="text-white/60 text-sm">Student ID</p>
-              <p className="text-white font-semibold">STU-2024-{Math.random().toString().slice(2,6)}</p>
+            <div className="text-left sm:text-right">
+              <p className="text-slate-300/80 text-xs sm:text-sm">Student ID</p>
+              <p className="text-white font-semibold text-sm sm:text-base">STU-2024-{Math.random().toString().slice(2,6)}</p>
             </div>
           </div>
         </div>
 
         {/* Performance Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="glassmorphism rounded-xl p-6 animate-scale-in">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="glassmorphism-strong rounded-xl p-4 sm:p-6 animate-scale-in hover:scale-105 transition-transform">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/70 text-sm">Overall Grade</p>
-                <p className="text-2xl font-bold text-white">{studentStats.overallGrade}</p>
+                <p className="text-slate-200/80 text-xs sm:text-sm font-medium">Overall Grade</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-1">{studentStats.overallGrade}</p>
               </div>
-              <Star className="text-2xl text-yellow-300" size={32} />
+              <Star className="text-yellow-400 opacity-80" size={28} />
             </div>
             <div className="mt-3 flex items-center">
-              <Progress value={studentStats.completionRate} className="flex-1 mr-2" />
-              <span className="text-white/60 text-xs">{studentStats.completionRate}%</span>
+              <Progress value={studentStats.completionRate} className="flex-1 mr-2 h-2" />
+              <span className="text-slate-200/70 text-xs font-medium">{studentStats.completionRate}%</span>
             </div>
           </div>
 
-          <div className="glassmorphism rounded-xl p-6 animate-scale-in" style={{ animationDelay: '0.1s' }}>
+          <div className="glassmorphism-strong rounded-xl p-4 sm:p-6 animate-scale-in hover:scale-105 transition-transform" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/70 text-sm">Assignments Completed</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-slate-200/80 text-xs sm:text-sm font-medium">Assignments Completed</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-1">
                   {studentStats.assignmentsCompleted}/{studentStats.totalAssignments}
                 </p>
               </div>
-              <CheckCircle className="text-2xl text-emerald-300" size={32} />
+              <CheckCircle className="text-emerald-400 opacity-80" size={28} />
             </div>
-            <p className="text-emerald-300 text-xs mt-2">4 remaining</p>
+            <p className="text-emerald-300 text-xs sm:text-sm mt-2 font-medium">4 remaining</p>
           </div>
 
-          <div className="glassmorphism rounded-xl p-6 animate-scale-in" style={{ animationDelay: '0.2s' }}>
+          <div className="glassmorphism-strong rounded-xl p-4 sm:p-6 animate-scale-in hover:scale-105 transition-transform" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/70 text-sm">Average Score</p>
-                <p className="text-2xl font-bold text-white">{studentStats.averageScore}%</p>
+                <p className="text-slate-200/80 text-xs sm:text-sm font-medium">Average Score</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-1">{studentStats.averageScore}%</p>
               </div>
-              <TrendingUp className="text-2xl text-emerald-300" size={32} />
+              <TrendingUp className="text-emerald-400 opacity-80" size={28} />
             </div>
-            <p className="text-emerald-300 text-xs mt-2">↗ +3% from last month</p>
+            <p className="text-emerald-300 text-xs sm:text-sm mt-2 font-medium">↗ +3% from last month</p>
           </div>
 
-          <div className="glassmorphism rounded-xl p-6 animate-scale-in" style={{ animationDelay: '0.3s' }}>
+          <div className="glassmorphism-strong rounded-xl p-4 sm:p-6 animate-scale-in hover:scale-105 transition-transform" style={{ animationDelay: '0.3s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/70 text-sm">Pending Submissions</p>
-                <p className="text-2xl font-bold text-white">{studentStats.pendingSubmissions}</p>
+                <p className="text-slate-200/80 text-xs sm:text-sm font-medium">Pending Submissions</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-1">{studentStats.pendingSubmissions}</p>
               </div>
-              <Clock className="text-2xl text-amber-300" size={32} />
+              <Clock className="text-amber-400 opacity-80" size={28} />
             </div>
-            <p className="text-amber-300 text-xs mt-2">1 due soon</p>
+            <p className="text-amber-300 text-xs sm:text-sm mt-2 font-medium">1 due soon</p>
           </div>
         </div>
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-4 w-full mb-8 glassmorphism border-white/30">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full mb-6 sm:mb-8 glassmorphism-strong border-white/30 gap-1 sm:gap-0 p-1">
             <TabsTrigger 
               value="overview" 
               data-testid="tab-overview"
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-white/70"
+              className="data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 text-slate-200/80 hover:text-slate-100 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <Eye className="mr-2" size={16} />
-              Overview
+              <Eye className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Overview</span>
+              <span className="sm:hidden">Home</span>
             </TabsTrigger>
             <TabsTrigger 
               value="submit" 
               data-testid="tab-submit"
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-white/70"
+              className="data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 text-slate-200/80 hover:text-slate-100 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <Upload className="mr-2" size={16} />
-              Submit
+              <Upload className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Submit</span>
+              <span className="sm:hidden">Submit</span>
             </TabsTrigger>
             <TabsTrigger 
               value="feedback" 
               data-testid="tab-feedback"
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-white/70"
+              className="data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 text-slate-200/80 hover:text-slate-100 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <MessageSquare className="mr-2" size={16} />
-              Feedback
+              <MessageSquare className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Feedback</span>
+              <span className="sm:hidden">Feedback</span>
             </TabsTrigger>
             <TabsTrigger 
               value="study" 
               data-testid="tab-study"
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-white/70"
+              className="data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 text-slate-200/80 hover:text-slate-100 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <BookOpen className="mr-2" size={16} />
-              Study
+              <BookOpen className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Study</span>
+              <span className="sm:hidden">Study</span>
             </TabsTrigger>
           </TabsList>
 

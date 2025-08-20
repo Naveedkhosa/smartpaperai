@@ -128,72 +128,97 @@
 }
 
 @layer components {
-  /* Glassmorphism effects */
+  /* Professional Glassmorphism effects with better contrast */
   .glassmorphism {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   }
 
   .glassmorphism-strong {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
   }
 
   .glassmorphism-dark {
-    background: rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
 
-  /* Gradient backgrounds */
+  /* Professional gradient backgrounds */
   .gradient-bg {
-    background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #065f46 75%, #047857 100%);
   }
 
   .admin-gradient {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(135deg, #0c0a09 0%, #1c1917 25%, #292524 75%, #3f3f46 100%);
   }
 
   .emerald-gradient {
-    background: linear-gradient(135deg, var(--emerald-600) 0%, var(--emerald-500) 50%, var(--emerald-400) 100%);
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%);
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
   }
 
-  /* Admin theme styles */
+  .blue-gradient {
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+  }
+
+  .purple-gradient {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c084fc 100%);
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.3);
+  }
+
+  /* Professional Admin theme styles */
   .admin-card {
-    background: var(--admin-bg-secondary);
-    border: 1px solid var(--admin-border);
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
   }
 
   .admin-sidebar {
-    background: var(--admin-bg-secondary);
-    border-right: 1px solid var(--admin-border);
+    background: rgba(15, 23, 42, 0.98);
+    border-right: 1px solid rgba(148, 163, 184, 0.2);
+    backdrop-filter: blur(20px);
   }
 
   .admin-sidebar-item {
-    @apply flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors;
+    @apply flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200;
   }
 
   .admin-sidebar-item.active {
-    background: rgba(16, 185, 129, 0.2);
-    color: var(--emerald-400);
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
   }
 
   .admin-sidebar-item:not(.active) {
-    color: #94a3b8;
+    color: #cbd5e1;
   }
 
   .admin-sidebar-item:not(.active):hover {
-    background: var(--admin-border);
+    background: rgba(148, 163, 184, 0.1);
+    color: #f1f5f9;
   }
 
-  /* Custom input styles for glassmorphism */
+  /* Enhanced input styles with better visibility */
   .glass-input {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    @apply text-white placeholder-white/50 focus:bg-white/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    @apply text-white placeholder-white/60 focus:bg-white/25 focus:border-white/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/50;
+  }
+
+  .admin-input {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: #f1f5f9;
+    @apply placeholder-slate-400 focus:border-emerald-400/50 focus:ring-emerald-400/30;
   }
 
   /* Animation utilities */
@@ -241,14 +266,129 @@
   }
 }
 
-/* Responsive glassmorphism adjustments */
+/* Professional card styles */
+.professional-card {
+  @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl;
+}
+
+.professional-card-dark {
+  @apply bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl;
+}
+
+/* Typography improvements */
+.text-professional {
+  @apply text-slate-100 font-medium leading-relaxed;
+}
+
+.text-professional-muted {
+  @apply text-slate-300/80 text-sm leading-relaxed;
+}
+
+.text-professional-heading {
+  @apply text-white font-semibold text-xl leading-tight;
+}
+
+/* Button improvements */
+.btn-professional {
+  @apply px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 active:scale-95;
+}
+
+.btn-primary-professional {
+  @apply btn-professional bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-emerald-500/25;
+}
+
+.btn-secondary-professional {
+  @apply btn-professional bg-slate-700/50 hover:bg-slate-600/60 text-slate-100 border border-slate-600/30 backdrop-blur-sm;
+}
+
+/* Enhanced responsive design */
+@media (max-width: 1200px) {
+  .container {
+    @apply px-4;
+  }
+}
+
 @media (max-width: 768px) {
   .glassmorphism {
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(15px);
+    background: rgba(255, 255, 255, 0.18);
   }
   
   .glassmorphism-strong {
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .glassmorphism-dark {
+    backdrop-filter: blur(15px);
+    background: rgba(15, 23, 42, 0.9);
+  }
+
+  .glass-input {
+    @apply text-base py-3 px-4;
+  }
+
+  .text-professional-heading {
+    @apply text-lg;
+  }
+
+  .grid-responsive {
+    @apply grid-cols-1 gap-4;
+  }
+
+  .admin-sidebar {
+    @apply hidden;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    @apply px-3;
+  }
+
+  .btn-professional {
+    @apply px-4 py-2.5 text-sm;
+  }
+
+  .glassmorphism, .glassmorphism-strong {
+    @apply rounded-xl p-4;
+  }
+
+  .text-professional-heading {
+    @apply text-base;
+  }
+
+  .text-professional-muted {
+    @apply text-xs;
+  }
+
+  /* Stack cards on mobile */
+  .lg\\:grid-cols-2, .lg\\:grid-cols-3, .md\\:grid-cols-2, .md\\:grid-cols-3, .md\\:grid-cols-4 {
+    @apply grid-cols-1;
+  }
+
+  /* Improve tab navigation on mobile */
+  .grid-cols-4 {
+    @apply grid-cols-2 gap-2;
+  }
+
+  /* Better spacing on mobile */
+  .space-y-8 > * + * {
+    @apply mt-6;
+  }
+
+  .space-y-6 > * + * {
+    @apply mt-4;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 768px) {
+  .md\\:grid-cols-2 {
+    @apply grid-cols-2;
+  }
+
+  .md\\:grid-cols-3 {
+    @apply grid-cols-2;
   }
 }
 

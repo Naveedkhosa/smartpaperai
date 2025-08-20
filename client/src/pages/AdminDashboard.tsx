@@ -157,89 +157,101 @@ export default function AdminDashboard() {
     <AdminLayout>
       <div className="animate-fade-in">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Admin Control Panel</h1>
-          <p className="text-slate-400">Comprehensive system management and analytics</p>
+        <div className="glassmorphism-dark rounded-2xl p-6 sm:p-8 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Admin Control Panel</h1>
+              <p className="text-slate-200/90 text-sm sm:text-base">Comprehensive system management and analytics</p>
+            </div>
+            <div className="flex items-center space-x-2 text-emerald-400 text-sm">
+              <CheckCircle size={16} />
+              <span>System Online</span>
+            </div>
+          </div>
         </div>
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-4 w-full mb-8 bg-slate-800 border border-slate-700">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full mb-6 sm:mb-8 glassmorphism-dark border-slate-700/50 gap-1 sm:gap-0 p-1">
             <TabsTrigger 
               value="overview" 
               data-testid="tab-overview"
-              className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-slate-300/80 hover:text-slate-200 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <TrendingUp className="mr-2" size={16} />
-              Overview
+              <TrendingUp className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Overview</span>
+              <span className="sm:hidden">Home</span>
             </TabsTrigger>
             <TabsTrigger 
               value="users" 
               data-testid="tab-users"
-              className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-slate-300/80 hover:text-slate-200 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <Users className="mr-2" size={16} />
-              Users
+              <Users className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Users</span>
+              <span className="sm:hidden">Users</span>
             </TabsTrigger>
             <TabsTrigger 
               value="materials" 
               data-testid="tab-materials"
-              className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-slate-300/80 hover:text-slate-200 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <Book className="mr-2" size={16} />
-              Materials
+              <Book className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Materials</span>
+              <span className="sm:hidden">Materials</span>
             </TabsTrigger>
             <TabsTrigger 
               value="classes" 
               data-testid="tab-classes"
-              className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-slate-300/80 hover:text-slate-200 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <School2 className="mr-2" size={16} />
-              Classes
+              <School2 className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Classes</span>
+              <span className="sm:hidden">Classes</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card data-testid="stats-total-users" className="admin-card animate-scale-in">
-                <CardContent className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <Card data-testid="stats-total-users" className="glassmorphism-dark animate-scale-in hover:scale-105 transition-transform">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-400 text-sm">Total Users</p>
-                      <p className="text-2xl font-bold text-white">{stats?.totalUsers || 0}</p>
+                      <p className="text-slate-300/80 text-xs sm:text-sm font-medium">Total Users</p>
+                      <p className="text-xl sm:text-2xl font-bold text-white mt-1">{stats?.totalUsers || 0}</p>
                     </div>
-                    <div className="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                      <Users className="text-emerald-400" size={24} />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                      <Users className="text-emerald-400" size={20} />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card data-testid="stats-active-teachers" className="admin-card animate-scale-in">
-                <CardContent className="p-6">
+              <Card data-testid="stats-active-teachers" className="glassmorphism-dark animate-scale-in hover:scale-105 transition-transform">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-400 text-sm">Active Teachers</p>
-                      <p className="text-2xl font-bold text-white">{stats?.activeTeachers || 0}</p>
+                      <p className="text-slate-300/80 text-xs sm:text-sm font-medium">Active Teachers</p>
+                      <p className="text-xl sm:text-2xl font-bold text-white mt-1">{stats?.activeTeachers || 0}</p>
                     </div>
-                    <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                      <Presentation className="text-blue-400" size={24} />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                      <Presentation className="text-blue-400" size={20} />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card data-testid="stats-papers-generated" className="admin-card animate-scale-in">
-                <CardContent className="p-6">
+              <Card data-testid="stats-papers-generated" className="glassmorphism-dark animate-scale-in hover:scale-105 transition-transform">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-400 text-sm">Papers Generated</p>
-                      <p className="text-2xl font-bold text-white">{stats?.papersGenerated || 432}</p>
+                      <p className="text-slate-300/80 text-xs sm:text-sm font-medium">Papers Generated</p>
+                      <p className="text-xl sm:text-2xl font-bold text-white mt-1">{stats?.papersGenerated || 432}</p>
                     </div>
-                    <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                      <FileText className="text-purple-400" size={24} />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                      <FileText className="text-purple-400" size={20} />
                     </div>
                   </div>
                 </CardContent>

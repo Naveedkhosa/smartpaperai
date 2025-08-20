@@ -171,17 +171,17 @@ export default function TeacherDashboard() {
     <GlassmorphismLayout>
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
-        <div className="glassmorphism rounded-2xl p-8 mb-8 animate-fade-in">
-          <div className="flex items-center justify-between">
+        <div className="glassmorphism-strong rounded-2xl p-6 sm:p-8 mb-6 sm:mb-8 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-bold text-white mb-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
                 Welcome back, {user?.fullName}!
               </h2>
-              <p className="text-white/80">Comprehensive paper generation and assessment platform</p>
+              <p className="text-slate-200/90 text-sm sm:text-base">Comprehensive paper generation and assessment platform</p>
             </div>
-            <div className="text-right">
-              <p className="text-white/60 text-sm">Today's Date</p>
-              <p className="text-white font-semibold">
+            <div className="text-left sm:text-right">
+              <p className="text-slate-300/80 text-xs sm:text-sm">Today's Date</p>
+              <p className="text-white font-semibold text-sm sm:text-base">
                 {new Date().toLocaleDateString('en-US', { 
                   year: 'numeric', 
                   month: 'long', 
@@ -193,82 +193,86 @@ export default function TeacherDashboard() {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="glassmorphism rounded-xl p-6 animate-scale-in">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="glassmorphism-strong rounded-xl p-4 sm:p-6 animate-scale-in hover:scale-105 transition-transform">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/70 text-sm">Active Classes</p>
-                <p className="text-2xl font-bold text-white">{teacherStats.activeClasses}</p>
+                <p className="text-slate-200/80 text-xs sm:text-sm font-medium">Active Classes</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-1">{teacherStats.activeClasses}</p>
               </div>
-              <Presentation className="text-2xl text-emerald-300" size={32} />
+              <Presentation className="text-emerald-400 opacity-80" size={28} />
             </div>
           </div>
 
-          <div className="glassmorphism rounded-xl p-6 animate-scale-in" style={{ animationDelay: '0.1s' }}>
+          <div className="glassmorphism-strong rounded-xl p-4 sm:p-6 animate-scale-in hover:scale-105 transition-transform" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/70 text-sm">Papers Created</p>
-                <p className="text-2xl font-bold text-white">{teacherStats.papersCreated}</p>
+                <p className="text-slate-200/80 text-xs sm:text-sm font-medium">Papers Created</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-1">{teacherStats.papersCreated}</p>
               </div>
-              <FileText className="text-2xl text-emerald-300" size={32} />
+              <FileText className="text-emerald-400 opacity-80" size={28} />
             </div>
           </div>
 
-          <div className="glassmorphism rounded-xl p-6 animate-scale-in" style={{ animationDelay: '0.2s' }}>
+          <div className="glassmorphism-strong rounded-xl p-4 sm:p-6 animate-scale-in hover:scale-105 transition-transform" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/70 text-sm">Pending Grading</p>
-                <p className="text-2xl font-bold text-white">{teacherStats.pendingGrading}</p>
+                <p className="text-slate-200/80 text-xs sm:text-sm font-medium">Pending Grading</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-1">{teacherStats.pendingGrading}</p>
               </div>
-              <Clock className="text-2xl text-amber-300" size={32} />
+              <Clock className="text-amber-400 opacity-80" size={28} />
             </div>
           </div>
 
-          <div className="glassmorphism rounded-xl p-6 animate-scale-in" style={{ animationDelay: '0.3s' }}>
+          <div className="glassmorphism-strong rounded-xl p-4 sm:p-6 animate-scale-in hover:scale-105 transition-transform" style={{ animationDelay: '0.3s' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white/70 text-sm">Total Students</p>
-                <p className="text-2xl font-bold text-white">{teacherStats.totalStudents}</p>
+                <p className="text-slate-200/80 text-xs sm:text-sm font-medium">Total Students</p>
+                <p className="text-xl sm:text-2xl font-bold text-white mt-1">{teacherStats.totalStudents}</p>
               </div>
-              <Users className="text-2xl text-emerald-300" size={32} />
+              <Users className="text-emerald-400 opacity-80" size={28} />
             </div>
           </div>
         </div>
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-4 w-full mb-8 glassmorphism border-white/30">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full mb-6 sm:mb-8 glassmorphism-strong border-white/30 gap-1 sm:gap-0 p-1">
             <TabsTrigger 
               value="overview" 
               data-testid="tab-overview"
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-white/70"
+              className="data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 text-slate-200/80 hover:text-slate-100 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <Eye className="mr-2" size={16} />
-              Overview
+              <Eye className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Overview</span>
+              <span className="sm:hidden">Home</span>
             </TabsTrigger>
             <TabsTrigger 
               value="create" 
               data-testid="tab-create-paper"
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-white/70"
+              className="data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 text-slate-200/80 hover:text-slate-100 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <FileText className="mr-2" size={16} />
-              Create Paper
+              <FileText className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Create Paper</span>
+              <span className="sm:hidden">Create</span>
             </TabsTrigger>
             <TabsTrigger 
               value="grade" 
               data-testid="tab-grading"
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-white/70"
+              className="data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 text-slate-200/80 hover:text-slate-100 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <CheckCircle className="mr-2" size={16} />
-              Grade
+              <CheckCircle className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Grade</span>
+              <span className="sm:hidden">Grade</span>
             </TabsTrigger>
             <TabsTrigger 
               value="manage" 
               data-testid="tab-manage"
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-300 text-white/70"
+              className="data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-200 text-slate-200/80 hover:text-slate-100 transition-all text-xs sm:text-sm py-2 sm:py-3 font-medium"
             >
-              <Settings className="mr-2" size={16} />
-              Manage
+              <Settings className="mr-1 sm:mr-2" size={14} />
+              <span className="hidden sm:inline">Manage</span>
+              <span className="sm:hidden">More</span>
             </TabsTrigger>
           </TabsList>
 
@@ -756,7 +760,7 @@ export default function TeacherDashboard() {
                 <div className="pt-4 border-t border-white/20">
                   <Button 
                     data-testid="button-begin-paper-assessment"
-                    className="w-full emerald-gradient text-white font-semibold py-4 rounded-xl hover:shadow-lg transition-all"
+                    className="w-full btn-primary-professional py-4 text-sm sm:text-base"
                   >
                     <Target className="mr-2" size={16} />
                     Begin Paper Assessment
