@@ -213,7 +213,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users?.map((user: any) => (
+                  {(users as any[])?.map((user: any) => (
                     <tr key={user.id} className="border-b border-slate-700/50">
                       <td className="py-3 text-white">{user.fullName}</td>
                       <td className="py-3 text-slate-300 capitalize">{user.role}</td>

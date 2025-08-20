@@ -161,7 +161,7 @@ export class MemStorage implements IStorage {
   async updateUser(id: string, userData: Partial<InsertUser>): Promise<User | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
-    const updatedUser = { ...user, ...userData };
+    const updatedUser: User = { ...user, ...userData };
     this.users.set(id, updatedUser);
     return updatedUser;
   }
@@ -189,7 +189,12 @@ export class MemStorage implements IStorage {
 
   async createClass(classData: InsertClass): Promise<Class> {
     const id = randomUUID();
-    const newClass: Class = { ...classData, id, createdAt: new Date() };
+    const newClass: Class = { 
+      ...classData, 
+      id, 
+      createdAt: new Date(),
+      teacherId: classData.teacherId || null
+    };
     this.classes.set(id, newClass);
     return newClass;
   }
@@ -225,7 +230,14 @@ export class MemStorage implements IStorage {
 
   async createPaper(paper: InsertPaper): Promise<Paper> {
     const id = randomUUID();
-    const newPaper: Paper = { ...paper, id, createdAt: new Date() };
+    const newPaper: Paper = { 
+      ...paper, 
+      id, 
+      createdAt: new Date(),
+      content: paper.content || null,
+      teacherId: paper.teacherId || null,
+      classId: paper.classId || null
+    };
     this.papers.set(id, newPaper);
     return newPaper;
   }
@@ -261,7 +273,11 @@ export class MemStorage implements IStorage {
       ...submission, 
       id, 
       submittedAt: new Date(),
-      isGraded: false 
+      isGraded: false,
+      content: submission.content || null,
+      studentId: submission.studentId || null,
+      paperId: submission.paperId || null,
+      filesUploaded: submission.filesUploaded || null
     };
     this.submissions.set(id, newSubmission);
     return newSubmission;
@@ -290,7 +306,15 @@ export class MemStorage implements IStorage {
 
   async createGrade(grade: InsertGrade): Promise<Grade> {
     const id = randomUUID();
-    const newGrade: Grade = { ...grade, id, gradedAt: new Date() };
+    const newGrade: Grade = { 
+      ...grade, 
+      id, 
+      gradedAt: new Date(),
+      studentId: grade.studentId || null,
+      paperId: grade.paperId || null,
+      submissionId: grade.submissionId || null,
+      feedback: grade.feedback || null
+    };
     this.grades.set(id, newGrade);
     return newGrade;
   }
@@ -314,7 +338,13 @@ export class MemStorage implements IStorage {
 
   async createStudyMaterial(material: InsertStudyMaterial): Promise<StudyMaterial> {
     const id = randomUUID();
-    const newMaterial: StudyMaterial = { ...material, id, createdAt: new Date() };
+    const newMaterial: StudyMaterial = { 
+      ...material, 
+      id, 
+      createdAt: new Date(),
+      content: material.content || null,
+      uploadedBy: material.uploadedBy || null
+    };
     this.studyMaterials.set(id, newMaterial);
     return newMaterial;
   }

@@ -33,8 +33,8 @@ export default function TeacherDashboard() {
   });
 
   const teacherStats = {
-    activeClasses: classes?.length || 6,
-    papersCreated: papers?.length || 24,
+    activeClasses: (classes as any[])?.length || 6,
+    papersCreated: (papers as any[])?.length || 24,
     pendingGrading: 12,
     totalStudents: 156,
   };
