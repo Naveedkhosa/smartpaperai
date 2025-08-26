@@ -172,7 +172,7 @@ export default function AdminDashboard() {
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full mb-6 sm:mb-8 glassmorphism-dark border-slate-700/50 gap-1 sm:gap-0 p-1">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full mb-6 sm:mb-8 glassmorphism-strong border-white/30 gap-1 sm:gap-0 p-1 rounded-xl">
             <TabsTrigger 
               value="overview" 
               data-testid="tab-overview"
