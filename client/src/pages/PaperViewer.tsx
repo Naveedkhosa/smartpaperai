@@ -1,5 +1,5 @@
 // pages/PaperViewPage.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Edit3,
@@ -37,12 +37,21 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+interface SubQuestion {
+  id: string;
+  question: string;
+  expectedAnswer: string;
+}
+
 interface Question {
   id: string;
   type: "mcq" | "short" | "long" | "paragraph";
   question: string;
   options?: string[];
   marks: number;
+  correctOption?: number;
+  answer?: string;
+  subQuestions?: SubQuestion[]; // Added for paragraph questions
 }
 
 interface PaperData {
@@ -59,7 +68,7 @@ interface PaperData {
   questions: Question[];
 }
 
-// Sample data for demonstration
+// Updated sample data with sub-questions for paragraph
 const samplePaper: PaperData = {
   id: "1",
   title: "Mathematics Annual Examination 2023",
@@ -78,6 +87,7 @@ const samplePaper: PaperData = {
       question: "What is the value of π?",
       options: ["3.14", "3.1416", "3.142", "3.14159"],
       marks: 1,
+      correctOption: 0,
     },
     {
       id: "2",
@@ -85,42 +95,66 @@ const samplePaper: PaperData = {
       question: "Solve for x: 2x + 5 = 15",
       options: ["x = 5", "x = 10", "x = 7.5", "x = 2.5"],
       marks: 1,
+      correctOption: 0,
     },
     {
       id: "3",
       type: "short",
       question: "Differentiate between rational and irrational numbers with examples.",
       marks: 5,
+      answer: "Rational numbers can be expressed as fractions (e.g., 1/2, 0.75), while irrational numbers cannot (e.g., π, √2)."
     },
     {
       id: "4",
       type: "short",
       question: "Find the derivative of f(x) = 3x² + 2x - 5",
       marks: 3,
+      answer: "f'(x) = 6x + 2"
     },
     {
       id: "5",
       type: "long",
       question: "Prove the Pythagorean theorem and explain its applications.",
       marks: 10,
+      answer: "The Pythagorean theorem states that in a right triangle, a² + b² = c² where c is the hypotenuse. It can be proven using geometric constructions and has applications in distance calculation, construction, and navigation."
     },
     {
       id: "6",
       type: "paragraph",
-      question: "Read the following passage and answer the questions that follow: 'The concept of derivatives is fundamental to calculus...'",
+      question: "Read the following passage and answer the questions that follow: 'The concept of derivatives is fundamental to calculus. Derivatives measure the rate of change of a function with respect to its variables. They have wide applications in physics, engineering, economics, and many other fields.'",
       marks: 15,
+      subQuestions: [
+        {
+          id: "sub1",
+          question: "What is the main concept discussed in the passage?",
+          expectedAnswer: "The concept of derivatives"
+        },
+        {
+          id: "sub2",
+          question: "What do derivatives measure?",
+          expectedAnswer: "The rate of change of a function with respect to its variables"
+        },
+        {
+          id: "sub3",
+          question: "Name two fields where derivatives have applications.",
+          expectedAnswer: "Physics and engineering (or economics and many other fields)"
+        }
+      ]
     },
   ],
 };
 
 // Sortable Question Component
-function SortableQuestion({ question, index, isEditing, updateQuestion, deleteQuestion, moveQuestion }: {
+function SortableQuestion({ question, index, isEditing, updateQuestion, deleteQuestion, moveQuestion, updateSubQuestion, addSubQuestion, deleteSubQuestion }: {
   question: Question;
   index: number;
   isEditing: boolean;
   updateQuestion: (id: string, field: string, value: string | string[] | number) => void;
   deleteQuestion: (id: string) => void;
   moveQuestion: (id: string, direction: 'up' | 'down') => void;
+  updateSubQuestion?: (questionId: string, subQuestionId: string, field: string, value: string) => void;
+  addSubQuestion?: (questionId: string) => void;
+  deleteSubQuestion?: (questionId: string, subQuestionId: string) => void;
 }) {
   const {
     attributes,
@@ -135,6 +169,45 @@ function SortableQuestion({ question, index, isEditing, updateQuestion, deleteQu
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  };
+
+  const handleDeleteOption = (optIndex: number) => {
+    if (!question.options) return;
+
+    const newOptions = [...question.options];
+    newOptions.splice(optIndex, 1);
+
+    let newCorrectOption = question.correctOption;
+    if (question.correctOption !== undefined) {
+      if (optIndex === question.correctOption) {
+        newCorrectOption = undefined;
+      } else if (optIndex < question.correctOption) {
+        newCorrectOption = question.correctOption - 1;
+      }
+    }
+
+    updateQuestion(question.id, "options", newOptions);
+    if (newCorrectOption !== question.correctOption) {
+      updateQuestion(question.id, "correctOption", newCorrectOption !== undefined ? newCorrectOption : -1);
+    }
+  };
+
+  const handleAddSubQuestion = () => {
+    if (addSubQuestion) {
+      addSubQuestion(question.id);
+    }
+  };
+
+  const handleDeleteSubQuestion = (subQuestionId: string) => {
+    if (deleteSubQuestion) {
+      deleteSubQuestion(question.id, subQuestionId);
+    }
+  };
+
+  const handleUpdateSubQuestion = (subQuestionId: string, field: string, value: string) => {
+    if (updateSubQuestion) {
+      updateSubQuestion(question.id, subQuestionId, field, value);
+    }
   };
 
   return (
@@ -182,13 +255,13 @@ function SortableQuestion({ question, index, isEditing, updateQuestion, deleteQu
                 Q{index + 1}.
               </span>
               {isEditing ? (
-                <input
-                  type="text"
+                <textarea
                   value={question.question}
                   onChange={(e) =>
                     updateQuestion(question.id, "question", e.target.value)
                   }
                   className="bg-white/10 border border-white/20 rounded px-2 py-1 text-white w-full"
+                  rows={3}
                 />
               ) : (
                 <span className="text-white break-words">{question.question}</span>
@@ -197,21 +270,40 @@ function SortableQuestion({ question, index, isEditing, updateQuestion, deleteQu
             {question.type === "mcq" && question.options && (
               <div className="mt-2 ml-0 sm:ml-6 space-y-1">
                 {question.options.map((option, optIndex) => (
-                  <div key={optIndex} className="flex items-center">
+                  <div key={optIndex} className="flex items-center group/option">
+                    {isEditing && (
+                      <input
+                        type="radio"
+                        name={`correct-${question.id}`}
+                        checked={question.correctOption === optIndex}
+                        onChange={() => updateQuestion(question.id, "correctOption", optIndex)}
+                        className="mr-2 h-4 w-4 text-emerald-400 border-white/30 focus:ring-emerald-400"
+                      />
+                    )}
                     <span className="text-white/80 mr-2 whitespace-nowrap">
                       {String.fromCharCode(65 + optIndex)}.
                     </span>
                     {isEditing ? (
-                      <input
-                        type="text"
-                        value={option}
-                        onChange={(e) => {
-                          const newOptions = [...question.options!];
-                          newOptions[optIndex] = e.target.value;
-                          updateQuestion(question.id, "options", newOptions);
-                        }}
-                        className="bg-white/10 border border-white/20 rounded px-2 py-1 text-white w-full text-sm"
-                      />
+                      <div className="flex items-center flex-1">
+                        <input
+                          type="text"
+                          value={option}
+                          onChange={(e) => {
+                            const newOptions = [...question.options!];
+                            newOptions[optIndex] = e.target.value;
+                            updateQuestion(question.id, "options", newOptions);
+                          }}
+                          className="bg-white/10 border border-white/20 rounded px-2 py-1 text-white w-full text-sm"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 ml-2 text-red-400 hover:text-red-300 hover:bg-red-400/20 opacity-0 group-hover/option:opacity-100 transition-opacity"
+                          onClick={() => handleDeleteOption(optIndex)}
+                        >
+                          <X size={14} />
+                        </Button>
+                      </div>
                     ) : (
                       <span className="text-white/80 text-sm break-words">{option}</span>
                     )}
@@ -229,6 +321,92 @@ function SortableQuestion({ question, index, isEditing, updateQuestion, deleteQu
                   >
                     <Plus size={14} className="mr-1" />
                     Add Option
+                  </Button>
+                )}
+              </div>
+            )}
+            {/* Answer fields for short and long questions in edit mode */}
+            {isEditing && (question.type === "short" || question.type === "long") && (
+              <div className="mt-3 ml-0 sm:ml-6">
+                <label className="block text-sm font-medium text-white/80 mb-1">
+                  Expected Answer:
+                </label>
+                <textarea
+                  value={question.answer || ""}
+                  onChange={(e) => updateQuestion(question.id, "answer", e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white text-sm"
+                  rows={question.type === "long" ? 4 : 2}
+                  placeholder="Enter the expected answer here..."
+                />
+              </div>
+            )}
+            {/* Sub-questions for paragraph type */}
+            {question.type === "paragraph" && (
+              <div className="mt-4 ml-0 sm:ml-6">
+                <h4 className="text-white font-semibold mb-2">
+                  Sub-Questions:
+                </h4>
+                {question.subQuestions && question.subQuestions.length > 0 ? (
+                  <div className="space-y-3">
+                    {question.subQuestions.map((subQ, subIndex) => (
+                      <div key={subQ.id} className="glassmorphism p-3 rounded-md">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-white/80 font-medium">
+                            {String.fromCharCode(97 + subIndex)}).
+                          </span>
+                          {isEditing && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 text-red-400 hover:text-red-300 hover:bg-red-400/20"
+                              onClick={() => handleDeleteSubQuestion(subQ.id)}
+                            >
+                              <X size={12} />
+                            </Button>
+                          )}
+                        </div>
+                        {isEditing ? (
+                          <>
+                            <textarea
+                              value={subQ.question}
+                              onChange={(e) => handleUpdateSubQuestion(subQ.id, "question", e.target.value)}
+                              className="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm mb-2"
+                              rows={2}
+                              placeholder="Sub-question..."
+                            />
+                            <textarea
+                              value={subQ.expectedAnswer}
+                              onChange={(e) => handleUpdateSubQuestion(subQ.id, "expectedAnswer", e.target.value)}
+                              className="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm"
+                              rows={2}
+                              placeholder="Expected answer..."
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-white/90 text-sm mb-2">{subQ.question}</p>
+                            {isEditing && (
+                              <p className="text-white/70 text-xs">
+                                <span className="font-semibold">Expected Answer:</span> {subQ.expectedAnswer}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  !isEditing && <p className="text-slate-300/70 text-sm">No sub-questions defined.</p>
+                )}
+                {isEditing && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/20 mt-2"
+                    onClick={handleAddSubQuestion}
+                  >
+                    <Plus size={14} className="mr-1" />
+                    Add Sub-Question
                   </Button>
                 )}
               </div>
@@ -265,11 +443,6 @@ function SortableQuestion({ question, index, isEditing, updateQuestion, deleteQu
           )}
         </div>
       </div>
-      {isEditing && (
-        <div className="flex justify-end mt-2 space-x-2">
-
-        </div>
-      )}
     </div>
   );
 }
@@ -286,6 +459,7 @@ export default function PaperViewPage() {
   const [isSharing, setIsSharing] = useState(false);
   const navigate = useNavigate();
   const { paperId } = useParams();
+  const headerRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -294,11 +468,24 @@ export default function PaperViewPage() {
     })
   );
 
-  // In a real app, you would fetch the paper data based on paperId
   useEffect(() => {
-    // Simulate loading paper data
     setEditedPaper(samplePaper);
   }, [paperId]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (headerRef.current) {
+        if (window.scrollY > 100) {
+          headerRef.current.classList.add('sticky', 'top-0', 'z-50', 'shadow-lg');
+        } else {
+          headerRef.current.classList.remove('sticky', 'top-0', 'z-50', 'shadow-lg');
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({
@@ -356,6 +543,7 @@ export default function PaperViewPage() {
       question: "New question",
       marks: 1,
       options: type === "mcq" ? ["Option 1", "Option 2", "Option 3", "Option 4"] : undefined,
+      subQuestions: type === "paragraph" ? [] : undefined,
     };
 
     setEditedPaper({
@@ -364,8 +552,65 @@ export default function PaperViewPage() {
     });
   };
 
+  const addSubQuestion = (questionId: string) => {
+    setEditedPaper({
+      ...editedPaper,
+      questions: editedPaper.questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              subQuestions: [
+                ...(q.subQuestions || []),
+                {
+                  id: `sub-${Date.now()}`,
+                  question: "New sub-question",
+                  expectedAnswer: "Expected answer",
+                },
+              ],
+            }
+          : q
+      ),
+    });
+  };
+
+  const deleteSubQuestion = (questionId: string, subQuestionId: string) => {
+    setEditedPaper({
+      ...editedPaper,
+      questions: editedPaper.questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              subQuestions: (q.subQuestions || []).filter(
+                (subQ) => subQ.id !== subQuestionId
+              ),
+            }
+          : q
+      ),
+    });
+  };
+
+  const updateSubQuestion = (
+    questionId: string,
+    subQuestionId: string,
+    field: string,
+    value: string
+  ) => {
+    setEditedPaper({
+      ...editedPaper,
+      questions: editedPaper.questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              subQuestions: (q.subQuestions || []).map((subQ) =>
+                subQ.id === subQuestionId ? { ...subQ, [field]: value } : subQ
+              ),
+            }
+          : q
+      ),
+    });
+  };
+
   const handleSave = () => {
-    // In a real app, you would save the paper to your backend
     console.log("Saving paper:", editedPaper);
     setIsEditing(false);
   };
@@ -443,6 +688,9 @@ export default function PaperViewPage() {
                       updateQuestion={updateQuestion}
                       deleteQuestion={deleteQuestion}
                       moveQuestion={moveQuestion}
+                      updateSubQuestion={updateSubQuestion}
+                      addSubQuestion={addSubQuestion}
+                      deleteSubQuestion={deleteSubQuestion}
                     />
                   ))}
                 </SortableContext>
@@ -461,8 +709,11 @@ export default function PaperViewPage() {
   return (
     <GlassmorphismLayout>
       <div className="min-h-screen p-3 sm:p-4 w-full">
-        {/* Header with navigation and actions */}
-        <div className="glassmorphism-strong rounded-xl p-4 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+        {/* Sticky Header with navigation and actions */}
+        <div 
+          ref={headerRef}
+          className="glassmorphism-strong rounded-xl p-4 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4 transition-all duration-300"
+        >
           <Button
             onClick={() => navigate(-1)}
             variant="ghost"

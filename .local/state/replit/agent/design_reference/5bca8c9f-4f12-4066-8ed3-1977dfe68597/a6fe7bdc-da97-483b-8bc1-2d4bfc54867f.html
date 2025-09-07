@@ -1,0 +1,784 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPaper AI - Educational Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'glass': 'rgba(255, 255, 255, 0.1)',
+                        'glass-border': 'rgba(255, 255, 255, 0.2)',
+                    },
+                    backdropBlur: {
+                        'xs': '2px',
+                    }
+                }
+            }
+        };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .glassmorphism-strong {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #065f46 0%, #047857 50%, #059669 100%);
+        }
+        .admin-gradient {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+    </style>
+</head>
+<body class="font-inter">
+    <!-- @COMPONENT: MainApp [Root component with role switching] -->
+    <div id="app" class="min-h-screen">
+        <!-- Role Selector Header -->
+        <div class="fixed top-0 left-0 right-0 z-50 bg-white/10 backdrop-blur-md border-b border-white/20">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-graduation-cap text-2xl text-emerald-400"></i>
+                        <h1 class="text-xl font-bold text-white">SmartPaper AI</h1>
+                    </div>
+                    <div class="flex space-x-2">
+                        <!-- @STATE: currentRole:string = 'admin' -->
+                        <button onclick="switchRole('admin')" id="admin-btn" class="px-4 py-2 rounded-lg bg-emerald-500 text-white font-medium transition-all">
+                            Admin
+                        </button>
+                        <button onclick="switchRole('teacher')" id="teacher-btn" class="px-4 py-2 rounded-lg bg-white/20 text-white/70 font-medium transition-all hover:bg-white/30">
+                            Teacher
+                        </button>
+                        <button onclick="switchRole('student')" id="student-btn" class="px-4 py-2 rounded-lg bg-white/20 text-white/70 font-medium transition-all hover:bg-white/30">
+                            Student
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <!-- @COMPONENT: AdminDashboard [Dark professional theme with green accents] -->
+        <div id="admin-dashboard" class="admin-gradient min-h-screen pt-20">
+            <div class="flex">
+                <!-- Sidebar -->
+                <div class="w-64 bg-slate-800 min-h-screen border-r border-slate-700">
+                    <div class="p-6">
+                        <div class="flex items-center space-x-3 mb-8">
+                            <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-user-shield text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-white font-semibold">Admin Panel</h3>
+                                <p class="text-slate-400 text-sm">System Control</p>
+                            </div>
+                        </div>
+                        
+                        <nav class="space-y-2">
+                            <a href="#" class="flex items-center space-x-3 bg-emerald-500/20 text-emerald-400 px-4 py-3 rounded-lg">
+                                <i class="fas fa-chart-bar w-5"></i>
+                                <span>Dashboard</span>
+                            </a>
+                            <a href="#" class="flex items-center space-x-3 text-slate-300 hover:bg-slate-700 px-4 py-3 rounded-lg transition-colors">
+                                <i class="fas fa-users w-5"></i>
+                                <span>User Management</span>
+                            </a>
+                            <a href="#" class="flex items-center space-x-3 text-slate-300 hover:bg-slate-700 px-4 py-3 rounded-lg transition-colors">
+                                <i class="fas fa-book w-5"></i>
+                                <span>Study Materials</span>
+                            </a>
+                            <a href="#" class="flex items-center space-x-3 text-slate-300 hover:bg-slate-700 px-4 py-3 rounded-lg transition-colors">
+                                <i class="fas fa-school w-5"></i>
+                                <span>Classes & Subjects</span>
+                            </a>
+                            <a href="#" class="flex items-center space-x-3 text-slate-300 hover:bg-slate-700 px-4 py-3 rounded-lg transition-colors">
+                                <i class="fas fa-cog w-5"></i>
+                                <span>Settings</span>
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="flex-1 p-8">
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-slate-400 text-sm">Total Users</p>
+                                    <p class="text-2xl font-bold text-white" data-bind="stats.totalUsers">1,247</p>
+                                </div>
+                                <div class="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-users text-emerald-400"></i>
+                                </div>
+                            </div>
+                            <div class="flex items-center mt-4 text-sm">
+                                <span class="text-emerald-400">+12%</span>
+                                <span class="text-slate-400 ml-2">from last month</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-slate-400 text-sm">Active Teachers</p>
+                                    <p class="text-2xl font-bold text-white" data-bind="stats.activeTeachers">89</p>
+                                </div>
+                                <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-chalkboard-teacher text-blue-400"></i>
+                                </div>
+                            </div>
+                            <div class="flex items-center mt-4 text-sm">
+                                <span class="text-emerald-400">+5%</span>
+                                <span class="text-slate-400 ml-2">from last month</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-slate-400 text-sm">Papers Generated</p>
+                                    <p class="text-2xl font-bold text-white" data-bind="stats.papersGenerated">432</p>
+                                </div>
+                                <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-file-alt text-purple-400"></i>
+                                </div>
+                            </div>
+                            <div class="flex items-center mt-4 text-sm">
+                                <span class="text-emerald-400">+18%</span>
+                                <span class="text-slate-400 ml-2">from last month</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-slate-400 text-sm">Submissions Graded</p>
+                                    <p class="text-2xl font-bold text-white" data-bind="stats.submissionsGraded">1,856</p>
+                                </div>
+                                <div class="w-12 h-12 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-emerald-400"></i>
+                                </div>
+                            </div>
+                            <div class="flex items-center mt-4 text-sm">
+                                <span class="text-emerald-400">+24%</span>
+                                <span class="text-slate-400 ml-2">from last month</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts and Tables -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                        <!-- Usage Analytics -->
+                        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                            <h3 class="text-xl font-semibold text-white mb-4">Usage Analytics</h3>
+                            <div class="h-64 bg-slate-700 rounded-lg flex items-center justify-center">
+                                <p class="text-slate-400"><!-- @FUNCTIONALITY: Chart.js implementation for usage analytics --></p>
+                                <div class="text-center">
+                                    <i class="fas fa-chart-line text-6xl text-emerald-400 mb-4"></i>
+                                    <p class="text-slate-400">Analytics Chart</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity -->
+                        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                            <h3 class="text-xl font-semibold text-white mb-4">Recent Activity</h3>
+                            <div class="space-y-4">
+                                <!-- @MAP: recentActivities.map(activity => ( -->
+                                <div class="flex items-center space-x-3 p-3 bg-slate-700 rounded-lg">
+                                    <div class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user text-white text-xs"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-white text-sm" data-mock="true">Teacher Sarah created new paper</p>
+                                        <p class="text-slate-400 text-xs" data-mock="true">2 minutes ago</p>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                                
+                                <div class="flex items-center space-x-3 p-3 bg-slate-700 rounded-lg">
+                                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-graduation-cap text-white text-xs"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-white text-sm" data-mock="true">45 students submitted assignments</p>
+                                        <p class="text-slate-400 text-xs" data-mock="true">15 minutes ago</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center space-x-3 p-3 bg-slate-700 rounded-lg">
+                                    <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-book text-white text-xs"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-white text-sm" data-mock="true">New study material uploaded</p>
+                                        <p class="text-slate-400 text-xs" data-mock="true">1 hour ago</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Management Section -->
+                    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-semibold text-white">User Management</h3>
+                            <button class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-plus mr-2"></i>Add User
+                            </button>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b border-slate-700">
+                                        <th class="text-left text-slate-300 py-3">Name</th>
+                                        <th class="text-left text-slate-300 py-3">Role</th>
+                                        <th class="text-left text-slate-300 py-3">Email</th>
+                                        <th class="text-left text-slate-300 py-3">Status</th>
+                                        <th class="text-left text-slate-300 py-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- @MAP: users.map(user => ( -->
+                                    <tr class="border-b border-slate-700/50">
+                                        <td class="py-3 text-white" data-mock="true">Dr. Sarah Johnson</td>
+                                        <td class="py-3 text-slate-300" data-mock="true">Teacher</td>
+                                        <td class="py-3 text-slate-300" data-mock="true">sarah.j@school.edu</td>
+                                        <td class="py-3">
+                                            <span class="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full text-xs" data-mock="true">Active</span>
+                                        </td>
+                                        <td class="py-3">
+                                            <button class="text-emerald-400 hover:text-emerald-300 mr-3">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="text-red-400 hover:text-red-300">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <!-- @END_MAP )) -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: AdminDashboard -->
+
+        <!-- Teacher Dashboard -->
+        <!-- @COMPONENT: TeacherDashboard [Green glassmorphism design] -->
+        <div id="teacher-dashboard" class="gradient-bg min-h-screen pt-20" style="display: none;">
+            <div class="container mx-auto px-4 py-8">
+                <!-- Welcome Section -->
+                <div class="glassmorphism rounded-2xl p-8 mb-8">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-3xl font-bold text-white mb-2">Welcome back, Teacher!</h2>
+                            <p class="text-white/80">Manage your classes and create engaging assignments</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-white/60 text-sm">Today's Date</p>
+                            <p class="text-white font-semibold" data-mock="true">December 15, 2024</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="glassmorphism rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-white/70 text-sm">Active Classes</p>
+                                <p class="text-2xl font-bold text-white" data-bind="teacher.activeClasses">6</p>
+                            </div>
+                            <i class="fas fa-chalkboard-teacher text-2xl text-emerald-300"></i>
+                        </div>
+                    </div>
+
+                    <div class="glassmorphism rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-white/70 text-sm">Papers Created</p>
+                                <p class="text-2xl font-bold text-white" data-bind="teacher.papersCreated">24</p>
+                            </div>
+                            <i class="fas fa-file-alt text-2xl text-emerald-300"></i>
+                        </div>
+                    </div>
+
+                    <div class="glassmorphism rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-white/70 text-sm">Pending Grading</p>
+                                <p class="text-2xl font-bold text-white" data-bind="teacher.pendingGrading">12</p>
+                            </div>
+                            <i class="fas fa-clock text-2xl text-amber-300"></i>
+                        </div>
+                    </div>
+
+                    <div class="glassmorphism rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-white/70 text-sm">Total Students</p>
+                                <p class="text-2xl font-bold text-white" data-bind="teacher.totalStudents">156</p>
+                            </div>
+                            <i class="fas fa-users text-2xl text-emerald-300"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Paper Creation -->
+                    <div class="lg:col-span-2">
+                        <div class="glassmorphism-strong rounded-2xl p-8">
+                            <h3 class="text-2xl font-bold text-white mb-6">Create New Paper</h3>
+                            
+                            <div class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-white/80 text-sm font-medium mb-2">Subject</label>
+                                        <select class="w-full glassmorphism rounded-lg px-4 py-3 text-white bg-white/10 focus:bg-white/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                                            <option value="" data-mock="true">Select Subject</option>
+                                            <option value="math" data-mock="true">Mathematics</option>
+                                            <option value="english" data-mock="true">English</option>
+                                            <option value="science" data-mock="true">Science</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-white/80 text-sm font-medium mb-2">Class</label>
+                                        <select class="w-full glassmorphism rounded-lg px-4 py-3 text-white bg-white/10 focus:bg-white/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                                            <option value="" data-mock="true">Select Class</option>
+                                            <option value="9a" data-mock="true">Class 9-A</option>
+                                            <option value="9b" data-mock="true">Class 9-B</option>
+                                            <option value="10a" data-mock="true">Class 10-A</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="border border-white/20 rounded-xl p-6">
+                                    <h4 class="text-lg font-semibold text-white mb-4">Paper Creation Method</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <button class="glassmorphism p-6 rounded-xl hover:bg-white/20 transition-all text-left">
+                                            <i class="fas fa-brain text-2xl text-emerald-300 mb-3"></i>
+                                            <h5 class="text-white font-semibold mb-2">Generate from Sources</h5>
+                                            <p class="text-white/70 text-sm">Use AI to create papers from uploaded materials or key books</p>
+                                        </button>
+                                        <button class="glassmorphism p-6 rounded-xl hover:bg-white/20 transition-all text-left">
+                                            <i class="fas fa-upload text-2xl text-emerald-300 mb-3"></i>
+                                            <h5 class="text-white font-semibold mb-2">Upload Composed Paper</h5>
+                                            <p class="text-white/70 text-sm">Upload your own pre-written paper with OCR support</p>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-4 rounded-xl transition-all shadow-lg">
+                                    <i class="fas fa-plus mr-2"></i>Create Paper
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity & Quick Actions -->
+                    <div class="space-y-6">
+                        <!-- Quick Actions -->
+                        <div class="glassmorphism-strong rounded-2xl p-6">
+                            <h3 class="text-xl font-bold text-white mb-4">Quick Actions</h3>
+                            <div class="space-y-3">
+                                <button class="w-full glassmorphism hover:bg-white/20 p-4 rounded-lg text-left transition-all">
+                                    <i class="fas fa-upload text-emerald-300 mr-3"></i>
+                                    <span class="text-white">Upload Submissions</span>
+                                </button>
+                                <button class="w-full glassmorphism hover:bg-white/20 p-4 rounded-lg text-left transition-all">
+                                    <i class="fas fa-check-circle text-emerald-300 mr-3"></i>
+                                    <span class="text-white">Grade Papers</span>
+                                </button>
+                                <button class="w-full glassmorphism hover:bg-white/20 p-4 rounded-lg text-left transition-all">
+                                    <i class="fas fa-chart-bar text-emerald-300 mr-3"></i>
+                                    <span class="text-white">View Analytics</span>
+                                </button>
+                                <button class="w-full glassmorphism hover:bg-white/20 p-4 rounded-lg text-left transition-all">
+                                    <i class="fas fa-users text-emerald-300 mr-3"></i>
+                                    <span class="text-white">Manage Classes</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Recent Papers -->
+                        <div class="glassmorphism-strong rounded-2xl p-6">
+                            <h3 class="text-xl font-bold text-white mb-4">Recent Papers</h3>
+                            <div class="space-y-3">
+                                <!-- @MAP: recentPapers.map(paper => ( -->
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <h4 class="text-white font-semibold text-sm" data-mock="true">Math Quiz - Algebra</h4>
+                                    <p class="text-white/60 text-xs" data-mock="true">Class 9-A • 23 submissions</p>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="text-emerald-300 text-xs" data-mock="true">85% avg score</span>
+                                        <i class="fas fa-chevron-right text-white/40"></i>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                                
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <h4 class="text-white font-semibold text-sm" data-mock="true">English Essay - Literature</h4>
+                                    <p class="text-white/60 text-xs" data-mock="true">Class 10-A • 18 submissions</p>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="text-emerald-300 text-xs" data-mock="true">78% avg score</span>
+                                        <i class="fas fa-chevron-right text-white/40"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grading Interface -->
+                <div class="glassmorphism-strong rounded-2xl p-8 mt-8">
+                    <h3 class="text-2xl font-bold text-white mb-6">Grading & Assessment</h3>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="text-lg font-semibold text-white mb-4">Pending Submissions</h4>
+                            <div class="space-y-3">
+                                <!-- @MAP: pendingSubmissions.map(submission => ( -->
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h5 class="text-white font-semibold" data-mock="true">Physics Test - Chapter 5</h5>
+                                            <p class="text-white/60 text-sm" data-mock="true">Class 10-B • 15 submissions</p>
+                                        </div>
+                                        <button class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 rounded-md text-sm transition-colors">
+                                            Grade Now
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-lg font-semibold text-white mb-4">Assessment Options</h4>
+                            <div class="space-y-4">
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <h5 class="text-white font-semibold mb-2">Grading Method</h5>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="grading" class="mr-2" data-mock="true">
+                                            <span class="text-white/80 text-sm">Literal Comparison</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="grading" class="mr-2" checked data-mock="true">
+                                            <span class="text-white/80 text-sm">Conceptual Matching</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <button class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3 rounded-lg transition-all">
+                                    Begin Assessment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: TeacherDashboard -->
+
+        <!-- Student Dashboard -->
+        <!-- @COMPONENT: StudentDashboard [Green glassmorphism design] -->
+        <div id="student-dashboard" class="gradient-bg min-h-screen pt-20" style="display: none;">
+            <div class="container mx-auto px-4 py-8">
+                <!-- Welcome Section -->
+                <div class="glassmorphism rounded-2xl p-8 mb-8">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-3xl font-bold text-white mb-2">Hello, Student!</h2>
+                            <p class="text-white/80">Track your progress and submit assignments</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-white/60 text-sm">Student ID</p>
+                            <p class="text-white font-semibold" data-mock="true">STU-2024-0156</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="glassmorphism rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-white/70 text-sm">Overall Grade</p>
+                                <p class="text-2xl font-bold text-white" data-bind="student.overallGrade">A-</p>
+                            </div>
+                            <i class="fas fa-star text-2xl text-yellow-300"></i>
+                        </div>
+                    </div>
+
+                    <div class="glassmorphism rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-white/70 text-sm">Assignments Completed</p>
+                                <p class="text-2xl font-bold text-white" data-bind="student.assignmentsCompleted">18/22</p>
+                            </div>
+                            <i class="fas fa-check-circle text-2xl text-emerald-300"></i>
+                        </div>
+                    </div>
+
+                    <div class="glassmorphism rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-white/70 text-sm">Average Score</p>
+                                <p class="text-2xl font-bold text-white" data-bind="student.averageScore">87%</p>
+                            </div>
+                            <i class="fas fa-chart-line text-2xl text-emerald-300"></i>
+                        </div>
+                    </div>
+
+                    <div class="glassmorphism rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-white/70 text-sm">Pending Submissions</p>
+                                <p class="text-2xl font-bold text-white" data-bind="student.pendingSubmissions">4</p>
+                            </div>
+                            <i class="fas fa-clock text-2xl text-amber-300"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Assignment Submission -->
+                    <div class="lg:col-span-2">
+                        <div class="glassmorphism-strong rounded-2xl p-8">
+                            <h3 class="text-2xl font-bold text-white mb-6">Submit Assignment</h3>
+                            
+                            <div class="space-y-6">
+                                <div>
+                                    <label class="block text-white/80 text-sm font-medium mb-2">Assignment</label>
+                                    <select class="w-full glassmorphism rounded-lg px-4 py-3 text-white bg-white/10 focus:bg-white/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                                        <option value="" data-mock="true">Select Assignment</option>
+                                        <option value="math1" data-mock="true">Math Quiz - Algebra</option>
+                                        <option value="eng1" data-mock="true">English Essay - Literature</option>
+                                        <option value="sci1" data-mock="true">Science Test - Chemistry</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-white/80 text-sm font-medium mb-2">Roll Number</label>
+                                    <input type="text" 
+                                           placeholder="Enter your roll number" 
+                                           class="w-full glassmorphism rounded-lg px-4 py-3 text-white placeholder-white/50 bg-white/10 focus:bg-white/20 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                                </div>
+
+                                <div class="border-2 border-dashed border-white/30 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors">
+                                    <i class="fas fa-cloud-upload-alt text-4xl text-emerald-300 mb-4"></i>
+                                    <h4 class="text-white font-semibold mb-2">Upload Your Files</h4>
+                                    <p class="text-white/60 text-sm mb-4">Drag and drop files here or click to browse</p>
+                                    <button class="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg transition-colors">
+                                        Choose Files
+                                    </button>
+                                </div>
+
+                                <button class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-4 rounded-xl transition-all shadow-lg">
+                                    <i class="fas fa-paper-plane mr-2"></i>Submit Assignment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Info & Recent Results -->
+                    <div class="space-y-6">
+                        <!-- Recent Grades -->
+                        <div class="glassmorphism-strong rounded-2xl p-6">
+                            <h3 class="text-xl font-bold text-white mb-4">Recent Grades</h3>
+                            <div class="space-y-3">
+                                <!-- @MAP: recentGrades.map(grade => ( -->
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="text-white font-semibold text-sm" data-mock="true">Math Quiz - Chapter 3</h4>
+                                            <p class="text-white/60 text-xs" data-mock="true">Submitted 2 days ago</p>
+                                        </div>
+                                        <span class="bg-emerald-500 text-white px-2 py-1 rounded-full text-xs font-semibold" data-mock="true">92%</span>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                                
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="text-white font-semibold text-sm" data-mock="true">English Essay</h4>
+                                            <p class="text-white/60 text-xs" data-mock="true">Submitted 1 week ago</p>
+                                        </div>
+                                        <span class="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold" data-mock="true">85%</span>
+                                    </div>
+                                </div>
+
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="text-white font-semibold text-sm" data-mock="true">Science Lab Report</h4>
+                                            <p class="text-white/60 text-xs" data-mock="true">Submitted 1 week ago</p>
+                                        </div>
+                                        <span class="bg-emerald-500 text-white px-2 py-1 rounded-full text-xs font-semibold" data-mock="true">94%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pending Assignments -->
+                        <div class="glassmorphism-strong rounded-2xl p-6">
+                            <h3 class="text-xl font-bold text-white mb-4">Pending Assignments</h3>
+                            <div class="space-y-3">
+                                <!-- @MAP: pendingAssignments.map(assignment => ( -->
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <h4 class="text-white font-semibold text-sm" data-mock="true">Physics Test - Motion</h4>
+                                    <p class="text-white/60 text-xs" data-mock="true">Due in 2 days</p>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="text-amber-300 text-xs" data-mock="true">Due Soon</span>
+                                        <i class="fas fa-clock text-amber-300"></i>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                                
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <h4 class="text-white font-semibold text-sm" data-mock="true">History Research</h4>
+                                    <p class="text-white/60 text-xs" data-mock="true">Due in 5 days</p>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="text-emerald-300 text-xs" data-mock="true">Good Time</span>
+                                        <i class="fas fa-calendar text-emerald-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Feedback Section -->
+                <div class="glassmorphism-strong rounded-2xl p-8 mt-8">
+                    <h3 class="text-2xl font-bold text-white mb-6">Latest Feedback & Revision Suggestions</h3>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="text-lg font-semibold text-white mb-4">Detailed Feedback</h4>
+                            <div class="glassmorphism p-6 rounded-lg">
+                                <h5 class="text-white font-semibold mb-3" data-mock="true">Math Quiz - Quadratic Equations</h5>
+                                <div class="space-y-3">
+                                    <div class="flex items-start space-x-3">
+                                        <i class="fas fa-check-circle text-emerald-300 mt-1"></i>
+                                        <p class="text-white/80 text-sm" data-mock="true">Excellent understanding of quadratic formula application</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <i class="fas fa-times-circle text-red-300 mt-1"></i>
+                                        <p class="text-white/80 text-sm" data-mock="true">Minor calculation error in problem 3 - check arithmetic steps</p>
+                                    </div>
+                                    <div class="flex items-start space-x-3">
+                                        <i class="fas fa-exclamation-triangle text-yellow-300 mt-1"></i>
+                                        <p class="text-white/80 text-sm" data-mock="true">Need to show more work for factoring problems</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-lg font-semibold text-white mb-4">Revision Suggestions</h4>
+                            <div class="space-y-3">
+                                <!-- @MAP: revisionSuggestions.map(suggestion => ( -->
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h5 class="text-white font-semibold text-sm" data-mock="true">Chapter 5: Quadratic Equations</h5>
+                                            <p class="text-white/60 text-xs" data-mock="true">Review factoring methods</p>
+                                        </div>
+                                        <button class="text-emerald-300 hover:text-emerald-200">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                                
+                                <div class="glassmorphism p-4 rounded-lg">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h5 class="text-white font-semibold text-sm" data-mock="true">Chapter 3: Linear Systems</h5>
+                                            <p class="text-white/60 text-xs" data-mock="true">Practice substitution method</p>
+                                        </div>
+                                        <button class="text-emerald-300 hover:text-emerald-200">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: StudentDashboard -->
+    </div>
+    <!-- @END_COMPONENT: MainApp -->
+
+    <script>
+        // @FUNCTIONALITY: Role switching functionality
+        (function() {
+            function switchRole(role) {
+                // Hide all dashboards
+                document.getElementById('admin-dashboard').style.display = 'none';
+                document.getElementById('teacher-dashboard').style.display = 'none';
+                document.getElementById('student-dashboard').style.display = 'none';
+                
+                // Show selected dashboard
+                document.getElementById(`${role}-dashboard`).style.display = 'block';
+                
+                // Update button states
+                const buttons = ['admin-btn', 'teacher-btn', 'student-btn'];
+                buttons.forEach(btnId => {
+                    const btn = document.getElementById(btnId);
+                    if (btnId === `${role}-btn`) {
+                        btn.className = 'px-4 py-2 rounded-lg bg-emerald-500 text-white font-medium transition-all';
+                    } else {
+                        btn.className = 'px-4 py-2 rounded-lg bg-white/20 text-white/70 font-medium transition-all hover:bg-white/30';
+                    }
+                });
+            }
+            
+            // Make function globally available
+            window.switchRole = switchRole;
+        })();
+
+        // @FUNCTIONALITY: Mock interactions and animations
+        (function() {
+            // Add click handlers for demo purposes
+            document.addEventListener('click', function(e) {
+                if (e.target.matches('button') && !e.target.onclick) {
+                    // TODO: Implement actual button functionality
+                    console.log('Button clicked:', e.target.textContent);
+                }
+            });
+
+            // Mock form submissions
+            document.addEventListener('submit', function(e) {
+                e.preventDefault();
+                // TODO: Implement form submission logic
+                console.log('Form submitted');
+            });
+        })();
+    </script>
+</body>
+</html>
