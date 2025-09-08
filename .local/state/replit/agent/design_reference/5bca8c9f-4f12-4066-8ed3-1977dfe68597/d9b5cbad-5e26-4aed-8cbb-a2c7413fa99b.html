@@ -1,0 +1,1424 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPaper AI - Educational Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#ECFDF5',
+                            100: '#D1FAE5',
+                            200: '#A7F3D0',
+                            300: '#6EE7B7',
+                            400: '#34D399',
+                            500: '#10B981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065F46',
+                            900: '#064E3B'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    },
+                    backdropBlur: {
+                        xs: '2px'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(16, 185, 129, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        
+        .glass-dark {
+            background: rgba(6, 95, 70, 0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+        }
+        
+        .gradient-green {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        }
+        
+        .hover-glass:hover {
+            background: rgba(16, 185, 129, 0.2);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        .floating-btn {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+        }
+        
+        .sidebar-item.active {
+            background: rgba(16, 185, 129, 0.2);
+            border-left: 3px solid #10B981;
+        }
+    </style>
+</head>
+<body class="font-sans gradient-bg min-h-screen text-white">
+    <!-- @COMPONENT: AppLayout -->
+    <div id="app" class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <!-- @COMPONENT: Sidebar -->
+        <div class="w-64 glass-dark border-r border-primary-600/30 flex flex-col">
+            <div class="p-6 border-b border-primary-600/30">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 gradient-green rounded-xl flex items-center justify-center">
+                        <i class="fas fa-brain text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white">SmartPaper AI</h1>
+                        <p class="text-xs text-primary-300" data-bind="currentRole">Admin Dashboard</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Role Switcher -->
+            <div class="p-4 border-b border-primary-600/30">
+                <select id="roleSelector" class="w-full glass rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="admin">Admin Dashboard</option>
+                    <option value="teacher">Teacher Dashboard</option>
+                    <option value="student">Student Dashboard</option>
+                </select>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="flex-1 p-4 space-y-2" id="navigation">
+                <!-- Admin Navigation -->
+                <div id="admin-nav" class="navigation-group">
+                    <div class="sidebar-item active flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="admin-overview">
+                        <i class="fas fa-chart-line text-primary-400"></i>
+                        <span>Analytics Overview</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="admin-users">
+                        <i class="fas fa-users text-primary-400"></i>
+                        <span>User Management</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="admin-materials">
+                        <i class="fas fa-book text-primary-400"></i>
+                        <span>Study Materials</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="admin-settings">
+                        <i class="fas fa-cog text-primary-400"></i>
+                        <span>System Settings</span>
+                    </div>
+                </div>
+                
+                <!-- Teacher Navigation -->
+                <div id="teacher-nav" class="navigation-group hidden">
+                    <div class="sidebar-item active flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="teacher-overview">
+                        <i class="fas fa-chart-bar text-primary-400"></i>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="teacher-create">
+                        <i class="fas fa-file-plus text-primary-400"></i>
+                        <span>Create Paper</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="teacher-submissions">
+                        <i class="fas fa-upload text-primary-400"></i>
+                        <span>Upload Submissions</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="teacher-grading">
+                        <i class="fas fa-check-circle text-primary-400"></i>
+                        <span>Grading & Assessment</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="teacher-analytics">
+                        <i class="fas fa-chart-pie text-primary-400"></i>
+                        <span>Student Performance</span>
+                    </div>
+                </div>
+                
+                <!-- Student Navigation -->
+                <div id="student-nav" class="navigation-group hidden">
+                    <div class="sidebar-item active flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="student-overview">
+                        <i class="fas fa-home text-primary-400"></i>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="student-assignments">
+                        <i class="fas fa-tasks text-primary-400"></i>
+                        <span>My Assignments</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="student-grades">
+                        <i class="fas fa-star text-primary-400"></i>
+                        <span>Grades & Feedback</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="student-progress">
+                        <i class="fas fa-chart-line text-primary-400"></i>
+                        <span>Progress Tracking</span>
+                    </div>
+                    <div class="sidebar-item flex items-center space-x-3 px-3 py-2 rounded-lg hover-glass cursor-pointer" data-section="student-revision">
+                        <i class="fas fa-lightbulb text-primary-400"></i>
+                        <span>Revision Suggestions</span>
+                    </div>
+                </div>
+            </nav>
+            
+            <!-- User Profile -->
+            <div class="p-4 border-t border-primary-600/30">
+                <div class="flex items-center space-x-3 px-3 py-2 glass rounded-lg">
+                    <div class="w-8 h-8 gradient-green rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-white text-sm"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium" data-bind="user.name">John Smith</p>
+                        <p class="text-xs text-primary-300" data-bind="user.email">admin@smartpaper.ai</p>
+                    </div>
+                    <button class="text-primary-300 hover:text-white transition-colors">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: Sidebar -->
+        
+        <!-- Main Content -->
+        <!-- @COMPONENT: MainContent -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <!-- @COMPONENT: Header -->
+            <header class="glass border-b border-primary-600/30 px-6 py-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold text-white" id="pageTitle">Analytics Overview</h2>
+                    <p class="text-primary-300 text-sm" id="pageSubtitle">Monitor system performance and user activity</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="glass rounded-lg px-4 py-2 hover-glass text-sm">
+                        <i class="fas fa-bell mr-2"></i>
+                        Notifications
+                        <span class="ml-2 bg-primary-500 text-xs px-2 py-1 rounded-full">3</span>
+                    </button>
+                    <button class="floating-btn text-white px-6 py-2 rounded-lg text-sm font-medium">
+                        <i class="fas fa-plus mr-2"></i>
+                        Quick Action
+                    </button>
+                </div>
+            </header>
+            <!-- @END_COMPONENT: Header -->
+            
+            <!-- Content Area -->
+            <main class="flex-1 overflow-auto p-6" id="contentArea">
+                
+                <!-- ADMIN SECTIONS -->
+                
+                <!-- Admin Overview -->
+                <div id="admin-overview" class="content-section">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <!-- @MAP: stats.map(stat => ( -->
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Total Users</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="stats.totalUsers">1,247</p>
+                                    <p class="text-primary-400 text-xs mt-1">
+                                        <i class="fas fa-arrow-up mr-1"></i>
+                                        +12% from last month
+                                    </p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-users text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Papers Generated</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="stats.papersGenerated">3,456</p>
+                                    <p class="text-primary-400 text-xs mt-1">
+                                        <i class="fas fa-arrow-up mr-1"></i>
+                                        +8% from last month
+                                    </p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-file-alt text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Graded Submissions</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="stats.gradedSubmissions">2,891</p>
+                                    <p class="text-primary-400 text-xs mt-1">
+                                        <i class="fas fa-arrow-up mr-1"></i>
+                                        +15% from last month
+                                    </p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Active Teachers</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="stats.activeTeachers">89</p>
+                                    <p class="text-primary-400 text-xs mt-1">
+                                        <i class="fas fa-arrow-up mr-1"></i>
+                                        +3% from last month
+                                    </p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-chalkboard-teacher text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- @END_MAP )) -->
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-white mb-4">Usage Analytics</h3>
+                            <div class="chart-container">
+                                <!-- Chart placeholder with green theme -->
+                                <div class="w-full h-full flex items-center justify-center">
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 gradient-green rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <i class="fas fa-chart-line text-white text-2xl"></i>
+                                        </div>
+                                        <p class="text-primary-300">Interactive usage chart would be displayed here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-white mb-4">Recent Activity</h3>
+                            <div class="space-y-4">
+                                <!-- @MAP: activities.map(activity => ( -->
+                                <div class="flex items-center space-x-3 p-3 glass-dark rounded-lg">
+                                    <div class="w-8 h-8 gradient-green rounded-full flex items-center justify-center">
+                                        <i class="fas fa-plus text-white text-xs"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-white text-sm" data-bind="activity.description">New teacher John Doe registered</p>
+                                        <p class="text-primary-300 text-xs" data-bind="activity.time">2 minutes ago</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center space-x-3 p-3 glass-dark rounded-lg">
+                                    <div class="w-8 h-8 gradient-green rounded-full flex items-center justify-center">
+                                        <i class="fas fa-file text-white text-xs"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-white text-sm" data-bind="activity.description">Math paper generated for Grade 10</p>
+                                        <p class="text-primary-300 text-xs" data-bind="activity.time">5 minutes ago</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center space-x-3 p-3 glass-dark rounded-lg">
+                                    <div class="w-8 h-8 gradient-green rounded-full flex items-center justify-center">
+                                        <i class="fas fa-check text-white text-xs"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-white text-sm" data-bind="activity.description">25 papers auto-graded successfully</p>
+                                        <p class="text-primary-300 text-xs" data-bind="activity.time">12 minutes ago</p>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Admin User Management -->
+                <div id="admin-users" class="content-section hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-white">User Management</h3>
+                            <p class="text-primary-300 text-sm">Manage teachers and students in the system</p>
+                        </div>
+                        <button class="floating-btn text-white px-6 py-2 rounded-lg text-sm font-medium">
+                            <i class="fas fa-plus mr-2"></i>
+                            Add New User
+                        </button>
+                    </div>
+                    
+                    <div class="glass rounded-xl overflow-hidden">
+                        <div class="p-6 border-b border-primary-600/30">
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <div class="flex-1">
+                                    <input type="text" placeholder="Search users..." class="w-full glass rounded-lg px-4 py-2 text-white placeholder-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                </div>
+                                <select class="glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                    <option>All Roles</option>
+                                    <option>Teachers</option>
+                                    <option>Students</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="border-b border-primary-600/30">
+                                    <tr class="text-left">
+                                        <th class="px-6 py-4 text-primary-300 font-medium">User</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Role</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Status</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Last Active</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- @MAP: users.map(user => ( -->
+                                    <tr class="border-b border-primary-600/20 hover:bg-primary-900/20" data-mock="true">
+                                        <td class="px-6 py-4">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="w-10 h-10 gradient-green rounded-full flex items-center justify-center">
+                                                    <span class="text-white font-medium" data-bind="user.initials">JD</span>
+                                                </div>
+                                                <div>
+                                                    <p class="text-white font-medium" data-bind="user.name">John Doe</p>
+                                                    <p class="text-primary-300 text-sm" data-bind="user.email">john.doe@school.edu</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-3 py-1 bg-primary-500/20 text-primary-300 rounded-full text-sm" data-bind="user.role">Teacher</span>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm" data-bind="user.status">Active</span>
+                                        </td>
+                                        <td class="px-6 py-4 text-primary-300" data-bind="user.lastActive">2 hours ago</td>
+                                        <td class="px-6 py-4">
+                                            <div class="flex space-x-2">
+                                                <button class="text-primary-400 hover:text-white" data-event="click:editUser">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="text-red-400 hover:text-red-300" data-event="click:deleteUser">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <!-- @END_MAP )) -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Admin Materials -->
+                <div id="admin-materials" class="content-section hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-white">Study Materials Database</h3>
+                            <p class="text-primary-300 text-sm">Manage central repository of books and resources</p>
+                        </div>
+                        <button class="floating-btn text-white px-6 py-2 rounded-lg text-sm font-medium">
+                            <i class="fas fa-upload mr-2"></i>
+                            Upload Material
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- @MAP: materials.map(material => ( -->
+                        <div class="glass rounded-xl p-6 hover-glass" data-mock="true">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-book text-white"></i>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button class="text-primary-400 hover:text-white" data-event="click:editMaterial">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="text-red-400 hover:text-red-300" data-event="click:deleteMaterial">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <h4 class="text-white font-semibold mb-2" data-bind="material.title">Advanced Mathematics</h4>
+                            <p class="text-primary-300 text-sm mb-3" data-bind="material.description">Comprehensive guide for Grade 12 mathematics covering calculus and statistics</p>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-primary-400" data-bind="material.subject">Mathematics</span>
+                                <span class="text-primary-400" data-bind="material.uploadDate">Jan 15, 2024</span>
+                            </div>
+                        </div>
+                        <!-- @END_MAP )) -->
+                    </div>
+                </div>
+                
+                <!-- Admin Settings -->
+                <div id="admin-settings" class="content-section hidden">
+                    <div class="max-w-4xl">
+                        <h3 class="text-xl font-semibold text-white mb-6">System Settings</h3>
+                        
+                        <div class="space-y-6">
+                            <div class="glass rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-white mb-4">General Settings</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-primary-300 text-sm mb-2">System Name</label>
+                                        <input type="text" value="SmartPaper AI" class="w-full glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                    </div>
+                                    <div>
+                                        <label class="block text-primary-300 text-sm mb-2">Admin Email</label>
+                                        <input type="email" value="admin@smartpaper.ai" class="w-full glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="glass rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-white mb-4">AI Configuration</h4>
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-white font-medium">Auto-grading Enabled</p>
+                                            <p class="text-primary-300 text-sm">Enable AI-powered automatic grading</p>
+                                        </div>
+                                        <button class="w-14 h-8 bg-primary-500 rounded-full relative transition-colors" data-event="click:toggleSetting">
+                                            <div class="w-6 h-6 bg-white rounded-full absolute top-1 right-1 transition-transform"></div>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-white font-medium">Smart Suggestions</p>
+                                            <p class="text-primary-300 text-sm">Provide revision suggestions based on performance</p>
+                                        </div>
+                                        <button class="w-14 h-8 bg-primary-500 rounded-full relative transition-colors" data-event="click:toggleSetting">
+                                            <div class="w-6 h-6 bg-white rounded-full absolute top-1 right-1 transition-transform"></div>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- TEACHER SECTIONS -->
+                
+                <!-- Teacher Overview -->
+                <div id="teacher-overview" class="content-section hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">My Classes</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="teacherStats.classes">8</p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-chalkboard text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Papers Created</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="teacherStats.papers">45</p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-file-alt text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Pending Grades</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="teacherStats.pending">12</p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-clock text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Total Students</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="teacherStats.students">234</p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-users text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-white mb-4">Recent Papers</h3>
+                            <div class="space-y-4">
+                                <!-- @MAP: recentPapers.map(paper => ( -->
+                                <div class="glass-dark rounded-lg p-4 hover-glass" data-mock="true">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h4 class="text-white font-medium" data-bind="paper.title">Mathematics Test - Chapter 5</h4>
+                                            <p class="text-primary-300 text-sm" data-bind="paper.class">Grade 10 - Section A</p>
+                                        </div>
+                                        <span class="px-3 py-1 bg-primary-500/20 text-primary-300 rounded-full text-sm" data-bind="paper.status">Completed</span>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-white mb-4">Class Performance</h3>
+                            <div class="chart-container">
+                                <div class="w-full h-full flex items-center justify-center">
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 gradient-green rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <i class="fas fa-chart-bar text-white text-2xl"></i>
+                                        </div>
+                                        <p class="text-primary-300">Performance analytics chart would be displayed here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Teacher Create Paper -->
+                <div id="teacher-create" class="content-section hidden">
+                    <div class="max-w-4xl">
+                        <h3 class="text-xl font-semibold text-white mb-6">Create New Paper</h3>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label class="block text-primary-300 text-sm mb-2">Subject</label>
+                                    <select class="w-full glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                        <option>Mathematics</option>
+                                        <option>Physics</option>
+                                        <option>Chemistry</option>
+                                        <option>Biology</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-primary-300 text-sm mb-2">Class</label>
+                                    <select class="w-full glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                        <option>Grade 10 - Section A</option>
+                                        <option>Grade 10 - Section B</option>
+                                        <option>Grade 11 - Section A</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <label class="block text-primary-300 text-sm mb-4">Paper Creation Method</label>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="glass-dark rounded-lg p-6 cursor-pointer hover-glass border-2 border-primary-500">
+                                        <div class="text-center">
+                                            <div class="w-16 h-16 gradient-green rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <i class="fas fa-magic text-white text-2xl"></i>
+                                            </div>
+                                            <h4 class="text-white font-semibold mb-2">Generate from Sources</h4>
+                                            <p class="text-primary-300 text-sm">Use AI to generate papers from uploaded materials</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="glass-dark rounded-lg p-6 cursor-pointer hover-glass border-2 border-transparent">
+                                        <div class="text-center">
+                                            <div class="w-16 h-16 gradient-green rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <i class="fas fa-upload text-white text-2xl"></i>
+                                            </div>
+                                            <h4 class="text-white font-semibold mb-2">Upload Composed Paper</h4>
+                                            <p class="text-primary-300 text-sm">Upload your own pre-written paper</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Generate from Sources Options -->
+                            <div class="space-y-6">
+                                <div>
+                                    <label class="block text-primary-300 text-sm mb-2">Source Material</label>
+                                    <select class="w-full glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                        <option>Advanced Mathematics Textbook</option>
+                                        <option>Past Papers Collection</option>
+                                        <option>My Uploaded Materials</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-primary-300 text-sm mb-2">Generation Mode</label>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <label class="glass-dark rounded-lg p-4 cursor-pointer hover-glass">
+                                            <input type="radio" name="mode" value="as-is-past" class="sr-only" data-mock="true">
+                                            <div class="text-center">
+                                                <i class="fas fa-copy text-primary-400 text-xl mb-2"></i>
+                                                <p class="text-white font-medium">As Is from Past Papers</p>
+                                            </div>
+                                        </label>
+                                        
+                                        <label class="glass-dark rounded-lg p-4 cursor-pointer hover-glass">
+                                            <input type="radio" name="mode" value="as-is-book" class="sr-only" data-mock="true">
+                                            <div class="text-center">
+                                                <i class="fas fa-book text-primary-400 text-xl mb-2"></i>
+                                                <p class="text-white font-medium">As Is from Key Book</p>
+                                            </div>
+                                        </label>
+                                        
+                                        <label class="glass-dark rounded-lg p-4 cursor-pointer hover-glass">
+                                            <input type="radio" name="mode" value="intelligent" class="sr-only" checked data-mock="true">
+                                            <div class="text-center">
+                                                <i class="fas fa-brain text-primary-400 text-xl mb-2"></i>
+                                                <p class="text-white font-medium">Intelligent from Key Book</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-primary-300 text-sm mb-2">Question Types</label>
+                                        <div class="space-y-2">
+                                            <label class="flex items-center space-x-3">
+                                                <input type="checkbox" class="w-4 h-4 text-primary-500 bg-transparent border-primary-600 rounded focus:ring-primary-500" checked data-mock="true">
+                                                <span class="text-white">Multiple Choice (5 questions)</span>
+                                            </label>
+                                            <label class="flex items-center space-x-3">
+                                                <input type="checkbox" class="w-4 h-4 text-primary-500 bg-transparent border-primary-600 rounded focus:ring-primary-500" checked data-mock="true">
+                                                <span class="text-white">Short Answer (8 questions)</span>
+                                            </label>
+                                            <label class="flex items-center space-x-3">
+                                                <input type="checkbox" class="w-4 h-4 text-primary-500 bg-transparent border-primary-600 rounded focus:ring-primary-500" checked data-mock="true">
+                                                <span class="text-white">Long Answer (3 questions)</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-primary-300 text-sm mb-2">Total Marks</label>
+                                        <input type="number" value="100" class="w-full glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-4 mt-8">
+                                <button class="glass px-6 py-2 rounded-lg text-white hover-glass">
+                                    Preview Paper
+                                </button>
+                                <button class="floating-btn text-white px-6 py-2 rounded-lg font-medium">
+                                    Generate Paper
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Teacher Submissions -->
+                <div id="teacher-submissions" class="content-section hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-white">Upload Student Submissions</h3>
+                            <p class="text-primary-300 text-sm">Manage student paper submissions for grading</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div class="glass rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-white mb-4">Bulk Upload</h4>
+                            <div class="border-2 border-dashed border-primary-600 rounded-lg p-8 text-center">
+                                <div class="w-16 h-16 gradient-green rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fas fa-cloud-upload-alt text-white text-2xl"></i>
+                                </div>
+                                <p class="text-white mb-2">Drop files here or click to upload</p>
+                                <p class="text-primary-300 text-sm">Upload multiple student papers at once</p>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-white mb-4">Individual Upload</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-primary-300 text-sm mb-2">Select Student</label>
+                                    <select class="w-full glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                        <option>John Smith - Roll #001</option>
+                                        <option>Sarah Johnson - Roll #002</option>
+                                        <option>Mike Davis - Roll #003</option>
+                                    </select>
+                                </div>
+                                <div class="border-2 border-dashed border-primary-600 rounded-lg p-6 text-center">
+                                    <i class="fas fa-file-upload text-primary-400 text-2xl mb-2"></i>
+                                    <p class="text-primary-300 text-sm">Upload student's paper</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass rounded-xl">
+                        <div class="p-6 border-b border-primary-600/30">
+                            <h4 class="text-lg font-semibold text-white">Recent Uploads</h4>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <!-- @MAP: uploads.map(upload => ( -->
+                                <div class="glass-dark rounded-lg p-4 flex items-center justify-between" data-mock="true">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-10 h-10 gradient-green rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-file-alt text-white"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-white font-medium" data-bind="upload.studentName">John Smith - Math Test</p>
+                                            <p class="text-primary-300 text-sm" data-bind="upload.uploadTime">Uploaded 2 hours ago</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="px-3 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm" data-bind="upload.status">Pending Review</span>
+                                        <button class="text-primary-400 hover:text-white" data-event="click:viewSubmission">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Teacher Grading -->
+                <div id="teacher-grading" class="content-section hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-white">Grading & Assessment</h3>
+                            <p class="text-primary-300 text-sm">Review and grade student submissions</p>
+                        </div>
+                        <button class="floating-btn text-white px-6 py-2 rounded-lg text-sm font-medium">
+                            <i class="fas fa-play mr-2"></i>
+                            Start Auto-Grading
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                        <div class="glass rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-white mb-4">Assessment Settings</h4>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-primary-300 text-sm mb-2">Key Book/Source</label>
+                                    <select class="w-full glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                        <option>Advanced Mathematics Guide</option>
+                                        <option>Official Answer Key</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-primary-300 text-sm mb-3">Assessment Method</label>
+                                    <div class="space-y-3">
+                                        <label class="flex items-start space-x-3">
+                                            <input type="radio" name="assessment" value="literal" class="mt-1 w-4 h-4 text-primary-500" data-mock="true">
+                                            <div>
+                                                <p class="text-white">Literal Comparison</p>
+                                                <p class="text-primary-300 text-xs">Word-for-word matching</p>
+                                            </div>
+                                        </label>
+                                        <label class="flex items-start space-x-3">
+                                            <input type="radio" name="assessment" value="conceptual" class="mt-1 w-4 h-4 text-primary-500" checked data-mock="true">
+                                            <div>
+                                                <p class="text-white">Conceptual Matching</p>
+                                                <p class="text-primary-300 text-xs">Context-based evaluation</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="lg:col-span-2 glass rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-white mb-4">Submissions Queue</h4>
+                            <div class="space-y-3">
+                                <!-- @MAP: submissions.map(submission => ( -->
+                                <div class="glass-dark rounded-lg p-4 flex items-center justify-between hover-glass cursor-pointer" data-mock="true">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-10 h-10 gradient-green rounded-lg flex items-center justify-center">
+                                            <span class="text-white font-medium" data-bind="submission.initials">JS</span>
+                                        </div>
+                                        <div>
+                                            <p class="text-white font-medium" data-bind="submission.studentName">John Smith</p>
+                                            <p class="text-primary-300 text-sm" data-bind="submission.paperTitle">Mathematics Test - Chapter 5</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-3">
+                                        <span class="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm" data-bind="submission.status">Ready for Grading</span>
+                                        <button class="text-primary-400 hover:text-white" data-event="click:gradeSubmission">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass rounded-xl">
+                        <div class="p-6 border-b border-primary-600/30">
+                            <h4 class="text-lg font-semibold text-white">Grading Results</h4>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="border-b border-primary-600/30">
+                                    <tr class="text-left">
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Student</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Paper</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Score</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Grade</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Status</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- @MAP: gradedSubmissions.map(graded => ( -->
+                                    <tr class="border-b border-primary-600/20 hover:bg-primary-900/20" data-mock="true">
+                                        <td class="px-6 py-4 text-white" data-bind="graded.studentName">Sarah Johnson</td>
+                                        <td class="px-6 py-4 text-primary-300" data-bind="graded.paperTitle">Math Test Ch.5</td>
+                                        <td class="px-6 py-4 text-white font-medium" data-bind="graded.score">85/100</td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm" data-bind="graded.grade">A-</span>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm" data-bind="graded.status">Completed</span>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="flex space-x-2">
+                                                <button class="text-primary-400 hover:text-white" data-event="click:viewFeedback">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button class="text-primary-400 hover:text-white" data-event="click:exportResults">
+                                                    <i class="fas fa-download"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <!-- @END_MAP )) -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Teacher Analytics -->
+                <div id="teacher-analytics" class="content-section hidden">
+                    <h3 class="text-xl font-semibold text-white mb-6">Student Performance Analytics</h3>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-white mb-4">Class Performance Overview</h4>
+                            <div class="chart-container">
+                                <div class="w-full h-full flex items-center justify-center">
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 gradient-green rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <i class="fas fa-chart-pie text-white text-2xl"></i>
+                                        </div>
+                                        <p class="text-primary-300">Performance distribution chart would be displayed here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-white mb-4">Top Performers</h4>
+                            <div class="space-y-4">
+                                <!-- @MAP: topPerformers.map(performer => ( -->
+                                <div class="flex items-center justify-between p-3 glass-dark rounded-lg" data-mock="true">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 gradient-green rounded-full flex items-center justify-center">
+                                            <span class="text-white text-sm font-medium" data-bind="performer.rank">1</span>
+                                        </div>
+                                        <div>
+                                            <p class="text-white font-medium" data-bind="performer.name">Emma Wilson</p>
+                                            <p class="text-primary-300 text-sm" data-bind="performer.class">Grade 10-A</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-white font-bold" data-bind="performer.average">95.2%</p>
+                                        <p class="text-primary-300 text-sm">Average</p>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- STUDENT SECTIONS -->
+                
+                <!-- Student Overview -->
+                <div id="student-overview" class="content-section hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Completed Tests</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="studentStats.completed">28</p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Current Average</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="studentStats.average">87.5%</p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-star text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Pending Tasks</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="studentStats.pending">3</p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-clock text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6 hover-glass">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-primary-300 text-sm">Class Rank</p>
+                                    <p class="text-3xl font-bold text-white" data-bind="studentStats.rank">5th</p>
+                                </div>
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-trophy text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-white mb-4">Recent Assignments</h3>
+                            <div class="space-y-4">
+                                <!-- @MAP: recentAssignments.map(assignment => ( -->
+                                <div class="glass-dark rounded-lg p-4" data-mock="true">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h4 class="text-white font-medium" data-bind="assignment.title">Physics Test - Wave Motion</h4>
+                                        <span class="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm" data-bind="assignment.status">Completed</span>
+                                    </div>
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-primary-300" data-bind="assignment.subject">Physics</span>
+                                        <span class="text-white font-medium" data-bind="assignment.score">92/100</span>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-white mb-4">Performance Trend</h3>
+                            <div class="chart-container">
+                                <div class="w-full h-full flex items-center justify-center">
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 gradient-green rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <i class="fas fa-chart-line text-white text-2xl"></i>
+                                        </div>
+                                        <p class="text-primary-300">Performance trend chart would be displayed here</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Student Assignments -->
+                <div id="student-assignments" class="content-section hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-white">My Assignments</h3>
+                            <p class="text-primary-300 text-sm">View and submit your assignments</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- @MAP: assignments.map(assignment => ( -->
+                        <div class="glass rounded-xl p-6 hover-glass" data-mock="true">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="w-12 h-12 gradient-green rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-file-alt text-white"></i>
+                                </div>
+                                <span class="px-3 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm" data-bind="assignment.status">Pending</span>
+                            </div>
+                            <h4 class="text-white font-semibold mb-2" data-bind="assignment.title">Mathematics Test - Trigonometry</h4>
+                            <p class="text-primary-300 text-sm mb-4" data-bind="assignment.description">Complete the trigonometry exercises from Chapter 8</p>
+                            <div class="space-y-2 text-xs mb-4">
+                                <div class="flex justify-between">
+                                    <span class="text-primary-400">Subject:</span>
+                                    <span class="text-white" data-bind="assignment.subject">Mathematics</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-primary-400">Due Date:</span>
+                                    <span class="text-white" data-bind="assignment.dueDate">March 15, 2024</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-primary-400">Total Marks:</span>
+                                    <span class="text-white" data-bind="assignment.totalMarks">100</span>
+                                </div>
+                            </div>
+                            <button class="w-full floating-btn text-white py-2 rounded-lg text-sm font-medium" data-event="click:submitAssignment">
+                                Submit Assignment
+                            </button>
+                        </div>
+                        <!-- @END_MAP )) -->
+                    </div>
+                </div>
+                
+                <!-- Student Grades -->
+                <div id="student-grades" class="content-section hidden">
+                    <h3 class="text-xl font-semibold text-white mb-6">Grades & Feedback</h3>
+                    
+                    <div class="glass rounded-xl overflow-hidden">
+                        <div class="p-6 border-b border-primary-600/30">
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <select class="glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                    <option>All Subjects</option>
+                                    <option>Mathematics</option>
+                                    <option>Physics</option>
+                                    <option>Chemistry</option>
+                                </select>
+                                <select class="glass rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500" data-mock="true">
+                                    <option>All Terms</option>
+                                    <option>Term 1</option>
+                                    <option>Term 2</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="border-b border-primary-600/30">
+                                    <tr class="text-left">
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Assignment</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Subject</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Score</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Grade</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Date</th>
+                                        <th class="px-6 py-4 text-primary-300 font-medium">Feedback</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- @MAP: grades.map(grade => ( -->
+                                    <tr class="border-b border-primary-600/20 hover:bg-primary-900/20" data-mock="true">
+                                        <td class="px-6 py-4 text-white" data-bind="grade.assignment">Algebra Test</td>
+                                        <td class="px-6 py-4 text-primary-300" data-bind="grade.subject">Mathematics</td>
+                                        <td class="px-6 py-4 text-white font-medium" data-bind="grade.score">92/100</td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm" data-bind="grade.letter">A-</span>
+                                        </td>
+                                        <td class="px-6 py-4 text-primary-300" data-bind="grade.date">Mar 10, 2024</td>
+                                        <td class="px-6 py-4">
+                                            <button class="text-primary-400 hover:text-white" data-event="click:viewDetailedFeedback">
+                                                <i class="fas fa-eye mr-1"></i>
+                                                View Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <!-- @END_MAP )) -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Student Progress -->
+                <div id="student-progress" class="content-section hidden">
+                    <h3 class="text-xl font-semibold text-white mb-6">Progress Tracking</h3>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div class="glass rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-white mb-4">Subject-wise Performance</h4>
+                            <div class="space-y-4">
+                                <!-- @MAP: subjectProgress.map(subject => ( -->
+                                <div class="glass-dark rounded-lg p-4" data-mock="true">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-white font-medium" data-bind="subject.name">Mathematics</span>
+                                        <span class="text-primary-300" data-bind="subject.average">88.5%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-2">
+                                        <div class="gradient-green h-2 rounded-full" style="width: 88.5%" data-bind="subject.progressWidth"></div>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <h4 class="text-lg font-semibold text-white mb-4">Achievement Badges</h4>
+                            <div class="grid grid-cols-3 gap-4">
+                                <!-- @MAP: badges.map(badge => ( -->
+                                <div class="text-center p-3 glass-dark rounded-lg" data-mock="true">
+                                    <div class="w-12 h-12 gradient-green rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <i class="fas fa-star text-white" data-bind="badge.icon"></i>
+                                    </div>
+                                    <p class="text-white text-xs font-medium" data-bind="badge.name">Top Scorer</p>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass rounded-xl p-6">
+                        <h4 class="text-lg font-semibold text-white mb-4">Performance Timeline</h4>
+                        <div class="chart-container">
+                            <div class="w-full h-full flex items-center justify-center">
+                                <div class="text-center">
+                                    <div class="w-16 h-16 gradient-green rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i class="fas fa-chart-area text-white text-2xl"></i>
+                                    </div>
+                                    <p class="text-primary-300">Timeline chart showing performance over time would be displayed here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Student Revision -->
+                <div id="student-revision" class="content-section hidden">
+                    <h3 class="text-xl font-semibold text-white mb-6">Revision Suggestions</h3>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 space-y-6">
+                            <!-- @MAP: revisionTopics.map(topic => ( -->
+                            <div class="glass rounded-xl p-6" data-mock="true">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div>
+                                        <h4 class="text-white font-semibold mb-2" data-bind="topic.subject">Mathematics - Trigonometry</h4>
+                                        <p class="text-primary-300 text-sm" data-bind="topic.weakness">Based on your recent test performance</p>
+                                    </div>
+                                    <span class="px-3 py-1 bg-red-500/20 text-red-300 rounded-full text-sm" data-bind="topic.priority">High Priority</span>
+                                </div>
+                                
+                                <div class="space-y-3 mb-4">
+                                    <div class="glass-dark rounded-lg p-4">
+                                        <h5 class="text-white font-medium mb-2">Specific Areas to Review:</h5>
+                                        <ul class="space-y-1 text-primary-300 text-sm">
+                                            <li data-bind="topic.area1">• Sine and Cosine rule applications</li>
+                                            <li data-bind="topic.area2">• Trigonometric identities</li>
+                                            <li data-bind="topic.area3">• Graph transformations</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex space-x-3">
+                                    <button class="flex-1 glass px-4 py-2 rounded-lg text-white hover-glass text-sm" data-event="click:viewMaterials">
+                                        <i class="fas fa-book mr-2"></i>
+                                        Study Materials
+                                    </button>
+                                    <button class="flex-1 floating-btn text-white px-4 py-2 rounded-lg text-sm font-medium" data-event="click:startPractice">
+                                        <i class="fas fa-play mr-2"></i>
+                                        Practice Now
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- @END_MAP )) -->
+                        </div>
+                        
+                        <div class="space-y-6">
+                            <div class="glass rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-white mb-4">Study Progress</h4>
+                                <div class="space-y-4">
+                                    <!-- @MAP: studyProgress.map(progress => ( -->
+                                    <div class="text-center" data-mock="true">
+                                        <div class="relative w-20 h-20 mx-auto mb-2">
+                                            <div class="w-20 h-20 rounded-full border-4 border-primary-600 flex items-center justify-center">
+                                                <span class="text-white font-bold" data-bind="progress.percentage">65%</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-primary-300 text-sm" data-bind="progress.subject">Mathematics</p>
+                                    </div>
+                                    <!-- @END_MAP )) -->
+                                </div>
+                            </div>
+                            
+                            <div class="glass rounded-xl p-6">
+                                <h4 class="text-lg font-semibold text-white mb-4">Quick Actions</h4>
+                                <div class="space-y-3">
+                                    <button class="w-full glass px-4 py-3 rounded-lg text-white hover-glass text-left" data-event="click:generatePracticeTest">
+                                        <i class="fas fa-file-alt mr-3 text-primary-400"></i>
+                                        Generate Practice Test
+                                    </button>
+                                    <button class="w-full glass px-4 py-3 rounded-lg text-white hover-glass text-left" data-event="click:requestHelp">
+                                        <i class="fas fa-question-circle mr-3 text-primary-400"></i>
+                                        Request Teacher Help
+                                    </button>
+                                    <button class="w-full glass px-4 py-3 rounded-lg text-white hover-glass text-left" data-event="click:viewStudyPlan">
+                                        <i class="fas fa-calendar mr-3 text-primary-400"></i>
+                                        View Study Plan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </main>
+        </div>
+        <!-- @END_COMPONENT: MainContent -->
+    </div>
+    <!-- @END_COMPONENT: AppLayout -->
+    
+    <script>
+        (function() {
+            // Role management and navigation
+            const roleSelector = document.getElementById('roleSelector');
+            const contentArea = document.getElementById('contentArea');
+            const pageTitle = document.getElementById('pageTitle');
+            const pageSubtitle = document.getElementById('pageSubtitle');
+            
+            // Navigation data for each role
+            const navigationData = {
+                admin: {
+                    'admin-overview': { title: 'Analytics Overview', subtitle: 'Monitor system performance and user activity' },
+                    'admin-users': { title: 'User Management', subtitle: 'Manage teachers and students in the system' },
+                    'admin-materials': { title: 'Study Materials Database', subtitle: 'Manage central repository of books and resources' },
+                    'admin-settings': { title: 'System Settings', subtitle: 'Configure system preferences and settings' }
+                },
+                teacher: {
+                    'teacher-overview': { title: 'Teacher Dashboard', subtitle: 'Overview of your classes and recent activity' },
+                    'teacher-create': { title: 'Create Paper', subtitle: 'Generate new assignments and tests' },
+                    'teacher-submissions': { title: 'Upload Submissions', subtitle: 'Manage student paper submissions' },
+                    'teacher-grading': { title: 'Grading & Assessment', subtitle: 'Review and grade student work' },
+                    'teacher-analytics': { title: 'Student Performance', subtitle: 'Analyze student progress and performance' }
+                },
+                student: {
+                    'student-overview': { title: 'Student Dashboard', subtitle: 'Your academic progress and assignments' },
+                    'student-assignments': { title: 'My Assignments', subtitle: 'View and submit your assignments' },
+                    'student-grades': { title: 'Grades & Feedback', subtitle: 'Review your test results and feedback' },
+                    'student-progress': { title: 'Progress Tracking', subtitle: 'Monitor your academic performance' },
+                    'student-revision': { title: 'Revision Suggestions', subtitle: 'Personalized study recommendations' }
+                }
+            };
+            
+            // Switch between roles
+            roleSelector.addEventListener('change', function() {
+                const selectedRole = this.value;
+                
+                // Hide all navigation groups
+                document.querySelectorAll('.navigation-group').forEach(group => {
+                    group.classList.add('hidden');
+                });
+                
+                // Show selected role navigation
+                document.getElementById(selectedRole + '-nav').classList.remove('hidden');
+                
+                // Hide all content sections
+                document.querySelectorAll('.content-section').forEach(section => {
+                    section.classList.add('hidden');
+                });
+                
+                // Show first section of selected role
+                const firstSection = selectedRole + '-overview';
+                document.getElementById(firstSection).classList.remove('hidden');
+                
+                // Update page title and subtitle
+                const navData = navigationData[selectedRole][firstSection];
+                pageTitle.textContent = navData.title;
+                pageSubtitle.textContent = navData.subtitle;
+                
+                // Update active sidebar item
+                document.querySelectorAll('.sidebar-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelector(`[data-section="${firstSection}"]`).classList.add('active');
+                
+                // Update role display
+                document.querySelector('[data-bind="currentRole"]').textContent = selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1) + ' Dashboard';
+            });
+            
+            // Handle sidebar navigation
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.sidebar-item')) {
+                    const sidebarItem = e.target.closest('.sidebar-item');
+                    const sectionId = sidebarItem.getAttribute('data-section');
+                    
+                    if (sectionId) {
+                        // Update active sidebar item
+                        document.querySelectorAll('.sidebar-item').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        sidebarItem.classList.add('active');
+                        
+                        // Hide all content sections
+                        document.querySelectorAll('.content-section').forEach(section => {
+                            section.classList.add('hidden');
+                        });
+                        
+                        // Show selected section
+                        document.getElementById(sectionId).classList.remove('hidden');
+                        
+                        // Update page title and subtitle
+                        const currentRole = roleSelector.value;
+                        const navData = navigationData[currentRole][sectionId];
+                        if (navData) {
+                            pageTitle.textContent = navData.title;
+                            pageSubtitle.textContent = navData.subtitle;
+                        }
+                    }
+                }
+            });
+            
+            // Add hover effects to glass elements
+            document.addEventListener('DOMContentLoaded', function() {
+                // Smooth transitions for glass elements
+                const style = document.createElement('style');
+                style.textContent = `
+                    .hover-glass {
+                        transition: all 0.3s ease;
+                    }
+                    .hover-glass:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2);
+                    }
+                    .sidebar-item {
+                        transition: all 0.3s ease;
+                    }
+                    .sidebar-item:hover {
+                        background: rgba(16, 185, 129, 0.15);
+                    }
+                `;
+                document.head.appendChild(style);
+            });
+            
+            // Mock interactions for demonstration
+            document.addEventListener('click', function(e) {
+                // Handle mock button clicks
+                if (e.target.closest('[data-event]')) {
+                    const eventType = e.target.closest('[data-event]').getAttribute('data-event');
+                    console.log('Mock event triggered:', eventType);
+                    // TODO: Implement actual event handlers for React components
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
