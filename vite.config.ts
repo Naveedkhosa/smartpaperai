@@ -9,20 +9,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": resolve(__dirname, "src"),
-      "@shared": resolve(__dirname, "shared"),
-      "@assets": resolve(__dirname, "attached_assets"),
+      "@": resolve(__dirname, "src")
     },
   },
-  root: __dirname,
-  build: {
-    outDir: resolve(__dirname, "dist"),
-    emptyOutDir: true,
-  },
-  server: {
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
-  },
+  root: __dirname
 });
