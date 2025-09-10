@@ -2,23 +2,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// conditionally load cartographer plugin
-let cartographerPlugin = [];
-if (process.env.NODE_ENV !== "production" && process.env.REPL_ID) {
-  try {
-    const { cartographer } = require("@replit/vite-plugin-cartographer");
-    cartographerPlugin.push(cartographer());
-  } catch (e) {
-    console.warn("Cartographer plugin not loaded:", e.message);
-  }
-}
-
 export default defineConfig({
-  plugins: [react(), runtimeErrorOverlay(), ...cartographerPlugin],
+  plugins: [react()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "client", "src"),
