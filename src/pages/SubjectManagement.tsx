@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import GlassmorphismLayout from "@/components/GlassmorphismLayout";
 import TeacherSidebar from '@/components/TeacherSidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -386,9 +387,10 @@ export default function SubjectManagement() {
   }
 
   return (
+     <GlassmorphismLayout>
     <div className="flex">
       <TeacherSidebar />
-      <div className="flex-1 ml-16 lg:ml-0 gradient-bg min-h-screen p-4">
+      <div className="flex-1 ml-16 lg:ml-0  min-h-screen p-0">
         <div className="container mx-auto">
           {/* Header */}
           <div className="glassmorphism-strong rounded-2xl p-6 mb-6">
@@ -756,5 +758,6 @@ export default function SubjectManagement() {
         </div>
       </div>
     </div>
+    </GlassmorphismLayout>
   );
 }

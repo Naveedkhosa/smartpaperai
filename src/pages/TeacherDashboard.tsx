@@ -104,7 +104,7 @@ export default function TeacherDashboard() {
      <GlassmorphismLayout>
     <div className="flex">
       <TeacherSidebar onCollapseChange={setSidebarCollapsed} />
-      <div className={`flex-1 gradient-bg min-h-screen p-4 transition-all duration-300 ${sidebarCollapsed ? "lg:ml-16" : "lg:ml-0"}`}>
+      <div className={`flex-1 min-h-screen p-0 transition-all duration-300 ${sidebarCollapsed ? "lg:ml-0" : "lg:ml-0"}`}>
         {/* Welcome Section */}
         <div className="glassmorphism-strong rounded-2xl p-6 mb-6 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

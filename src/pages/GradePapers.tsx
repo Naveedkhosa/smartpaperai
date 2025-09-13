@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import GlassmorphismLayout from "@/components/GlassmorphismLayout";
+import TeacherSidebar from '@/components/TeacherSidebar';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +95,10 @@ export default function GradePaper() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <GlassmorphismLayout>
+      <div className="flex">
+         <TeacherSidebar />
+    <div className="container mx-auto px-0 py-0">
       <Card
         data-testid="grading-system"
         className="glassmorphism-strong border-white/30"
@@ -289,5 +293,7 @@ export default function GradePaper() {
         </CardContent>
       </Card>
     </div>
+    </div>
+    </GlassmorphismLayout>
   );
 }

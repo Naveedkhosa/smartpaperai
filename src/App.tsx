@@ -17,6 +17,7 @@ import CreatePaper from "./pages/CreatePaper";
 import GradePapers from "./pages/GradePapers";
 import PaperViewer from "./pages/PaperViewer";
 import Manage from "./pages/Manage";
+import StudyMaterials from './pages/StudyMaterials';
 import CreatePersonalDb from './pages/CreatePersonalDb';
 import ClassesManagement from './pages/ClassesManagement';
 import SubjectManagement from './pages/SubjectManagement';
@@ -168,6 +169,15 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+
+ <Route 
+  path="/teacher/study-materials" 
+  element={
+    <ProtectedRoute requiredRole="teacher">
+      <StudyMaterials />
+    </ProtectedRoute>
+  } 
+/>
       <Route 
         path="/paper-viewer" 
         element={

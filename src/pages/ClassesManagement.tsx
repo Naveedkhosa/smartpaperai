@@ -283,7 +283,7 @@ export default function ClassesManagement() {
        <GlassmorphismLayout>
     <div className="flex">
       <TeacherSidebar />
-      <div className="flex-1 ml-0 lg:ml-0 gradient-bg min-h-screen p-0">
+      <div className="flex-1 ml-0 lg:ml-0 min-h-screen p-0">
         <div className="container mx-auto">
           {/* Header */}
           <div className="glassmorphism-strong rounded-2xl p-6 mb-6">

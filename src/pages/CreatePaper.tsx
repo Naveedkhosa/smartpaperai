@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import TeacherSidebar from '@/components/TeacherSidebar';
 import GlassmorphismLayout from "@/components/GlassmorphismLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -100,13 +101,6 @@ export default function CreatePaperPage() {
   // Pagination
   const [visiblePublic, setVisiblePublic] = useState(6);
 
-  // Menu items for sidebar
-  const menuItems = [
-    { path: "/teacher", label: "Overview", icon: Eye },
-    { path: "/teacher/create", label: "Create Paper", icon: FileText },
-    { path: "/teacher/grade", label: "Grade", icon: CheckCircle },
-    { path: "/teacher/manage", label: "Manage", icon: Settings },
-  ];
 
   // Mutations
   const createPaperMutation = useMutation({
@@ -178,68 +172,10 @@ export default function CreatePaperPage() {
 
   return (
     <GlassmorphismLayout>
-      {/* Mobile Sidebar Toggle */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-0 left-0 z-50 p-2 rounded-lg glassmorphism-strong"
-      >
-        {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
-
-      {/* Sidebar */}
-      <div
-        className={`fixed top-0 left-0 h-full glassmorphism-strong z-40 transition-transform duration-300 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:w-64 w-3/4`}
-      >
-        <div className="p-4 h-full flex flex-col">
-          {/* Logo/Brand */}
-          <div className="flex items-center mb-8 pt-4">
-            <h2 className="text-xl font-bold text-white">Teacher Portal</h2>
-          </div>
-
-          {/* Navigation Items */}
-          <nav className="flex-1">
-            <ul className="space-y-2">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path;
-
-                return (
-                  <li key={item.path}>
-                    <Link
-                      to={item.path}
-                      onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center p-3 rounded-lg transition-all ${
-                        isActive
-                          ? "bg-emerald-500/30 text-emerald-200"
-                          : "text-slate-200/80 hover:text-slate-100 hover:bg-white/10"
-                      }`}
-                    >
-                      <Icon size={20} />
-                      <span className="ml-3 font-medium">{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-
-          {/* Logout Button */}
-          <div className="mt-auto pt-4 border-t border-white/20">
-            <button
-              onClick={logout}
-              className="flex items-center w-full p-3 rounded-lg text-slate-200/80 hover:text-slate-100 hover:bg-red-500/20 transition-all"
-            >
-              <LogOut size={20} />
-              <span className="ml-3 font-medium">Logout</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
+      <div className="flex">
+      <TeacherSidebar />
       {/* Main Content */}
-      <div className="lg:ml-64 p-4">
+      <div className="flex-1 ml-0 lg:ml-0 min-h-screen ">
         {/* Header */}
         <div className="glassmorphism-strong rounded-2xl p-6 mb-6 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -698,6 +634,7 @@ export default function CreatePaperPage() {
             </Button>
           </CardContent>
         </Card>
+      </div>
       </div>
     </GlassmorphismLayout>
   );

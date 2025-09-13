@@ -48,6 +48,7 @@ export default function TeacherSidebar() {
     { path: "/teacher/grade", label: "Grade Papers", icon: CheckCircle },
     { path: "/teacher/classes", label: "Classes", icon: Users },
     { path: "/teacher/subjects", label: "Subjects", icon: BookOpen },
+     { path: "/teacher/study-materials", label: "Study Materials", icon: BookOpen },
     { path: "/teacher/manage", label: "Manage", icon: Settings },
   ];
 
@@ -145,13 +146,7 @@ export default function TeacherSidebar() {
                 <Home size={20} className="flex-shrink-0" />
                 <span className="ml-3 font-medium">Back to Home</span>
               </Link>
-              <Link
-                to="/teacher/resources"
-                className="flex items-center p-3 rounded-lg text-slate-200/80 hover:text-white hover:bg-white/10 transition-all"
-              >
-                <BookOpen size={20} className="flex-shrink-0" />
-                <span className="ml-3 font-medium">Resources</span>
-              </Link>
+             
             </div>
           )}
 
