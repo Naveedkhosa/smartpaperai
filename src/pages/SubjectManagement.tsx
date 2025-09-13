@@ -379,7 +379,7 @@ export default function SubjectManagement() {
     return (
       <div className="flex">
         <TeacherSidebar />
-        <div className="flex-1 ml-16 lg:ml-0 gradient-bg min-h-screen flex items-center justify-center">
+        <div className="flex-1 ml-0 lg:ml-0 gradient-bg min-h-screen flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
         </div>
       </div>
@@ -390,7 +390,7 @@ export default function SubjectManagement() {
      <GlassmorphismLayout>
     <div className="flex">
       <TeacherSidebar />
-      <div className="flex-1 ml-16 lg:ml-0  min-h-screen p-0">
+      <div className="flex-1 ml-0 lg:ml-0  min-h-screen p-0">
         <div className="container mx-auto">
           {/* Header */}
           <div className="glassmorphism-strong rounded-2xl p-6 mb-6">
