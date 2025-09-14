@@ -377,12 +377,12 @@ export default function SubjectManagement() {
 
   if (isLoading) {
     return (
-      <div className="flex">
-        <TeacherSidebar />
-        <div className="flex-1 ml-0 lg:ml-0 gradient-bg min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
-        </div>
-      </div>
+    <div className="flex">
+                <TeacherSidebar />
+                <div className="flex-1 ml-0 lg:ml-0  min-h-screen flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
+                </div>
+            </div>
     );
   }
 
@@ -390,7 +390,7 @@ export default function SubjectManagement() {
      <GlassmorphismLayout>
     <div className="flex">
       <TeacherSidebar />
-      <div className="flex-1 ml-0 lg:ml-0  min-h-screen p-0">
+      <div className="flex-1 ml-0 lg:ml-0 min-h-screen p-0">
         <div className="container mx-auto">
           {/* Header */}
           <div className="glassmorphism-strong rounded-2xl p-6 mb-6">
@@ -413,68 +413,36 @@ export default function SubjectManagement() {
 
           {/* Class Tabs with Scroll */}
           {classes && classes.length > 0 ? (
-            <div className="glassmorphism-strong rounded-xl p-4 mb-6 relative">
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-white/90">Select Class</Label>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => scrollTabs('left')}
-                    className="h-6 w-6 glassmorphism-strong border-white/30"
-                    disabled={scrollPosition === 0}
-                  >
-                    <ChevronLeftIcon size={14} />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => scrollTabs('right')}
-                    className="h-6 w-6 glassmorphism-strong border-white/30"
-                  >
-                    <ChevronRightIcon size={14} />
-                  </Button>
-                </div>
-              </div>
-              
-              <div 
-                id="class-tabs-container"
-                className="flex space-x-2 overflow-x-auto scrollbar-hide pb-2"
-                style={{ scrollBehavior: 'smooth' }}
-              >
-                <button
-                  onClick={() => {
-                    setSelectedClass('all');
-                    setCurrentPage(1);
-                    setSearchTerm('');
-                  }}
-                  className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
-                    selectedClass === 'all'
-                      ? 'bg-emerald-500 text-white shadow-lg'
-                      : 'glassmorphism text-slate-200 hover:bg-white/10'
-                  }`}
-                >
-                  All Classes
-                </button>
-                {classes.map((classItem: Class) => (
-                  <button
-                    key={classItem.id}
-                    onClick={() => {
-                      setSelectedClass(classItem.id.toString());
-                      setCurrentPage(1);
-                      setSearchTerm('');
-                    }}
-                    className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
-                      selectedClass === classItem.id.toString()
-                        ? 'bg-emerald-500 text-white shadow-lg'
-                        : 'glassmorphism text-slate-200 hover:bg-white/10'
-                    }`}
-                  >
-                    {classItem.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <div className="rounded-2xl backdrop-blur-md p-5 shadow-lg border border-white/10">
+  <h2 className="text-lg font-semibold text-white mb-4">Select Class</h2>
+
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+    <button
+      onClick={() => setSelectedClass("all")}
+      className={`px-4 py-3 rounded-xl text-sm font-medium transition-all 
+        ${selectedClass === "all" 
+          ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md scale-105" 
+          : "bg-white/10 text-slate-300 hover:bg-white/20"}`}
+    >
+      All Classes
+    </button>
+
+    {classes.map((classItem: Class) => (
+      <button
+        key={classItem.id}
+        onClick={() => setSelectedClass(classItem.id.toString())}
+        className={`px-4 py-3 rounded-xl text-sm font-medium transition-all
+          ${selectedClass === classItem.id.toString()
+            ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md scale-105"
+            : "bg-white/10 text-slate-300 hover:bg-white/20"}`}
+      >
+        {classItem.name}
+      </button>
+    ))}
+  </div>
+</div>
+
+           
           ) : (
             <div className="glassmorphism-strong rounded-xl p-4 mb-6">
               <p className="text-white text-center">No classes available. Please create a class first.</p>

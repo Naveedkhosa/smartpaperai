@@ -14,6 +14,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import Layout from "./components/Layout";
 import NotFound from "./pages/not-found";
 import CreatePaper from "./pages/CreatePaper";
+import PaperBuilder from "./pages/PaperBuilder";
 import GradePapers from "./pages/GradePapers";
 import PaperViewer from "./pages/PaperViewer";
 import Manage from "./pages/Manage";
@@ -136,7 +137,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
-
+      
       <Route 
   path="/teacher/subjects" 
   element={
@@ -194,6 +195,16 @@ function AppRoutes() {
     </ProtectedRoute>
   } 
 />
+
+<Route 
+        path="/teacher/paper-builder" 
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <PaperBuilder/>
+          </ProtectedRoute>
+        } 
+      />
+
       <Route 
         path="/create-personal-db" 
         element={
