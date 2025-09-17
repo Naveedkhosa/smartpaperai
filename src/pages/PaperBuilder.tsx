@@ -29,6 +29,7 @@ export interface QuestionGroup {
     type: string;
     instruction: string;
     logic?: string;
+    numberingStyle: 'numeric' | 'roman' | 'alphabetic'; // Added numbering style
     questions: Question[];
 }
 
@@ -43,6 +44,175 @@ export interface Section {
 const uid = (prefix = '') => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const LS_KEY = 'paper_generator_v2';
 
+// Helper function to convert numbers to Roman numerals
+const toRoman = (num: number): string => {
+    const romanNumerals = [
+        { value: 1000, symbol: 'M' },
+        { value: 900, symbol: 'CM' },
+        { value: 500, symbol: 'D' },
+        { value: 400, symbol: 'CD' },
+        { value: 100, symbol: 'C' },
+        { value: 90, symbol: 'XC' },
+        { value: 50, symbol: 'L' },
+        { value: 40, symbol: 'XL' },
+        { value: 10, symbol: 'X' },
+        { value: 9, symbol: 'IX' },
+        { value: 5, symbol: 'V' },
+        { value: 4, symbol: 'IV' },
+        { value: 1, symbol: 'I' }
+    ];
+
+    let result = '';
+    for (const { value, symbol } of romanNumerals) {
+        while (num >= value) {
+            result += symbol;
+            num -= value;
+        }
+    }
+    return result;
+};
+
+// Helper function to convert numbers to alphabetic (A, B, C, ... AA, AB, etc.)
+const toAlphabetic = (num: number): string => {
+    let result = '';
+    while (num > 0) {
+        num--; // Adjust for 1-indexing
+        result = String.fromCharCode(65 + (num % 26)) + result;
+        num = Math.floor(num / 26);
+    }
+    return result || 'A';
+};
+
+// Format number based on style
+const formatNumber = (num: number, style: 'numeric' | 'roman' | 'alphabetic'): string => {
+    switch (style) {
+        case 'roman':
+            return toRoman(num);
+        case 'alphabetic':
+            return toAlphabetic(num);
+        default:
+            return num.toString();
+    }
+};
+
+// ---------- Enhanced Rich Text Editor with Image Support ----------
+const RichTextEditor: React.FC<{
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    rows?: number;
+    showMath?: boolean;
+}> = ({ value, onChange, placeholder, rows = 3, showMath = true }) => {
+    const [mode, setMode] = useState<'text' | 'math' | 'image'>('text');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const imageData = event.target?.result as string;
+            const imgTag = `<img src="${imageData}" alt="Uploaded image" style="max-width: 100%;" />`;
+
+            if (mode === 'math') {
+                // For math mode, insert at cursor position
+                const textarea = document.activeElement as HTMLTextAreaElement;
+                if (textarea && textarea.tagName === 'TEXTAREA') {
+                    const start = textarea.selectionStart;
+                    const end = textarea.selectionEnd;
+                    const newValue = value.substring(0, start) + imgTag + value.substring(end);
+                    onChange(newValue);
+
+                    setTimeout(() => {
+                        textarea.selectionStart = textarea.selectionEnd = start + imgTag.length;
+                        textarea.focus();
+                    }, 0);
+                } else {
+                    onChange(value + imgTag);
+                }
+            } else {
+                // For text mode, just append
+                onChange(value + imgTag);
+            }
+        };
+        reader.readAsDataURL(file);
+
+        // Reset file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    return (
+        <div>
+            {showMath && (
+                <div className="flex gap-2 mb-2">
+                    <button
+                        type="button"
+                        onClick={() => setMode('text')}
+                        className={`px-3 py-1 text-sm rounded ${mode === 'text'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-200 hover:bg-gray-300'
+                            }`}
+                    >
+                        Text
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMode('math')}
+                        className={`px-3 py-1 text-sm rounded ${mode === 'math'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-200 hover:bg-gray-300'
+                            }`}
+                    >
+                        Math
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`px-3 py-1 text-sm rounded ${mode === 'image'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-200 hover:bg-gray-300'
+                            }`}
+                    >
+                        Insert Image
+                    </button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        accept="image/*"
+                        className="hidden"
+                    />
+                </div>
+            )}
+
+            {mode === 'math' && showMath ? (
+                <MathEditor
+                    value={value}
+                    onChange={onChange}
+                    placeholder={placeholder}
+                    rows={rows}
+                />
+            ) : (
+                <textarea
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    rows={rows}
+                    className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+            )}
+        </div>
+    );
+};
+
 // ---------- Math Editor Component ----------
 const MathEditor: React.FC<{
     value: string;
@@ -53,6 +223,7 @@ const MathEditor: React.FC<{
 }> = ({ value, onChange, placeholder, rows = 3, className = "" }) => {
     const [isPreviewMode, setIsPreviewMode] = useState(false);
     const [showMathHelp, setShowMathHelp] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const insertMath = (symbol: string) => {
         const textarea = document.activeElement as HTMLTextAreaElement;
@@ -61,7 +232,7 @@ const MathEditor: React.FC<{
             const end = textarea.selectionEnd;
             const newValue = value.substring(0, start) + symbol + value.substring(end);
             onChange(newValue);
-            
+
             // Set cursor position after the inserted symbol
             setTimeout(() => {
                 textarea.selectionStart = textarea.selectionEnd = start + symbol.length;
@@ -69,6 +240,44 @@ const MathEditor: React.FC<{
             }, 0);
         } else {
             onChange(value + symbol);
+        }
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const imageData = event.target?.result as string;
+            const imgTag = `<img src="${imageData}" alt="Uploaded image" style="max-width: 100%;" />`;
+
+            // Insert at cursor position
+            const textarea = document.activeElement as HTMLTextAreaElement;
+            if (textarea && textarea.tagName === 'TEXTAREA') {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const newValue = value.substring(0, start) + imgTag + value.substring(end);
+                onChange(newValue);
+
+                setTimeout(() => {
+                    textarea.selectionStart = textarea.selectionEnd = start + imgTag.length;
+                    textarea.focus();
+                }, 0);
+            } else {
+                onChange(value + imgTag);
+            }
+        };
+        reader.readAsDataURL(file);
+
+        // Reset file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     };
 
@@ -127,6 +336,21 @@ const MathEditor: React.FC<{
                             {item.label}
                         </button>
                     ))}
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2 py-1 text-sm bg-white hover:bg-blue-50 border rounded transition-colors"
+                        title="Insert Image"
+                    >
+                        Insert Image
+                    </button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        accept="image/*"
+                        className="hidden"
+                    />
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
                     <button
@@ -140,11 +364,10 @@ const MathEditor: React.FC<{
                     <button
                         type="button"
                         onClick={() => setIsPreviewMode(!isPreviewMode)}
-                        className={`px-3 py-1 text-sm rounded transition-colors ${
-                            isPreviewMode 
-                                ? 'bg-blue-600 text-white' 
+                        className={`px-3 py-1 text-sm rounded transition-colors ${isPreviewMode
+                                ? 'bg-blue-600 text-white'
                                 : 'bg-white border hover:bg-gray-50'
-                        }`}
+                            }`}
                     >
                         {isPreviewMode ? 'Edit' : 'Preview'}
                     </button>
@@ -168,7 +391,7 @@ const MathEditor: React.FC<{
 
             {/* Editor/Preview */}
             {isPreviewMode ? (
-                <div 
+                <div
                     className="w-full p-3 rounded-lg border border-gray-300 bg-white min-h-[100px] math-preview"
                     style={{ minHeight: `${rows * 24}px` }}
                     dangerouslySetInnerHTML={{ __html: renderMathPreview(value) }}
@@ -200,65 +423,6 @@ const MathEditor: React.FC<{
                     font-family: 'Times New Roman', serif;
                 }
             `}</style>
-        </div>
-    );
-};
-
-// ---------- Rich Text Editor Component ----------
-const RichTextEditor: React.FC<{
-    value: string;
-    onChange: (value: string) => void;
-    placeholder?: string;
-    rows?: number;
-    showMath?: boolean;
-}> = ({ value, onChange, placeholder, rows = 3, showMath = true }) => {
-    const [mode, setMode] = useState<'text' | 'math'>('text');
-
-    return (
-        <div>
-            {showMath && (
-                <div className="flex gap-2 mb-2">
-                    <button
-                        type="button"
-                        onClick={() => setMode('text')}
-                        className={`px-3 py-1 text-sm rounded ${
-                            mode === 'text' 
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-gray-200 hover:bg-gray-300'
-                        }`}
-                    >
-                        Text
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMode('math')}
-                        className={`px-3 py-1 text-sm rounded ${
-                            mode === 'math' 
-                                ? 'bg-blue-600 text-white' 
-                                : 'bg-gray-200 hover:bg-gray-300'
-                        }`}
-                    >
-                        Math
-                    </button>
-                </div>
-            )}
-
-            {mode === 'math' && showMath ? (
-                <MathEditor
-                    value={value}
-                    onChange={onChange}
-                    placeholder={placeholder}
-                    rows={rows}
-                />
-            ) : (
-                <textarea
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    placeholder={placeholder}
-                    rows={rows}
-                    className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-            )}
         </div>
     );
 };
@@ -375,6 +539,7 @@ const SortableSection: React.FC<{
                                 <div className="text-sm font-medium text-green-700">{getGroupTitle(g.type)}</div>
                                 {g.instruction && <div className="text-gray-600 text-sm mt-1" dangerouslySetInnerHTML={{ __html: g.instruction.replace(/\$([^$]+)\$/g, '<em>$1</em>') }} />}
                                 <div className="text-gray-500 text-xs mt-2">Questions: {g.questions.length}</div>
+                                <div className="text-gray-500 text-xs">Numbering: {g.numberingStyle}</div>
                             </div>
                             <div className="flex gap-2">
                                 <button onClick={() => onEditGroup(section.id, g)} className="p-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Group">
@@ -463,23 +628,25 @@ const SectionForm: React.FC<{
 const GroupForm: React.FC<{
     open: boolean;
     onClose: () => void;
-    onSubmit: (type: string, instruction: string, logic?: string, editingId?: string) => void;
+    onSubmit: (type: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => void;
     sectionTitle?: string;
     editing?: QuestionGroup | null;
 }> = ({ open, onClose, onSubmit, sectionTitle, editing }) => {
     const [type, setType] = useState(editing?.type || 'mcq');
     const [instruction, setInstruction] = useState(editing?.instruction || '');
     const [logic, setLogic] = useState(editing?.logic || 'OR');
+    const [numberingStyle, setNumberingStyle] = useState<'numeric' | 'roman' | 'alphabetic'>(editing?.numberingStyle || 'numeric');
 
     useEffect(() => {
         setType(editing?.type || 'mcq');
         setInstruction(editing?.instruction || '');
         setLogic(editing?.logic || 'OR');
+        setNumberingStyle(editing?.numberingStyle || 'numeric');
     }, [editing]);
 
     const handle = (e: any) => {
         e.preventDefault();
-        onSubmit(type, instruction.trim(), type === 'conditional' ? logic : undefined, editing?.id);
+        onSubmit(type, instruction.trim(), numberingStyle, type === 'conditional' ? logic : undefined, editing?.id);
     };
 
     return (
@@ -499,6 +666,18 @@ const GroupForm: React.FC<{
                         <option value="long-question">Long Questions</option>
                         <option value="conditional">Conditional Questions</option>
                         <option value="para-question">Paragraph Questions</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Numbering Style</label>
+                    <select
+                        value={numberingStyle}
+                        onChange={(e) => setNumberingStyle(e.target.value as 'numeric' | 'roman' | 'alphabetic')}
+                        className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                        <option value="numeric">Numeric (1, 2, 3)</option>
+                        <option value="roman">Roman (I, II, III)</option>
+                        <option value="alphabetic">Alphabetic (A, B, C)</option>
                     </select>
                 </div>
                 <div>
@@ -800,16 +979,23 @@ const renderMathContent = (text: string) => {
 };
 
 const MCQQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
+    const isMain = questionNumber.startsWith("Q -");
+
     return (
         <div className="mb-4">
             <div className="font-medium mb-3 text-gray-800">
-                <span className="mr-2">{questionNumber}</span>
+                <span className="mr-2">
+                    {isMain ? questionNumber : `${questionNumber}.`}
+                </span>
                 <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
             </div>
+
             <div className="ml-4 space-y-2">
                 {question.content.choices.map((choice: string, idx: number) => (
                     <div key={idx} className="flex items-start">
-                        <span className="mr-2 font-medium text-blue-600 mt-1">{String.fromCharCode(65 + idx)}.</span>
+                        <span className="mr-2 font-medium text-blue-600 mt-1">
+                            {String.fromCharCode(65 + idx)}.
+                        </span>
                         <span className="text-gray-700 flex-1" dangerouslySetInnerHTML={{ __html: renderMathContent(choice) }} />
                         {idx === question.content.correctAnswer && (
                             <span className="ml-2 text-green-600 text-sm flex items-center">
@@ -823,11 +1009,12 @@ const MCQQuestion: React.FC<{ question: Question; questionNumber: string }> = ({
     );
 };
 
+
 const TrueFalseQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
     return (
         <div className="mb-4">
             <div className="font-medium mb-3 text-gray-800">
-                <span className="mr-2">{questionNumber}</span>
+                <span className="mr-2">{questionNumber}. </span>
                 <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
             </div>
             <div className="ml-4 space-y-2">
@@ -858,7 +1045,7 @@ const FillInBlanksQuestion: React.FC<{ question: Question; questionNumber: strin
     return (
         <div className="mb-4">
             <div className="font-medium text-gray-800">
-                <span className="mr-2">{questionNumber}</span>
+                <span className="mr-2">{questionNumber}. </span>
                 <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
             </div>
         </div>
@@ -870,7 +1057,7 @@ const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string }
         <div className="mb-4">
             {question.content.questionText && (
                 <div className="font-medium mb-3 text-gray-800">
-                    <span className="mr-2">{questionNumber}</span>
+                    <span className="mr-2">{questionNumber}. </span>
                     <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
                 </div>
             )}
@@ -878,7 +1065,7 @@ const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string }
                 <div className="ml-4">
                     {question.content.subQuestions.map((subQ: string, idx: number) => (
                         <div key={idx} className="mb-2 text-gray-700">
-                            <span className="mr-2">{question.content.questionText ? `${questionNumber}.${idx + 1}` : `${questionNumber}`}</span>
+                            <span className="mr-2">{question.content.questionText ? `${toRoman(idx + 1)}. ` : `${questionNumber}`}</span>
                             <span dangerouslySetInnerHTML={{ __html: renderMathContent(subQ) }} />
                         </div>
                     ))}
@@ -888,9 +1075,14 @@ const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string }
     );
 };
 
-const ConditionalQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
+const ConditionalQuestion: React.FC<{ question: Question; questionNumber: string; showOr: boolean }> = ({ question, questionNumber, showOr }) => {
     return (
         <div className="mb-4">
+            {showOr && (
+                <div className="text-center my-4">
+                    <strong>OR</strong>
+                </div>
+            )}
             <div className="font-medium mb-3 text-gray-800">
                 <span className="mr-2">{questionNumber}</span>
                 Conditional Questions
@@ -911,7 +1103,7 @@ const ParaQuestion: React.FC<{ question: Question; questionNumber: string }> = (
     return (
         <div className="mb-4 border-l-4 border-blue-200 pl-4 py-2 bg-blue-50 rounded-r-lg">
             <div className="italic mb-3 text-gray-700 font-medium">
-                <span className="mr-2">{questionNumber}</span>
+                <span className="mr-2">{questionNumber}. </span>
                 <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.paraText) }} />
             </div>
             <div className="ml-2">
@@ -926,7 +1118,7 @@ const ParaQuestion: React.FC<{ question: Question; questionNumber: string }> = (
     );
 };
 
-const QuestionDisplay: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
+const QuestionDisplay: React.FC<{ question: Question; questionNumber: string; showOr?: boolean }> = ({ question, questionNumber, showOr = false }) => {
     switch (question.type) {
         case 'mcq':
             return <MCQQuestion question={question} questionNumber={questionNumber} />;
@@ -938,14 +1130,15 @@ const QuestionDisplay: React.FC<{ question: Question; questionNumber: string }> 
         case 'long-question':
             return <ShortLongQuestion question={question} questionNumber={questionNumber} />;
         case 'conditional':
-            return <ConditionalQuestion question={question} questionNumber={questionNumber} />;
+            return <ConditionalQuestion question={question} questionNumber={questionNumber} showOr={showOr} />;
         case 'para-question':
             return <ParaQuestion question={question} questionNumber={questionNumber} />;
         default:
-            return <div className="mb-4 text-gray-800">
-                <span className="mr-2">{questionNumber}</span>
-                <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
-            </div>;
+            return (
+                <div className="mb-4 text-gray-800">
+                    <span className="mr-2">{questionNumber}</span>
+                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                </div>)
     }
 };
 
@@ -987,46 +1180,81 @@ const PaperView: React.FC<{
                 {/* Paper content */}
                 <div className="paper-content p-8 bg-white">
                     <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">Exam Paper</h1>
-                    
+
                     <div className="space-y-8">
-                        {sections.map((section, sIndex) => (
-                            <div key={section.id} className="mb-8">
-                                <h2 className="text-xl font-bold mb-2 text-gray-800">
-                                    {sIndex + 1}. <span dangerouslySetInnerHTML={{ __html: renderMathContent(section.title) }} />
-                                </h2>
-                                {section.instruction && (
-                                    <p className="text-gray-600 mb-4 italic" dangerouslySetInnerHTML={{ __html: renderMathContent(section.instruction) }} />
-                                )}
+                        {sections.map((section, sIndex) => {
+                            let sectionQuestionCounter = 0; // Reset counter for each section
 
-                                {section.groups.map((group, gIndex) => {
-                                    let questionCounter = 1;
-                                    
-                                    return (
-                                        <div key={group.id} className="mb-6 ml-4">
-                                            <h3 className="text-lg font-semibold mb-2 text-gray-800">
-                                                {getGroupTitle(group.type)}
-                                            </h3>
-                                            {group.instruction && (
-                                                <p className="text-gray-600 mb-3" dangerouslySetInnerHTML={{ __html: renderMathContent(group.instruction) }} />
-                                            )}
+                            return (
+                                <div key={section.id} className="mb-8">
+                                    {/* Section Heading (without numbering) */}
+                                    <h2 className="text-xl font-bold mb-2 text-gray-800">
+                                        <span
+                                            dangerouslySetInnerHTML={{
+                                                __html: renderMathContent(section.title),
+                                            }}
+                                        />
+                                    </h2>
 
-                                            <div className="space-y-4 ml-4">
-                                                {group.questions.map((question) => {
-                                                    const questionNumber = `${questionCounter}`;
-                                                    questionCounter++;
-                                                    
-                                                    return (
-                                                        <div key={question.id} className="mb-4">
-                                                            <QuestionDisplay question={question} questionNumber={questionNumber} />
-                                                        </div>
-                                                    );
-                                                })}
+                                    {section.instruction && (
+                                        <p
+                                            className="text-gray-600 mb-4 italic"
+                                            dangerouslySetInnerHTML={{
+                                                __html: renderMathContent(section.instruction),
+                                            }}
+                                        />
+                                    )}
+
+                                    {section.groups.map((group) => {
+                                        sectionQuestionCounter++;
+                                        return (
+                                            <div key={group.id} className="mb-6 ml-4">
+                                                {/* Group instruction only (no group numbering/title) */}
+                                                {group.instruction && (
+                                                    <p
+                                                        className="text-gray-600 mb-3"
+                                                        dangerouslySetInnerHTML={{
+                                                            __html: renderMathContent(group.instruction),
+                                                        }}
+                                                    />
+                                                )}
+
+                                                <div className="space-y-4 ml-4">
+                                                    {group.questions.map((question, qIndex) => {
+                                                        // ✅ Main question numbering
+                                                        const questionNumber = `Q${sectionQuestionCounter}`;
+
+                                                        return (
+                                                            <div key={question.id} className="mb-4">
+                                                                <QuestionDisplay question={question} questionNumber={questionNumber} />
+
+                                                                {/* ✅ Sub-questions */}
+                                                                {question.subQuestions && question.subQuestions.length > 0 && (
+                                                                    <div className="ml-6 mt-2 space-y-2">
+                                                                        {question.subQuestions.map((subQ, subIndex) => {
+                                                                            const subQuestionNumber = `${subIndex + 1}`; // <- simple 1,2,3
+                                                                            return (
+                                                                                <QuestionDisplay
+                                                                                    key={subQ.id}
+                                                                                    question={subQ}
+                                                                                    questionNumber={subQuestionNumber}
+                                                                                />
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ))}
+                                        )
+                                    })}
+                                </div>
+                            );
+
+                        })}
                     </div>
 
                     <div className="mt-12 pt-8 border-t text-center text-gray-500 text-sm">
@@ -1086,7 +1314,16 @@ const PaperGeneratorAdvanced: React.FC = () => {
     const [sections, setSections] = useState<Section[]>(() => {
         try {
             const raw = localStorage.getItem(LS_KEY);
-            return raw ? JSON.parse(raw) : [];
+            const parsed = raw ? JSON.parse(raw) : [];
+
+            // Ensure all groups have a numberingStyle property
+            return parsed.map((section: Section) => ({
+                ...section,
+                groups: section.groups.map((group: QuestionGroup) => ({
+                    ...group,
+                    numberingStyle: group.numberingStyle || 'numeric'
+                }))
+            }));
         } catch {
             return [];
         }
@@ -1157,15 +1394,15 @@ const PaperGeneratorAdvanced: React.FC = () => {
         setGroupModalOpen(true);
     };
 
-    const handleAddOrEditGroup = (type: string, instruction: string, logic?: string, editingId?: string) => {
+    const handleAddOrEditGroup = (type: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => {
         if (!currentSectionIdForGroup) return;
         setSections((s) =>
             s.map((sec) => {
                 if (sec.id !== currentSectionIdForGroup) return sec;
                 if (editingId) {
-                    return { ...sec, groups: sec.groups.map((g) => (g.id === editingId ? { ...g, type, instruction, logic } : g)) };
+                    return { ...sec, groups: sec.groups.map((g) => (g.id === editingId ? { ...g, type, instruction, logic, numberingStyle } : g)) };
                 }
-                const newGroup: QuestionGroup = { id: uid('g-'), type, instruction, logic, questions: [] };
+                const newGroup: QuestionGroup = { id: uid('g-'), type, instruction, logic, numberingStyle, questions: [] };
                 return { ...sec, groups: [...sec.groups, newGroup] };
             })
         );
@@ -1291,8 +1528,15 @@ const PaperGeneratorAdvanced: React.FC = () => {
             try {
                 const parsed = JSON.parse(String(e.target?.result));
                 if (Array.isArray(parsed)) {
-                    // basic validation
-                    setSections(parsed);
+                    // Ensure all groups have a numberingStyle property
+                    const processed = parsed.map((section: Section) => ({
+                        ...section,
+                        groups: section.groups.map((group: QuestionGroup) => ({
+                            ...group,
+                            numberingStyle: group.numberingStyle || 'numeric'
+                        }))
+                    }));
+                    setSections(processed);
                 } else {
                     alert('Invalid format');
                 }
@@ -1436,89 +1680,96 @@ const PaperGeneratorAdvanced: React.FC = () => {
                             ) : (
                                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                                     <SortableContext items={sections.map((s) => s.id)}>
-                                        {filteredSections.map((sec, i) => (
-                                            <div key={sec.id}>
-                                                <SortableSection
-                                                    section={sec}
-                                                    index={i}
-                                                    onEdit={(s) => openEditSection(s)}
-                                                    onDelete={(id) => askConfirm({ type: 'delete-section', payload: { sectionId: id } })}
-                                                    onAddGroup={(id) => startAddGroup(id)}
-                                                    onEditGroup={(sectionId, group) => openEditGroup(sectionId, group)}
-                                                    onDeleteGroup={(sectionId, groupId) => askConfirm({ type: 'delete-group', payload: { sectionId, groupId } })}
-                                                    onDuplicateSection={(id) => handleDuplicateSection(id)}
-                                                />
+                                        {filteredSections.map((sec, i) => {
+                                            let question_counter = 0;
+                                            return (
+                                                <div key={sec.id}>
+                                                    <SortableSection
+                                                        section={sec}
+                                                        index={i}
+                                                        onEdit={(s) => openEditSection(s)}
+                                                        onDelete={(id) => askConfirm({ type: 'delete-section', payload: { sectionId: id } })}
+                                                        onAddGroup={(id) => startAddGroup(id)}
+                                                        onEditGroup={(sectionId, group) => openEditGroup(sectionId, group)}
+                                                        onDeleteGroup={(sectionId, groupId) => askConfirm({ type: 'delete-group', payload: { sectionId, groupId } })}
+                                                        onDuplicateSection={(id) => handleDuplicateSection(id)}
+                                                    />
 
-                                                {/* Expandable section content */}
-                                                <div className="mb-6">
-                                                    <div className="flex justify-between items-center mb-4">
-                                                        <h3 className="text-lg font-medium text-gray-800">Groups in {sec.title.replace(/<[^>]*>/g, '')}</h3>
-                                                        <button
-                                                            onClick={() => toggleSectionExpansion(sec.id)}
-                                                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-                                                        >
-                                                            {expandedSections[sec.id] ? (
-                                                                <>
-                                                                    <Icon.ChevronUp /> Collapse
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Icon.ChevronDown /> Expand
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-
-                                                    {expandedSections[sec.id] && sec.groups.map((g) => (
-                                                        <div key={g.id} className="bg-gray-50 rounded-xl p-5 mb-5 border border-gray-200">
-                                                            <div className="flex justify-between items-center mb-4 pb-3 border-b">
-                                                                <div>
-                                                                    <div className="text-md font-bold text-green-700">{getGroupTitle(g.type)}</div>
-                                                                    {g.instruction && <div className="text-gray-600 text-sm mt-1" dangerouslySetInnerHTML={{ __html: renderMathContent(g.instruction) }} />}
-                                                                </div>
-                                                                <div className="flex gap-2">
-                                                                    <button onClick={() => openEditGroup(sec.id, g)} className="p-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Group">
-                                                                        <Icon.Edit />
-                                                                    </button>
-                                                                    <button onClick={() => askConfirm({ type: 'delete-group', payload: { sectionId: sec.id, groupId: g.id } })} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors" title="Delete Group">
-                                                                        <Icon.Delete />
-                                                                    </button>
-                                                                    <button onClick={() => startAddQuestion(sec.id, g.id, g.type)} className="px-3 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium flex items-center gap-1 transition-colors">
-                                                                        <Icon.Add /> Question
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="mt-4 space-y-4">
-                                                                {g.questions.length === 0 ? (
-                                                                    <div className="bg-white rounded-lg p-4 text-center text-gray-500 border border-dashed border-gray-300">
-                                                                        No questions yet in this group.
-                                                                    </div>
+                                                    {/* Expandable section content */}
+                                                    <div className="mb-6">
+                                                        <div className="flex justify-between items-center mb-4">
+                                                            <h3 className="text-lg font-medium text-gray-800">Groups in {sec.title.replace(/<[^>]*>/g, '')}</h3>
+                                                            <button
+                                                                onClick={() => toggleSectionExpansion(sec.id)}
+                                                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                                                            >
+                                                                {expandedSections[sec.id] ? (
+                                                                    <>
+                                                                        <Icon.ChevronUp /> Collapse
+                                                                    </>
                                                                 ) : (
-                                                                    g.questions.map((q, qIndex) => (
-                                                                        <div key={q.id} className="bg-white rounded-lg p-4 border border-gray-200">
-                                                                            <div className="flex justify-between items-start mb-3">
-                                                                                <div className="flex-1">
-                                                                                    <QuestionDisplay question={q} questionNumber={`${qIndex + 1}`} />
-                                                                                </div>
-                                                                                <div className="flex gap-2 ml-4">
-                                                                                    <button onClick={() => openEditQuestion(sec.id, g.id, q)} className="p-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Question">
-                                                                                        <Icon.Edit />
-                                                                                    </button>
-                                                                                    <button onClick={() => askConfirm({ type: 'delete-question', payload: { sectionId: sec.id, groupId: g.id, questionId: q.id } })} className="p-1.5 rounded-md bg-red-100 hover:bg-red-200 text-red-700 transition-colors" title="Delete Question">
-                                                                                        <Icon.Delete />
-                                                                                    </button>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    ))
+                                                                    <>
+                                                                        <Icon.ChevronDown /> Expand
+                                                                    </>
                                                                 )}
-                                                            </div>
+                                                            </button>
                                                         </div>
-                                                    ))}
+
+                                                        {expandedSections[sec.id] && sec.groups.map((g) => (
+                                                            <div key={g.id} className="bg-gray-50 rounded-xl p-5 mb-5 border border-gray-200">
+                                                                <div className="flex justify-between items-center mb-4 pb-3 border-b">
+                                                                    <div>
+                                                                        <div className="text-md font-bold text-green-700">{getGroupTitle(g.type)}</div>
+                                                                        {g.instruction && <div className="text-gray-600 text-sm mt-1" dangerouslySetInnerHTML={{ __html: renderMathContent(g.instruction) }} />}
+                                                                        <div className="text-gray-500 text-xs mt-2">Numbering: {g.numberingStyle}</div>
+                                                                    </div>
+                                                                    <div className="flex gap-2">
+                                                                        <button onClick={() => openEditGroup(sec.id, g)} className="p-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Group">
+                                                                            <Icon.Edit />
+                                                                        </button>
+                                                                        <button onClick={() => askConfirm({ type: 'delete-group', payload: { sectionId: sec.id, groupId: g.id } })} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors" title="Delete Group">
+                                                                            <Icon.Delete />
+                                                                        </button>
+                                                                        <button onClick={() => startAddQuestion(sec.id, g.id, g.type)} className="px-3 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium flex items-center gap-1 transition-colors">
+                                                                            <Icon.Add /> Question
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="mt-4 space-y-4">
+                                                                    {g.questions.length === 0 ? (
+                                                                        <div className="bg-white rounded-lg p-4 text-center text-gray-500 border border-dashed border-gray-300">
+                                                                            No questions yet in this group.
+                                                                        </div>
+                                                                    ) : (
+                                                                        g.questions.map((q, qIndex) => {
+                                                                            question_counter++;
+                                                                            return (
+                                                                                <div key={q.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                                                                                    <div className="flex justify-between items-start mb-3">
+                                                                                        <div className="flex-1">
+                                                                                            <QuestionDisplay question={q} questionNumber={`${question_counter}`} />
+                                                                                        </div>
+                                                                                        <div className="flex gap-2 ml-4">
+                                                                                            <button onClick={() => openEditQuestion(sec.id, g.id, q)} className="p-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Question">
+                                                                                                <Icon.Edit />
+                                                                                            </button>
+                                                                                            <button onClick={() => askConfirm({ type: 'delete-question', payload: { sectionId: sec.id, groupId: g.id, questionId: q.id } })} className="p-1.5 rounded-md bg-red-100 hover:bg-red-200 text-red-700 transition-colors" title="Delete Question">
+                                                                                                <Icon.Delete />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )
+                                                                        })
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </SortableContext>
                                 </DndContext>
                             )}
@@ -1564,6 +1815,10 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                 <li className="flex items-start gap-2">
                                     <span className="text-blue-600 mt-0.5">•</span>
                                     <span>Toggle preview mode to see rendered math</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-blue-600 mt-0.5">•</span>
+                                    <span>Use the "Insert Image" button to add images to your questions</span>
                                 </li>
                             </ul>
                         </div>
