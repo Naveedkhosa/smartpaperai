@@ -1078,21 +1078,23 @@ const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string }
 const ConditionalQuestion: React.FC<{ question: Question; questionNumber: string; showOr: boolean }> = ({ question, questionNumber, showOr }) => {
     return (
         <div className="mb-4">
-            {showOr && (
-                <div className="text-center my-4">
-                    <strong>OR</strong>
-                </div>
-            )}
             <div className="font-medium mb-3 text-gray-800">
                 <span className="mr-2">{questionNumber}</span>
                 Conditional Questions
             </div>
             <div className="ml-4">
                 {question.content.conditionalQuestions.map((condQ: string, idx: number) => (
-                    <div key={idx} className="mb-2 text-gray-700">
-                        <span className="mr-2">{questionNumber}.{idx + 1}</span>
-                        <span dangerouslySetInnerHTML={{ __html: renderMathContent(condQ) }} />
-                    </div>
+                    <React.Fragment key={idx}>
+                        {idx > 0 && (
+                            <div className="text-center my-2">
+                                <strong>OR</strong>
+                            </div>
+                        )}
+                        <div className="mb-2 text-gray-700">
+                            <span className="mr-2">{idx + 1}.</span>
+                            <span dangerouslySetInnerHTML={{ __html: renderMathContent(condQ) }} />
+                        </div>
+                    </React.Fragment>
                 ))}
             </div>
         </div>
