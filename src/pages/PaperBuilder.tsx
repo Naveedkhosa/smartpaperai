@@ -22,6 +22,10 @@ export interface Question {
     id: string;
     type: string;
     content: any;
+    marks?: number; // main question marks
+    subQuestionMarks?: number[]; // for sub-questions
+    paraQuestionMarks?: number[]; // for para-questions
+    conditionalQuestionMarks?: number[]; // for conditional-questions
 }
 
 export interface QuestionGroup {
@@ -406,7 +410,7 @@ const MathEditor: React.FC<{
                 />
             )}
 
-            <style jsx>{`
+            <style>{`
                 .math-preview .math-block {
                     display: block;
                     text-align: center;
@@ -724,18 +728,26 @@ const QuestionForm: React.FC<{
     const [choices, setChoices] = useState<string[]>(editing?.content?.choices || ['', '']);
     const [correctAnswer, setCorrectAnswer] = useState<number>(editing?.content?.correctAnswer ?? 0);
     const [subQuestions, setSubQuestions] = useState<string[]>(editing?.content?.subQuestions || ['']);
+    const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>(editing?.subQuestionMarks || [0]);
+    const [marks, setMarks] = useState<number>(editing?.marks ?? 0);
     const [paraText, setParaText] = useState(editing?.content?.paraText || '');
     const [paraQuestions, setParaQuestions] = useState<string[]>(editing?.content?.paraQuestions || ['']);
+    const [paraQuestionMarks, setParaQuestionMarks] = useState<number[]>(editing?.paraQuestionMarks || [0]);
     const [conditionalQuestions, setConditionalQuestions] = useState<string[]>(editing?.content?.conditionalQuestions || ['']);
+    const [conditionalQuestionMarks, setConditionalQuestionMarks] = useState<number[]>(editing?.conditionalQuestionMarks || [0]);
 
     useEffect(() => {
         setQuestionText(editing?.content?.questionText || '');
         setChoices(editing?.content?.choices || ['', '']);
         setCorrectAnswer(editing?.content?.correctAnswer ?? 0);
         setSubQuestions(editing?.content?.subQuestions || ['']);
+        setSubQuestionMarks(editing?.subQuestionMarks || [0]);
+        setMarks(editing?.marks ?? 0);
         setParaText(editing?.content?.paraText || '');
         setParaQuestions(editing?.content?.paraQuestions || ['']);
+        setParaQuestionMarks(editing?.paraQuestionMarks || [0]);
         setConditionalQuestions(editing?.content?.conditionalQuestions || ['']);
+        setConditionalQuestionMarks(editing?.conditionalQuestionMarks || [0]);
     }, [editing]);
 
     const reset = () => {
@@ -743,9 +755,13 @@ const QuestionForm: React.FC<{
         setChoices(['', '']);
         setCorrectAnswer(0);
         setSubQuestions(['']);
+        setSubQuestionMarks([0]);
+        setMarks(0);
         setParaText('');
         setParaQuestions(['']);
+        setParaQuestionMarks([0]);
         setConditionalQuestions(['']);
+        setConditionalQuestionMarks([0]);
     };
 
     const handleSubmit = (e: any) => {
@@ -767,7 +783,17 @@ const QuestionForm: React.FC<{
             content.paraQuestions = paraQuestions.filter(Boolean);
         }
 
-        const q: Question = { id: editing?.id || uid('q-'), type, content };
+        // Add marks logic
+        let q: Question = { id: editing?.id || uid('q-'), type, content };
+        if (type === 'short-question' || type === 'long-question') {
+            q.subQuestionMarks = subQuestionMarks.slice(0, subQuestions.length);
+        } else if (type === 'para-question') {
+            q.paraQuestionMarks = paraQuestionMarks.slice(0, paraQuestions.length);
+        } else if (type === 'conditional') {
+            q.conditionalQuestionMarks = conditionalQuestionMarks.slice(0, conditionalQuestions.length);
+        } else {
+            q.marks = marks;
+        }
         onSubmit(q, editing?.id);
         reset();
     };
@@ -779,18 +805,51 @@ const QuestionForm: React.FC<{
 
     // sub question helpers
     const updateSub = (i: number, v: string) => setSubQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
-    const addSub = () => setSubQuestions((s) => [...s, '']);
-    const removeSub = (i: number) => setSubQuestions((s) => s.filter((_, idx) => idx !== i));
+    const updateSubMark = (i: number, v: number) => setSubQuestionMarks((marks) => {
+        const arr = [...marks];
+        arr[i] = v;
+        return arr;
+    });
+    const addSub = () => {
+        setSubQuestions((s) => [...s, '']);
+        setSubQuestionMarks((marks) => [...marks, 0]);
+    };
+    const removeSub = (i: number) => {
+        setSubQuestions((s) => s.filter((_, idx) => idx !== i));
+        setSubQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
+    };
 
     // paragraph helpers
     const updateParaQ = (i: number, v: string) => setParaQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
-    const addParaQ = () => setParaQuestions((s) => [...s, '']);
-    const removeParaQ = (i: number) => setParaQuestions((s) => s.filter((_, idx) => idx !== i));
+    const updateParaMark = (i: number, v: number) => setParaQuestionMarks((marks) => {
+        const arr = [...marks];
+        arr[i] = v;
+        return arr;
+    });
+    const addParaQ = () => {
+        setParaQuestions((s) => [...s, '']);
+        setParaQuestionMarks((marks) => [...marks, 0]);
+    };
+    const removeParaQ = (i: number) => {
+        setParaQuestions((s) => s.filter((_, idx) => idx !== i));
+        setParaQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
+    };
 
     // conditional helpers
     const updateCond = (i: number, v: string) => setConditionalQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
-    const addCond = () => setConditionalQuestions((s) => [...s, '']);
-    const removeCond = (i: number) => setConditionalQuestions((s) => s.filter((_, idx) => idx !== i));
+    const updateCondMark = (i: number, v: number) => setConditionalQuestionMarks((marks) => {
+        const arr = [...marks];
+        arr[i] = v;
+        return arr;
+    });
+    const addCond = () => {
+        setConditionalQuestions((s) => [...s, '']);
+        setConditionalQuestionMarks((marks) => [...marks, 0]);
+    };
+    const removeCond = (i: number) => {
+        setConditionalQuestions((s) => s.filter((_, idx) => idx !== i));
+        setConditionalQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
+    };
 
     return (
         <Modal open={open} onClose={onClose} title={editing ? 'Edit Question' : 'Add Question'}>
@@ -805,6 +864,18 @@ const QuestionForm: React.FC<{
                             rows={3}
                             showMath={true}
                         />
+                        {(type === 'mcq' || type === 'true-false' || type === 'fill-in-the-blanks') && (
+                            <div className="mt-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    value={marks}
+                                    onChange={e => setMarks(Number(e.target.value))}
+                                    className="w-24 p-2 rounded border border-gray-300"
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -866,7 +937,19 @@ const QuestionForm: React.FC<{
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Sub Questions (optional)</label>
                         <div className="space-y-3">
-                            {subQuestions.map((s, i) => (
+                            {subQuestions.length === 1 && !subQuestions[0] && (
+                                <div className="flex flex-col items-start">
+                                    <label className="block text-xs text-gray-700">Main Question Marks</label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        value={marks}
+                                        onChange={e => setMarks(Number(e.target.value))}
+                                        className="w-24 p-2 rounded border border-gray-300"
+                                    />
+                                </div>
+                            )}
+                            {subQuestions.map((s, i) => s && (
                                 <div key={i} className="flex gap-3 items-start">
                                     <div className="flex-1">
                                         <RichTextEditor
@@ -875,6 +958,16 @@ const QuestionForm: React.FC<{
                                             placeholder={`Sub-question ${i + 1}`}
                                             rows={2}
                                             showMath={true}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col items-center ml-2">
+                                        <label className="block text-xs text-gray-700">Marks</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            value={subQuestionMarks[i] ?? 0}
+                                            onChange={e => updateSubMark(i, Number(e.target.value))}
+                                            className="w-16 p-1 rounded border border-gray-300"
                                         />
                                     </div>
                                     {subQuestions.length > 1 && (
@@ -904,6 +997,16 @@ const QuestionForm: React.FC<{
                                             placeholder={`Conditional question ${i + 1}`}
                                             rows={2}
                                             showMath={true}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col items-center ml-2">
+                                        <label className="block text-xs text-gray-700">Marks</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            value={conditionalQuestionMarks[i] ?? 0}
+                                            onChange={e => updateCondMark(i, Number(e.target.value))}
+                                            className="w-16 p-1 rounded border border-gray-300"
                                         />
                                     </div>
                                     {conditionalQuestions.length > 1 && (
@@ -946,6 +1049,16 @@ const QuestionForm: React.FC<{
                                                 showMath={true}
                                             />
                                         </div>
+                                        <div className="flex flex-col items-center ml-2">
+                                            <label className="block text-xs text-gray-700">Marks</label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                value={paraQuestionMarks[i] ?? 0}
+                                                onChange={e => updateParaMark(i, Number(e.target.value))}
+                                                className="w-16 p-1 rounded border border-gray-300"
+                                            />
+                                        </div>
                                         {paraQuestions.length > 1 && (
                                             <button type="button" onClick={() => removeParaQ(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
                                                 <Icon.Delete />
@@ -983,13 +1096,17 @@ const MCQQuestion: React.FC<{ question: Question; questionNumber: string }> = ({
 
     return (
         <div className="mb-4">
-            <div className="font-medium mb-3 text-gray-800">
-                <span className="mr-2">
-                    {isMain ? questionNumber : `${questionNumber}.`}
-                </span>
-                <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+            <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
+                <div>
+                    <span className="mr-2">
+                        {isMain ? questionNumber : `${questionNumber}.`}
+                    </span>
+                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                </div>
+                {typeof question.marks === 'number' && (
+                    <span className="text-right text-blue-700 font-bold">{question.marks} marks</span>
+                )}
             </div>
-
             <div className="ml-4 space-y-2">
                 {question.content.choices.map((choice: string, idx: number) => (
                     <div key={idx} className="flex items-start">
@@ -999,7 +1116,7 @@ const MCQQuestion: React.FC<{ question: Question; questionNumber: string }> = ({
                         <span className="text-gray-700 flex-1" dangerouslySetInnerHTML={{ __html: renderMathContent(choice) }} />
                         {idx === question.content.correctAnswer && (
                             <span className="ml-2 text-green-600 text-sm flex items-center">
-                                <Icon.Check className="h-4 w-4 mr-1" /> Correct
+                                <Icon.Check /> Correct
                             </span>
                         )}
                     </div>
@@ -1013,9 +1130,14 @@ const MCQQuestion: React.FC<{ question: Question; questionNumber: string }> = ({
 const TrueFalseQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
     return (
         <div className="mb-4">
-            <div className="font-medium mb-3 text-gray-800">
-                <span className="mr-2">{questionNumber}. </span>
-                <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+            <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
+                <div>
+                    <span className="mr-2">{questionNumber}. </span>
+                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                </div>
+                {typeof question.marks === 'number' && (
+                    <span className="text-right text-blue-700 font-bold">{question.marks} marks</span>
+                )}
             </div>
             <div className="ml-4 space-y-2">
                 <div className="flex items-center">
@@ -1023,7 +1145,7 @@ const TrueFalseQuestion: React.FC<{ question: Question; questionNumber: string }
                     <span className="text-gray-700">True</span>
                     {question.content.correctAnswer === 0 && (
                         <span className="ml-2 text-green-600 text-sm flex items-center">
-                            <Icon.Check className="h-4 w-4 mr-1" /> Correct
+                            <Icon.Check /> Correct
                         </span>
                     )}
                 </div>
@@ -1032,7 +1154,7 @@ const TrueFalseQuestion: React.FC<{ question: Question; questionNumber: string }
                     <span className="text-gray-700">False</span>
                     {question.content.correctAnswer === 1 && (
                         <span className="ml-2 text-green-600 text-sm flex items-center">
-                            <Icon.Check className="h-4 w-4 mr-1" /> Correct
+                            <Icon.Check /> Correct
                         </span>
                     )}
                 </div>
@@ -1044,29 +1166,45 @@ const TrueFalseQuestion: React.FC<{ question: Question; questionNumber: string }
 const FillInBlanksQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
     return (
         <div className="mb-4">
-            <div className="font-medium text-gray-800">
-                <span className="mr-2">{questionNumber}. </span>
-                <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+            <div className="font-medium text-gray-800 flex justify-between items-center">
+                <div>
+                    <span className="mr-2">{questionNumber}. </span>
+                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                </div>
+                {typeof question.marks === 'number' && (
+                    <span className="text-right text-blue-700 font-bold">{question.marks} marks</span>
+                )}
             </div>
         </div>
     );
 };
 
 const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
+    const hasSubQuestions = question.content.subQuestions && question.content.subQuestions.length > 0;
     return (
         <div className="mb-4">
             {question.content.questionText && (
-                <div className="font-medium mb-3 text-gray-800">
-                    <span className="mr-2">{questionNumber}. </span>
-                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
+                    <div>
+                        <span className="mr-2">{questionNumber}. </span>
+                        <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                    </div>
+                    {!hasSubQuestions && typeof question.marks === 'number' && (
+                        <span className="text-right text-blue-700 font-bold">{question.marks} marks</span>
+                    )}
                 </div>
             )}
-            {question.content.subQuestions && question.content.subQuestions.length > 0 && (
+            {hasSubQuestions && (
                 <div className="ml-4">
                     {question.content.subQuestions.map((subQ: string, idx: number) => (
-                        <div key={idx} className="mb-2 text-gray-700">
-                            <span className="mr-2">{question.content.questionText ? `${toRoman(idx + 1)}. ` : `${questionNumber}`}</span>
-                            <span dangerouslySetInnerHTML={{ __html: renderMathContent(subQ) }} />
+                        <div key={idx} className="mb-2 text-gray-700 flex justify-between items-center">
+                            <div>
+                                <span className="mr-2">{question.content.questionText ? `${toRoman(idx + 1)}. ` : `${questionNumber}`}</span>
+                                <span dangerouslySetInnerHTML={{ __html: renderMathContent(subQ) }} />
+                            </div>
+                            {Array.isArray(question.subQuestionMarks) && typeof question.subQuestionMarks[idx] === 'number' && (
+                                <span className="text-right text-blue-700 font-bold">{question.subQuestionMarks[idx]} marks</span>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -1078,9 +1216,11 @@ const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string }
 const ConditionalQuestion: React.FC<{ question: Question; questionNumber: string; showOr: boolean }> = ({ question, questionNumber, showOr }) => {
     return (
         <div className="mb-4">
-            <div className="font-medium mb-3 text-gray-800">
-                <span className="mr-2">{questionNumber}</span>
-                Conditional Questions
+            <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
+                <div>
+                    <span className="mr-2">{questionNumber}</span>
+                    Conditional Questions
+                </div>
             </div>
             <div className="ml-4">
                 {question.content.conditionalQuestions.map((condQ: string, idx: number) => (
@@ -1090,9 +1230,14 @@ const ConditionalQuestion: React.FC<{ question: Question; questionNumber: string
                                 <strong>OR</strong>
                             </div>
                         )}
-                        <div className="mb-2 text-gray-700">
-                            <span className="mr-2">{idx + 1}.</span>
-                            <span dangerouslySetInnerHTML={{ __html: renderMathContent(condQ) }} />
+                        <div className="mb-2 text-gray-700 flex justify-between items-center">
+                            <div>
+                                <span className="mr-2">{idx + 1}.</span>
+                                <span dangerouslySetInnerHTML={{ __html: renderMathContent(condQ) }} />
+                            </div>
+                            {Array.isArray(question.conditionalQuestionMarks) && typeof question.conditionalQuestionMarks[idx] === 'number' && (
+                                <span className="text-right text-blue-700 font-bold">{question.conditionalQuestionMarks[idx]} marks</span>
+                            )}
                         </div>
                     </React.Fragment>
                 ))}
@@ -1103,16 +1248,23 @@ const ConditionalQuestion: React.FC<{ question: Question; questionNumber: string
 
 const ParaQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
     return (
-        <div className="mb-4 border-l-4 border-blue-200 pl-4 py-2 bg-blue-50 rounded-r-lg">
-            <div className="italic mb-3 text-gray-700 font-medium">
-                <span className="mr-2">{questionNumber}. </span>
-                <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.paraText) }} />
+        <div className="mb-4">
+            <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
+                <div>
+                    <span className="mr-2">{questionNumber}.</span>
+                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.paraText) }} />
+                </div>
             </div>
-            <div className="ml-2">
+            <div className="ml-4 space-y-2">
                 {question.content.paraQuestions.map((pq: string, idx: number) => (
-                    <div key={idx} className="mb-2 text-gray-700">
-                        <span className="mr-2">{questionNumber}.{idx + 1}</span>
-                        <span dangerouslySetInnerHTML={{ __html: renderMathContent(pq) }} />
+                    <div key={idx} className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <span className="mr-2 font-medium text-blue-600 mt-1">{idx + 1}.</span>
+                            <span className="text-gray-700 flex-1" dangerouslySetInnerHTML={{ __html: renderMathContent(pq) }} />
+                        </div>
+                        {Array.isArray(question.paraQuestionMarks) && typeof question.paraQuestionMarks[idx] === 'number' && (
+                            <span className="text-right text-blue-700 font-bold">{question.paraQuestionMarks[idx]} marks</span>
+                        )}
                     </div>
                 ))}
             </div>
@@ -1185,11 +1337,9 @@ const PaperView: React.FC<{
 
                     <div className="space-y-8">
                         {sections.map((section, sIndex) => {
-                            let sectionQuestionCounter = 0; // Reset counter for each section
-
+                            let questionCounter = 0; // continuous numbering per section
                             return (
                                 <div key={section.id} className="mb-8">
-                                    {/* Section Heading (without numbering) */}
                                     <h2 className="text-xl font-bold mb-2 text-gray-800">
                                         <span
                                             dangerouslySetInnerHTML={{
@@ -1197,7 +1347,6 @@ const PaperView: React.FC<{
                                             }}
                                         />
                                     </h2>
-
                                     {section.instruction && (
                                         <p
                                             className="text-gray-600 mb-4 italic"
@@ -1206,102 +1355,68 @@ const PaperView: React.FC<{
                                             }}
                                         />
                                     )}
-
-                                    {section.groups.map((group) => {
-                                        sectionQuestionCounter++;
-                                        return (
-                                            <div key={group.id} className="mb-6 ml-4">
-                                                {/* Group instruction only (no group numbering/title) */}
-                                                {group.instruction && (
-                                                    <p
-                                                        className="text-gray-600 mb-3"
-                                                        dangerouslySetInnerHTML={{
-                                                            __html: renderMathContent(group.instruction),
-                                                        }}
-                                                    />
-                                                )}
-
-                                                <div className="space-y-4 ml-4">
-                                                    {group.questions.map((question, qIndex) => {
-                                                        // ✅ Main question numbering
-                                                        const questionNumber = `Q${sectionQuestionCounter}`;
-
-                                                        return (
-                                                            <div key={question.id} className="mb-4">
-                                                                <QuestionDisplay question={question} questionNumber={questionNumber} />
-
-                                                                {/* ✅ Sub-questions */}
-                                                                {question.subQuestions && question.subQuestions.length > 0 && (
-                                                                    <div className="ml-6 mt-2 space-y-2">
-                                                                        {question.subQuestions.map((subQ, subIndex) => {
-                                                                            const subQuestionNumber = `${subIndex + 1}`; // <- simple 1,2,3
-                                                                            return (
-                                                                                <QuestionDisplay
-                                                                                    key={subQ.id}
-                                                                                    question={subQ}
-                                                                                    questionNumber={subQuestionNumber}
-                                                                                />
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-
-                                                </div>
+                                    {section.groups.map((group) => (
+                                        <div key={group.id} className="mb-6 ml-4">
+                                            {group.instruction && (
+                                                <p
+                                                    className="text-gray-600 mb-3"
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: renderMathContent(group.instruction),
+                                                    }}
+                                                />
+                                            )}
+                                            <div className="space-y-4 ml-4">
+                                                {group.questions.map((question, qIndex) => {
+                                                    questionCounter++;
+                                                    const questionNumber = `${questionCounter}`;
+                                                    return (
+                                                        <div key={question.id} className="mb-4">
+                                                            <QuestionDisplay question={question} questionNumber={questionNumber} />
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        )
-                                    })}
+                                        </div>
+                                    ))}
                                 </div>
                             );
-
                         })}
                     </div>
-
                     <div className="mt-12 pt-8 border-t text-center text-gray-500 text-sm">
                         <p>End of Paper</p>
                     </div>
                 </div>
             </div>
-
-            {/* Print-specific styles */}
-            <style jsx>{`
+            <style>{`
                 @media print {
                     .no-print {
                         display: none !important;
                     }
-                    
                     body {
                         print-color-adjust: exact;
                         -webkit-print-color-adjust: exact;
                     }
-                    
                     .paper-content {
                         padding: 20px;
                         font-size: 14px;
                         line-height: 1.6;
                     }
-                    
                     h1 {
                         font-size: 24px;
                         margin-bottom: 30px;
                     }
-                    
                     h2 {
                         font-size: 20px;
                         margin-top: 25px;
                         margin-bottom: 15px;
                         page-break-after: avoid;
                     }
-                    
                     h3 {
                         font-size: 18px;
                         margin-top: 20px;
                         margin-bottom: 10px;
                         page-break-after: avoid;
                     }
-                    
                     .question-break {
                         page-break-inside: avoid;
                     }
@@ -1663,7 +1778,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                     <section className="lg:col-span-3">
                         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
                             <h2 className="text-xl font-semibold mb-6 text-gray-800 border-b pb-3 flex items-center gap-2">
-                                <Icon.Question className="text-blue-600" /> Paper Structure
+                                <span style={{ color: '#2563eb' }}><Icon.Question /></span> Paper Structure
                             </h2>
 
                             {sections.length === 0 ? (
