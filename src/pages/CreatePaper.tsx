@@ -38,10 +38,14 @@ import {
   FileText,
   CheckCircle,
   Settings,
+  Edit3,
 } from "lucide-react";
 
+// API base URL
+const API_BASE_URL = "https://apis.babalrukn.com/api";
+
 export default function CreatePaperPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,23 +54,65 @@ export default function CreatePaperPage() {
   // Form states
   const [paperForm, setPaperForm] = useState({
     title: "",
-    subject: "",
-    classId: "",
-    creationMethod: "generate", // 'generate' or 'upload'
+    subject_id: "",
+    class_id: "",
+    creationMethod: "generate", // 'generate', 'upload', or 'manual'
     generationMode: "intelligent", // 'asis-keybook', 'asis-pastpapers', 'intelligent'
     questionTypes: [] as string[],
-    totalMarks: 100,
+    duration: 120, // Duration in minutes
     sourceType: "public", // 'public' or 'personal'
     personalCategory: "All", // filter
     content: "",
   });
 
+  // Fetch classes with authentication
   const { data: classes, isLoading: classesLoading } = useQuery({
-    queryKey: ["/api/classes/teacher", user?.id],
-    enabled: !!user?.id,
+    queryKey: ["/user/classes", user?.id],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/user/classes`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) throw new Error("Failed to fetch classes");
+      
+      const data = await response.json();
+      
+      // Check if the response structure matches the API documentation
+      if (data.status && data.data && data.data.classes) {
+        return data.data.classes;
+      } else {
+        throw new Error("Unexpected API response format");
+      }
+    },
+    enabled: !!user?.id && !!token,
   });
 
-  // Mock data
+// Fetch subjects based on selected class
+const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
+    queryKey: ['subjects', paperForm.class_id],
+    queryFn: async () => {
+        if (!paperForm.class_id) return [];
+
+        const response = await fetch(`${API_BASE_URL}/user/classes/${paperForm.class_id}/subjects`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch subjects');
+        }
+
+        const data = await response.json();
+        return data.data.class?.subjects || [];
+    },
+    enabled: !!token && !!paperForm.class_id, // <-- make sure enabled is true only when class_id exists
+});
+
+  // Mock data for public files
   const [publicFiles] = useState([
     { title: "Physics MCQs", thumbnail: "/thumbs/physics.png" },
     { title: "Chemistry Notes", thumbnail: "/thumbs/chem.png" },
@@ -101,53 +147,91 @@ export default function CreatePaperPage() {
   // Pagination
   const [visiblePublic, setVisiblePublic] = useState(6);
 
-
   // Mutations
   const createPaperMutation = useMutation({
-    mutationFn: (paperData: any) =>
-      fetch("/api/papers", {
+    mutationFn: async (paperData: any) => {
+      const response = await fetch(`${API_BASE_URL}/user/papers`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...paperData,
-          teacherId: user?.id,
-        }),
-      }).then((res) => res.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["/api/papers/teacher", user?.id],
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(paperData),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create paper");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: ["/user/papers", user?.id],
+      });
+      
+      // Reset form
       setPaperForm({
         title: "",
-        subject: "",
-        classId: "",
+        subject_id: "",
+        class_id: "",
         creationMethod: "generate",
         generationMode: "intelligent",
         questionTypes: [],
-        totalMarks: 100,
+        duration: 120,
         sourceType: "public",
         personalCategory: "All",
         content: "",
       });
-      toast({ title: "Success", description: "Paper created successfully" });
-      navigate("/teacher");
+      
+      toast({ 
+        title: "Success", 
+        description: data.message || "Paper created successfully" 
+      });
+      
+      // Redirect to paper builder if manual creation
+      if (paperForm.creationMethod === "manual") {
+        navigate(`/teacher/paper-builder/${data.data.paper.id}`);
+      } else {
+        navigate("/teacher");
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const handleCreatePaper = () => {
+    // Validate form
+    if (!paperForm.title || !paperForm.class_id || !paperForm.subject_id) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const paperData = {
       title: paperForm.title,
-      subject: paperForm.subject,
-      classId: paperForm.classId,
-      totalMarks: paperForm.totalMarks,
-      content: {
-        creationMethod: paperForm.creationMethod,
-        sourceType: paperForm.sourceType,
-        generationMode: paperForm.generationMode,
-        questionTypes: paperForm.questionTypes,
-        generatedContent: paperForm.content,
-      },
+      class_id: parseInt(paperForm.class_id),
+      subject_id: parseInt(paperForm.subject_id),
+      created_by: paperForm.creationMethod,
+      duration: paperForm.duration,
+      total_marks: paperForm.total_marks,
+      // Include generation parameters if using generate method
+      ...(paperForm.creationMethod === "generate" && {
+        data_source: paperForm.sourceType,
+        generation_mode: paperForm.generationMode,
+        question_types: paperForm.questionTypes,
+      }),
     };
+    
     createPaperMutation.mutate(paperData);
   };
 
@@ -173,270 +257,238 @@ export default function CreatePaperPage() {
   return (
     <GlassmorphismLayout>
       <div className="flex">
-      <TeacherSidebar />
-      {/* Main Content */}
-      <div className="flex-1 ml-0 lg:ml-0 min-h-screen ">
-        {/* Header */}
-        <div className="glassmorphism-strong rounded-2xl p-6 mb-6 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                Create New Paper
-              </h2>
-              <p className="text-slate-200/90 text-sm sm:text-base">
-                Generate papers using AI or upload your own compositions
-              </p>
-            </div>
-            <Button
-              onClick={() => navigate("/teacher")}
-              className="bg-slate-700 hover:bg-slate-600 text-white"
-            >
-              <ArrowLeft className="mr-2" size={16} />
-              Back to Dashboard
-            </Button>
-          </div>
-        </div>
-
-        {/* Paper Creation Form */}
-        <Card
-          data-testid="paper-creation-comprehensive"
-          className="glassmorphism-strong border-white/30"
-        >
-          <CardContent className="space-y-8">
-            {/* Basic Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white">
-                Basic Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label className="block text-white/80 text-sm font-medium mb-2">
-                    Paper Title
-                  </Label>
-                  <Input
-                    data-testid="input-paper-title"
-                    value={paperForm.title}
-                    onChange={(e) =>
-                      setPaperForm({ ...paperForm, title: e.target.value })
-                    }
-                    className="glass-input"
-                    placeholder="e.g., Math Quiz - Algebra"
-                  />
-                </div>
-                <div>
-                  <Label className="block text-white/80 text-sm font-medium mb-2">
-                    Subject
-                  </Label>
-                  <Select
-                    value={paperForm.subject}
-                    onValueChange={(value) =>
-                      setPaperForm({ ...paperForm, subject: value })
-                    }
-                  >
-                    <SelectTrigger
-                      data-testid="select-paper-subject"
-                      className="glass-input"
-                    >
-                      <SelectValue placeholder="Select Subject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mathematics">Mathematics</SelectItem>
-                      <SelectItem value="english">English</SelectItem>
-                      <SelectItem value="science">Science</SelectItem>
-                      <SelectItem value="physics">Physics</SelectItem>
-                      <SelectItem value="chemistry">Chemistry</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="block text-white/80 text-sm font-medium mb-2">
-                    Class
-                  </Label>
-                  <Select
-                    value={paperForm.classId}
-                    onValueChange={(value) =>
-                      setPaperForm({ ...paperForm, classId: value })
-                    }
-                  >
-                    <SelectTrigger
-                      data-testid="select-paper-class"
-                      className="glass-input"
-                    >
-                      <SelectValue placeholder="Select Class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(classes as any[])?.map((cls: any) => (
-                        <SelectItem key={cls.id} value={cls.id}>
-                          {cls.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        <TeacherSidebar />
+        {/* Main Content */}
+        <div className="flex-1 ml-0 lg:ml-0 min-h-screen ">
+          {/* Header */}
+          <div className="glassmorphism-strong rounded-2xl p-6 mb-6 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                  Create New Paper
+                </h2>
+                <p className="text-slate-200/90 text-sm sm:text-base">
+                  Generate papers using AI or upload your own compositions
+                </p>
               </div>
-            </div>
-
-            {/* Creation Method */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white">
-                Creation Method
-              </h3>
-              <RadioGroup
-                value={paperForm.creationMethod}
-                onValueChange={(value) =>
-                  setPaperForm({ ...paperForm, creationMethod: value })
-                }
-                className="grid grid-cols-1 md:grid-cols-2 gap-4"
+              <Button
+                onClick={() => navigate("/teacher")}
+                className="bg-slate-700 hover:bg-slate-600 text-white"
               >
-                <div className="glassmorphism p-6 rounded-xl space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <RadioGroupItem
-                      data-testid="radio-generate-method"
-                      value="generate"
-                      id="generate"
-                    />
-                    <Label
-                      htmlFor="generate"
-                      className="text-white font-semibold cursor-pointer flex items-center"
-                    >
-                      <Brain className="text-emerald-300 mr-2" size={20} />
-                      Generate from Sources
-                    </Label>
-                  </div>
-                  <p className="text-white/70 text-sm ml-6">
-                    Use AI to create papers from key books, past papers, or
-                    personal materials
-                  </p>
-                </div>
-                <div className="glassmorphism p-6 rounded-xl space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <RadioGroupItem
-                      data-testid="radio-upload-method"
-                      value="upload"
-                      id="upload"
-                    />
-                    <Label
-                      htmlFor="upload"
-                      className="text-white font-semibold cursor-pointer flex items-center"
-                    >
-                      <Upload className="text-emerald-300 mr-2" size={20} />
-                      Upload Composed Paper
-                    </Label>
-                  </div>
-                  <p className="text-white/70 text-sm ml-6">
-                    Upload your pre-written paper with OCR support for
-                    handwritten documents
-                  </p>
-                </div>
-              </RadioGroup>
+                <ArrowLeft className="mr-2" size={16} />
+                Back to Dashboard
+              </Button>
             </div>
+          </div>
 
-            {/* Generation Options */}
-            {paperForm.creationMethod === "generate" && (
-              <div className="space-y-6">
+          {/* Paper Creation Form */}
+          <Card
+            data-testid="paper-creation-comprehensive"
+            className="glassmorphism-strong border-white/30"
+          >
+            <CardContent className="space-y-8">
+              {/* Basic Information */}
+              <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-white">
-                  Source Selection
+                  Basic Information
                 </h3>
-                {/* Task 1: Source Selection */}
-                <div className="mt-6">
-                  <Label className="text-white/80 text-sm font-medium">
-                    Select Source
-                  </Label>
-
-                  <Tabs
-                    value={paperForm.sourceType}
-                    onValueChange={(val) =>
-                      setPaperForm({ ...paperForm, sourceType: val })
-                    }
-                    className="mt-3"
-                  >
-                    <TabsList className="grid grid-cols-2 bg-white/10 rounded-xl">
-                      <TabsTrigger
-                        value="public"
-                        className="text-white data-[state=active]:bg-emerald-600/70 data-[state=active]:text-white rounded-lg"
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <Label className="block text-white/80 text-sm font-medium mb-2">
+                      Paper Title *
+                    </Label>
+                    <Input
+                      data-testid="input-paper-title"
+                      value={paperForm.title}
+                      onChange={(e) =>
+                        setPaperForm({ ...paperForm, title: e.target.value })
+                      }
+                      className="glass-input"
+                      placeholder="e.g., Math Quiz - Algebra"
+                    />
+                  </div>
+                   <div>
+                    <Label className="block text-white/80 text-sm font-medium mb-2">
+                      Duration (minutes) *
+                    </Label>
+                    <Input
+                      type="number"
+                      value={paperForm.duration}
+                      onChange={(e) =>
+                        setPaperForm({ ...paperForm, duration: parseInt(e.target.value) || 120 })
+                      }
+                      className="glass-input"
+                      placeholder="Duration in minutes"
+                    />
+                  </div>
+                  <div>
+                    <Label className="block text-white/80 text-sm font-medium mb-2">
+                      Class *
+                    </Label>
+                    <Select
+                      value={paperForm.class_id}
+                      onValueChange={(value) =>
+                        setPaperForm({ ...paperForm, class_id: value })
+                      }
+                    >
+                      <SelectTrigger
+                        data-testid="select-paper-class"
+                        className="glass-input"
                       >
-                        Public Database
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="personal"
-                        className="text-white data-[state=active]:bg-emerald-600/70 data-[state=active]:text-white rounded-lg"
-                      >
-                        Personal Database
-                      </TabsTrigger>
-                    </TabsList>
-
-                    {/* Task 2: Public Database */}
-                    <TabsContent value="public" className="mt-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-h-[400px] overflow-y-auto pr-2">
-                        {publicFiles.slice(0, visiblePublic).map((file, i) => (
-                          <div
-                            key={i}
-                            className="glassmorphism rounded-xl p-3 shadow-md hover:shadow-emerald-400/20 transition"
-                          >
-                            <img
-                              src={file.thumbnail}
-                              alt={file.title}
-                              className="w-full h-32 object-cover rounded-lg mb-3"
-                            />
-                            <p className="text-white font-medium text-sm truncate">
-                              {file.title}
-                            </p>
-                          </div>
+                        <SelectValue placeholder="Select Class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes?.map((cls: any) => (
+                          <SelectItem key={cls.id} value={cls.id.toString()}>
+                            {cls.name}
+                          </SelectItem>
                         ))}
-                      </div>
-                      {visiblePublic < publicFiles.length && (
-                        <div className="flex justify-center mt-4">
-                          <Button
-                            variant="outline"
-                            onClick={() => setVisiblePublic(visiblePublic + 6)}
-                            className="border-white/20 text-white hover:bg-emerald-500/20 rounded-lg"
-                          >
-                            Load More
-                          </Button>
-                        </div>
-                      )}
-                    </TabsContent>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label className="block text-white/80 text-sm font-medium mb-2">
+                      Subject *
+                    </Label>
+                    <Select
+                      value={paperForm.subject_id}
+                      onValueChange={(value) =>
+                        setPaperForm({ ...paperForm, subject_id: value })
+                      }
+                      disabled={!paperForm.class_id || subjectsLoading}
+                    >
+                      <SelectTrigger
+                        data-testid="select-paper-subject"
+                        className="glass-input"
+                      >
+                        <SelectValue placeholder="Select Subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subjects?.map((subject: any) => (
+                          <SelectItem key={subject.id} value={subject.id.toString()}>
+                            {subject.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              
+              </div>
 
-                    {/* Task 3: Personal Database */}
-                    <TabsContent value="personal" className="mt-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="flex gap-2">
-                          {["All", "Ebook", "Past Papers"].map((cat) => (
-                            <Button
-                              key={cat}
-                              variant={
-                                paperForm.personalCategory === cat
-                                  ? "default"
-                                  : "outline"
-                              }
-                              className="rounded-lg"
-                              onClick={() =>
-                                setPaperForm({
-                                  ...paperForm,
-                                  personalCategory: cat,
-                                })
-                              }
-                            >
-                              {cat}
-                            </Button>
-                          ))}
-                        </div>
-                        <Button
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-full px-3"
-                          onClick={() => navigate("/create-personal-db")} // Changed from "/addpersonaldata"
+              {/* Creation Method */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white">
+                  Creation Method
+                </h3>
+                <RadioGroup
+                  value={paperForm.creationMethod}
+                  onValueChange={(value) =>
+                    setPaperForm({ ...paperForm, creationMethod: value })
+                  }
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4"
+                >
+                  <div className="glassmorphism p-6 rounded-xl space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem
+                        data-testid="radio-generate-method"
+                        value="generate"
+                        id="generate"
+                      />
+                      <Label
+                        htmlFor="generate"
+                        className="text-white font-semibold cursor-pointer flex items-center"
+                      >
+                        <Brain className="text-emerald-300 mr-2" size={20} />
+                        Generate from Sources
+                      </Label>
+                    </div>
+                    <p className="text-white/70 text-sm ml-6">
+                      Use AI to create papers from key books, past papers, or
+                      personal materials
+                    </p>
+                  </div>
+                  <div className="glassmorphism p-6 rounded-xl space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem
+                        data-testid="radio-upload-method"
+                        value="upload"
+                        id="upload"
+                      />
+                      <Label
+                        htmlFor="upload"
+                        className="text-white font-semibold cursor-pointer flex items-center"
+                      >
+                        <Upload className="text-emerald-300 mr-2" size={20} />
+                        Upload Composed Paper
+                      </Label>
+                    </div>
+                    <p className="text-white/70 text-sm ml-6">
+                      Upload your pre-written paper with OCR support for
+                      handwritten documents
+                    </p>
+                  </div>
+                  <div className="glassmorphism p-6 rounded-xl space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem
+                        data-testid="radio-manual-method"
+                        value="manual"
+                        id="manual"
+                      />
+                      <Label
+                        htmlFor="manual"
+                        className="text-white font-semibold cursor-pointer flex items-center"
+                      >
+                        <Edit3 className="text-emerald-300 mr-2" size={20} />
+                        Create with Manual Editor
+                      </Label>
+                    </div>
+                    <p className="text-white/70 text-sm ml-6">
+                      Use our built-in editor to manually create your paper
+                    </p>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Generation Options - Only show for generate method */}
+              {paperForm.creationMethod === "generate" && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold text-white">
+                    Source Selection
+                  </h3>
+                  {/* Task 1: Source Selection */}
+                  <div className="mt-6">
+                    <Label className="text-white/80 text-sm font-medium">
+                      Select Source
+                    </Label>
+
+                    <Tabs
+                      value={paperForm.sourceType}
+                      onValueChange={(val) =>
+                        setPaperForm({ ...paperForm, sourceType: val })
+                      }
+                      className="mt-3"
+                    >
+                      <TabsList className="grid grid-cols-2 bg-white/10 rounded-xl">
+                        <TabsTrigger
+                          value="public"
+                          className="text-white data-[state=active]:bg-emerald-600/70 data-[state=active]:text-white rounded-lg"
                         >
-                          +
-                        </Button>
-                      </div>
+                          Public Database
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="personal"
+                          className="text-white data-[state=active]:bg-emerald-600/70 data-[state=active]:text-white rounded-lg"
+                        >
+                          Personal Database
+                        </TabsTrigger>
+                      </TabsList>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                        {personalFiles
-                          .filter(
-                            (f) =>
-                              paperForm.personalCategory === "All" ||
-                              f.category === paperForm.personalCategory,
-                          )
-                          .map((file, i) => (
+                      {/* Task 2: Public Database */}
+                      <TabsContent value="public" className="mt-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-h-[400px] overflow-y-auto pr-2">
+                          {publicFiles.slice(0, visiblePublic).map((file, i) => (
                             <div
                               key={i}
                               className="glassmorphism rounded-xl p-3 shadow-md hover:shadow-emerald-400/20 transition"
@@ -451,190 +503,273 @@ export default function CreatePaperPage() {
                               </p>
                             </div>
                           ))}
-                      </div>
-
-                      {/* Upload Box */}
-                      <div className="mt-6 p-6 border-2 border-dashed border-white/30 rounded-xl flex flex-col items-center justify-center text-white/70">
-                        <Upload className="w-8 h-8 mb-2 text-emerald-300" />
-                        <p>Drag & drop files here or click to upload</p>
-                        <Input type="file" multiple className="hidden" />
-                      </div>
-
-                      
-                    </TabsContent>
-                  </Tabs>
-
-                  {/* Generation Mode */}
-                  <div className="space-y-3">
-                    <Label className="text-white/80 text-sm font-medium">
-                      Generation Mode
-                    </Label>
-                    <RadioGroup
-                      value={paperForm.generationMode}
-                      onValueChange={(value) =>
-                        setPaperForm({ ...paperForm, generationMode: value })
-                      }
-                      className="space-y-3"
-                    >
-                      <div className="glassmorphism p-4 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem
-                            data-testid="radio-intelligent-mode"
-                            value="intelligent"
-                            id="intelligent"
-                          />
-                          <Label
-                            htmlFor="intelligent"
-                            className="text-white cursor-pointer flex items-center"
-                          >
-                            <Lightbulb className="text-emerald-300 mr-2" size={16} />
-                            Intelligent Generation
-                          </Label>
                         </div>
-                        <p className="text-white/60 text-xs ml-6 mt-1">
-                          AI-powered question generation with variety and complexity
-                          control
-                        </p>
-                      </div>
-                      <div className="glassmorphism p-4 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem
-                            data-testid="radio-asis-keybook-mode"
-                            value="asis-keybook"
-                            id="asis-keybook"
-                          />
-                          <Label
-                            htmlFor="asis-keybook"
-                            className="text-white cursor-pointer"
-                          >
-                            As-Is from Key Book
-                          </Label>
-                        </div>
-                        <p className="text-white/60 text-xs ml-6 mt-1">
-                          Direct questions from selected key book materials
-                        </p>
-                      </div>
-                      <div className="glassmorphism p-4 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <RadioGroupItem
-                            data-testid="radio-asis-pastpapers-mode"
-                            value="asis-pastpapers"
-                            id="asis-pastpapers"
-                          />
-                          <Label
-                            htmlFor="asis-pastpapers"
-                            className="text-white cursor-pointer"
-                          >
-                            As-Is from Past Papers
-                          </Label>
-                        </div>
-                        <p className="text-white/60 text-xs ml-6 mt-1">
-                          Questions directly from previous examination papers
-                        </p>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  {/* Question Types */}
-                  <div className="space-y-3">
-                    <Label className="text-white/80 text-sm font-medium">
-                      Question Types & Marks
-                    </Label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {["MCQ", "Short Q", "Long Q"].map((type) => {
-                        // mapping for placeholders
-                        const totalPlaceholderMap = {
-                          MCQ: "Total MCQ",
-                          "Short Q": "Total Short",
-                          "Long Q": "Total Long",
-                        };
-
-                        return (
-                          <div key={type} className="glassmorphism p-4 rounded-lg">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <input
-                                type="checkbox"
-                                data-testid={`checkbox-${type
-                                  .toLowerCase()
-                                  .replace(" ", "-")}`}
-                                checked={paperForm.questionTypes.includes(type)}
-                                onChange={() => handleQuestionTypeToggle(type)}
-                                className="rounded border-white/30"
-                              />
-                              <Label className="text-white cursor-pointer">
-                                {type}
-                              </Label>
-                            </div>
-
-                            {/* Marks input */}
-                            <Input
-                              type="number"
-                              placeholder="Marks"
-                              className="glass-input mt-2"
-                              disabled={!paperForm.questionTypes.includes(type)}
-                            />
-
-                            {/* Total input with dynamic placeholder */}
-                            <Input
-                              type="number"
-                              placeholder={totalPlaceholderMap[type]}
-                              className="glass-input mt-2"
-                              disabled={!paperForm.questionTypes.includes(type)}
-                            />
+                        {visiblePublic < publicFiles.length && (
+                          <div className="flex justify-center mt-4">
+                            <Button
+                              variant="outline"
+                              onClick={() => setVisiblePublic(visiblePublic + 6)}
+                              className="border-white/20 text-white hover:bg-emerald-500/20 rounded-lg"
+                            >
+                              Load More
+                            </Button>
                           </div>
-                        );
-                      })}
+                        )}
+                      </TabsContent>
+
+                      {/* Task 3: Personal Database */}
+                      <TabsContent value="personal" className="mt-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <div className="flex gap-2">
+                            {["All", "Ebook", "Past Papers"].map((cat) => (
+                              <Button
+                                key={cat}
+                                variant={
+                                  paperForm.personalCategory === cat
+                                    ? "default"
+                                    : "outline"
+                                }
+                                className="rounded-lg"
+                                onClick={() =>
+                                  setPaperForm({
+                                    ...paperForm,
+                                    personalCategory: cat,
+                                  })
+                                }
+                              >
+                                {cat}
+                              </Button>
+                            ))}
+                          </div>
+                          <Button
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-full px-3"
+                            onClick={() => navigate("/create-personal-db")}
+                          >
+                            +
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                          {personalFiles
+                            .filter(
+                              (f) =>
+                                paperForm.personalCategory === "All" ||
+                                f.category === paperForm.personalCategory,
+                            )
+                            .map((file, i) => (
+                              <div
+                                key={i}
+                                className="glassmorphism rounded-xl p-3 shadow-md hover:shadow-emerald-400/20 transition"
+                              >
+                                <img
+                                  src={file.thumbnail}
+                                  alt={file.title}
+                                  className="w-full h-32 object-cover rounded-lg mb-3"
+                                />
+                                <p className="text-white font-medium text-sm truncate">
+                                  {file.title}
+                                </p>
+                              </div>
+                            ))}
+                        </div>
+
+                        {/* Upload Box */}
+                        <div className="mt-6 p-6 border-2 border-dashed border-white/30 rounded-xl flex flex-col items-center justify-center text-white/70">
+                          <Upload className="w-8 h-8 mb-2 text-emerald-300" />
+                          <p>Drag & drop files here or click to upload</p>
+                          <Input type="file" multiple className="hidden" />
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+
+                    {/* Generation Mode */}
+                    <div className="space-y-3 mt-6">
+                      <Label className="text-white/80 text-sm font-medium">
+                        Generation Mode
+                      </Label>
+                      <RadioGroup
+                        value={paperForm.generationMode}
+                        onValueChange={(value) =>
+                          setPaperForm({ ...paperForm, generationMode: value })
+                        }
+                        className="space-y-3"
+                      >
+                        <div className="glassmorphism p-4 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <RadioGroupItem
+                              data-testid="radio-intelligent-mode"
+                              value="intelligent"
+                              id="intelligent"
+                            />
+                            <Label
+                              htmlFor="intelligent"
+                              className="text-white cursor-pointer flex items-center"
+                            >
+                              <Lightbulb className="text-emerald-300 mr-2" size={16} />
+                              Intelligent Generation
+                            </Label>
+                          </div>
+                          <p className="text-white/60 text-xs ml-6 mt-1">
+                            AI-powered question generation with variety and complexity
+                            control
+                          </p>
+                        </div>
+                        <div className="glassmorphism p-4 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <RadioGroupItem
+                              data-testid="radio-asis-keybook-mode"
+                              value="asis-keybook"
+                              id="asis-keybook"
+                            />
+                            <Label
+                              htmlFor="asis-keybook"
+                              className="text-white cursor-pointer"
+                            >
+                              As-Is from Key Book
+                            </Label>
+                          </div>
+                          <p className="text-white/60 text-xs ml-6 mt-1">
+                            Direct questions from selected key book materials
+                          </p>
+                        </div>
+                        <div className="glassmorphism p-4 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <RadioGroupItem
+                              data-testid="radio-asis-pastpapers-mode"
+                              value="asis-pastpapers"
+                              id="asis-pastpapers"
+                            />
+                            <Label
+                              htmlFor="asis-pastpapers"
+                              className="text-white cursor-pointer"
+                            >
+                              As-Is from Past Papers
+                            </Label>
+                          </div>
+                          <p className="text-white/60 text-xs ml-6 mt-1">
+                            Questions directly from previous examination papers
+                          </p>
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    {/* Question Types */}
+                    <div className="space-y-3 mt-6">
+                      <Label className="text-white/80 text-sm font-medium">
+                        Question Types & Marks
+                      </Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {["MCQ", "Short Q", "Long Q"].map((type) => {
+                          // mapping for placeholders
+                          const totalPlaceholderMap = {
+                            MCQ: "Total MCQ",
+                            "Short Q": "Total Short",
+                            "Long Q": "Total Long",
+                          };
+
+                          return (
+                            <div key={type} className="glassmorphism p-4 rounded-lg">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <input
+                                  type="checkbox"
+                                  data-testid={`checkbox-${type
+                                    .toLowerCase()
+                                    .replace(" ", "-")}`}
+                                  checked={paperForm.questionTypes.includes(type)}
+                                  onChange={() => handleQuestionTypeToggle(type)}
+                                  className="rounded border-white/30"
+                                />
+                                <Label className="text-white cursor-pointer">
+                                  {type}
+                                </Label>
+                              </div>
+
+                              {/* Marks input */}
+                              <Input
+                                type="number"
+                                placeholder="Marks"
+                                className="glass-input mt-2"
+                                disabled={!paperForm.questionTypes.includes(type)}
+                              />
+
+                              {/* Total input with dynamic placeholder */}
+                              <Input
+                                type="number"
+                                placeholder={totalPlaceholderMap[type]}
+                                className="glass-input mt-2"
+                                disabled={!paperForm.questionTypes.includes(type)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Upload Options */}
-            {paperForm.creationMethod === "upload" && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-white">
-                  Upload Paper
-                </h3>
-                <div className="border-2 border-dashed border-white/30 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors">
-                  <ScanLine className="text-6xl text-emerald-300 mb-4 mx-auto" />
-                  <h4 className="text-white font-semibold mb-2">
-                    Upload Your Composed Paper
-                  </h4>
-                  <p className="text-white/60 text-sm mb-4">
-                    Supports handwritten papers with OCR technology
-                    <br />
-                    Accepted formats: PDF, JPG, PNG, DOCX
-                  </p>
-                  <Button
-                    data-testid="button-upload-paper-file"
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                  >
-                    Choose File to Upload
-                  </Button>
+              {/* Upload Options - Only show for upload method */}
+              {paperForm.creationMethod === "upload" && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold text-white">
+                    Upload Paper
+                  </h3>
+                  <div className="border-2 border-dashed border-white/30 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors">
+                    <ScanLine className="text-6xl text-emerald-300 mb-4 mx-auto" />
+                    <h4 className="text-white font-semibold mb-2">
+                      Upload Your Composed Paper
+                    </h4>
+                    <p className="text-white/60 text-sm mb-4">
+                      Supports handwritten papers with OCR technology
+                      <br />
+                      Accepted formats: PDF, JPG, PNG, DOCX
+                    </p>
+                    <Button
+                      data-testid="button-upload-paper-file"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                    >
+                      Choose File to Upload
+                    </Button>
+                  </div>
                 </div>
+              )}
 
-              </div>
-            )}
+              {/* Manual Creation - No additional options needed */}
+              {paperForm.creationMethod === "manual" && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold text-white">
+                    Manual Paper Creation
+                  </h3>
+                  <div className="border-2 border-dashed border-white/30 rounded-xl p-8 text-center">
+                    <Edit3 className="text-6xl text-emerald-300 mb-4 mx-auto" />
+                    <h4 className="text-white font-semibold mb-2">
+                      Use Our Paper Builder
+                    </h4>
+                    <p className="text-white/60 text-sm mb-4">
+                      Create your paper using our intuitive drag-and-drop editor
+                      with built-in templates and question banks
+                    </p>
+                  </div>
+                </div>
+              )}
 
-
-
-
-            <Button
-              data-testid="button-generate-paper"
-              onClick={handleCreatePaper}
-              disabled={createPaperMutation.isPending}
-              className="w-full emerald-gradient text-white font-semibold py-4 rounded-xl hover:shadow-lg transition-all"
-            >
-              {createPaperMutation.isPending
-                ? "Creating..."
-                : paperForm.creationMethod === "generate"
-                  ? "Generate Paper"
-                  : "Create Paper"}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+              <Button
+                data-testid="button-generate-paper"
+                onClick={handleCreatePaper}
+                disabled={createPaperMutation.isPending}
+                className="w-full emerald-gradient text-white font-semibold py-4 rounded-xl hover:shadow-lg transition-all"
+              >
+                {createPaperMutation.isPending
+                  ? "Creating..."
+                  : paperForm.creationMethod === "generate"
+                    ? "Generate Paper"
+                    : paperForm.creationMethod === "upload"
+                      ? "Create Paper"
+                      : "Create Paper"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </GlassmorphismLayout>
   );

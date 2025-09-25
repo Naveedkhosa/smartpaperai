@@ -197,7 +197,7 @@ function AppRoutes() {
 />
 
 <Route 
-        path="/teacher/paper-builder" 
+        path="/teacher/paper-builder/:id" 
         element={
           <ProtectedRoute requiredRole="teacher">
             <PaperBuilder/>

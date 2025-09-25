@@ -63,7 +63,7 @@ export const authApi = {
   getProfile: () => ApiService.get('/user/profile'),
 };
 
-// You can create similar helpers for other endpoints
+// Classes API
 export const classesApi = {
   getAll: () => ApiService.get('/user/classes'),
   create: (classData: any) => ApiService.post('/user/classes', classData),

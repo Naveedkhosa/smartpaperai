@@ -1,4 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ApiService } from "../lib/api";
+import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../hooks/use-toast";
+
 import {
     DndContext,
     closestCenter,
@@ -43,6 +48,7 @@ export interface Section {
     instruction: string;
     groups: QuestionGroup[];
 }
+
 
 // ---------- Utilities ----------
 const uid = (prefix = '') => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -170,13 +176,15 @@ const EquationEditor: React.FC<{
 
     if (!isOpen) return null;
 
+
+
     const handleInsert = () => {
         if (!equation.trim()) return;
-        
-        const formattedEquation = isBlock 
-            ? `$$${equation.trim()}$$` 
+
+        const formattedEquation = isBlock
+            ? `$$${equation.trim()}$$`
             : `$${equation.trim()}$`;
-            
+
         onInsert(formattedEquation);
         setEquation('');
         onClose();
@@ -188,7 +196,7 @@ const EquationEditor: React.FC<{
             const end = textareaRef.current.selectionEnd;
             const newEquation = equation.substring(0, start) + symbol + equation.substring(end);
             setEquation(newEquation);
-            
+
             // Focus and set cursor position after the inserted symbol
             setTimeout(() => {
                 if (textareaRef.current) {
@@ -225,7 +233,7 @@ const EquationEditor: React.FC<{
                         </svg>
                     </button>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                         <div>
@@ -241,7 +249,7 @@ const EquationEditor: React.FC<{
                                 className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                             />
                         </div>
-                        
+
                         <div className="bg-gray-50 p-3 rounded-lg">
                             <h4 className="font-medium text-gray-700 mb-2">Common Symbols</h4>
                             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
@@ -257,7 +265,7 @@ const EquationEditor: React.FC<{
                                 ))}
                             </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-4">
                             <label className="flex items-center gap-2">
                                 <input
@@ -279,7 +287,7 @@ const EquationEditor: React.FC<{
                             </label>
                         </div>
                     </div>
-                    
+
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -295,7 +303,7 @@ const EquationEditor: React.FC<{
                                 )}
                             </div>
                         </div>
-                        
+
                         <div className="bg-blue-50 p-4 rounded-lg">
                             <h4 className="font-medium text-blue-800 mb-2">Tips:</h4>
                             <ul className="text-xs text-blue-700 space-y-1">
@@ -308,15 +316,15 @@ const EquationEditor: React.FC<{
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="flex justify-end gap-3 pt-6 mt-4 border-t">
-                    <button 
+                    <button
                         onClick={onClose}
                         className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
                     >
                         Cancel
                     </button>
-                    <button 
+                    <button
                         onClick={handleInsert}
                         disabled={!equation.trim()}
                         className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium transition-colors"
@@ -413,19 +421,37 @@ const SortableSection: React.FC<{
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button onClick={() => onDuplicateSection(section.id)} className="p-2 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-yellow-700 transition-colors" title="Duplicate">
+                    <button
+                        onClick={() => onDuplicateSection(section.id)}
+                        className="p-2 rounded-lg bg-yellow-100 hover:bg-yellow-200 text-yellow-700 transition-colors"
+                        title="Duplicate"
+                    >
                         <Icon.Duplicate />
                     </button>
-                    <button onClick={() => onEdit(section)} className="p-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit">
+                    <button
+                        onClick={() => onEdit(section)}
+                        className="p-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors"
+                        title="Edit"
+                    >
                         <Icon.Edit />
                     </button>
-                    <button onClick={() => onAddGroup(section.id)} className="p-2 rounded-lg bg-green-100 hover:bg-green-200 text-green-700 transition-colors" title="Add Group">
+                    <button
+                        onClick={() => onAddGroup(section.id)}
+                        className="p-2 rounded-lg bg-green-100 hover:bg-green-200 text-green-700 transition-colors"
+                        title="Add Group"
+                    >
                         <Icon.Add />
                     </button>
-                    <button onClick={() => onDelete(section.id)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors" title="Delete">
+                    <button
+                        onClick={() => onDelete(section.id)}
+                        className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors"
+                        title="Delete"
+                    >
                         <Icon.Delete />
                     </button>
+
                 </div>
+
             </div>
 
             {/* Groups preview: small compact view with edit/delete */}
@@ -475,83 +501,110 @@ const getGroupTitle = (type: string) => {
 
 // ---------- Forms (Section / Group / Question) ----------
 const SectionForm: React.FC<{
-    open: boolean;
-    onClose: () => void;
-    onSubmit: (title: string, instruction: string, editingId?: string) => void;
-    editing?: Section | null;
-}> = ({ open, onClose, onSubmit, editing }) => {
-    const [title, setTitle] = useState(editing?.title || '');
-    const [instruction, setInstruction] = useState(editing?.instruction || '');
-    const [isEquationEditorOpen, setIsEquationEditorOpen] = useState(false);
-    const [activeField, setActiveField] = useState<'title' | 'instruction' | null>(null);
-    const [equationFieldValue, setEquationFieldValue] = useState('');
+  open: boolean;
+  onClose: () => void;
+  editing?: Section | null;
+  handleCreateSection: (data: { title: string; instructions: string; order: number }) => Promise<void>;
+  handleUpdateSection: (id: string, data: { title: string; instructions: string; order: number }) => Promise<void>;
+}> = ({ open, onClose, editing, handleCreateSection, handleUpdateSection }) => {
+  const [title, setTitle] = useState(editing?.title || '');
+  const [instruction, setInstruction] = useState(editing?.instruction || '');
+  const [isEquationEditorOpen, setIsEquationEditorOpen] = useState(false);
+  const [activeField, setActiveField] = useState<'title' | 'instruction' | null>(null);
+  const [equationFieldValue, setEquationFieldValue] = useState('');
 
-    useEffect(() => {
-        setTitle(editing?.title || '');
-        setInstruction(editing?.instruction || '');
-    }, [editing]);
+  useEffect(() => {
+    setTitle(editing?.title || '');
+    setInstruction(editing?.instruction || '');
+  }, [editing]);
 
-    const handleInsertEquation = (equation: string) => {
-        if (activeField === 'title') {
-            setTitle(prev => prev + equation);
-        } else if (activeField === 'instruction') {
-            setInstruction(prev => prev + equation);
-        }
+  const handleInsertEquation = (equation: string) => {
+    if (activeField === 'title') {
+      setTitle((prev) => prev + equation);
+    } else if (activeField === 'instruction') {
+      setInstruction((prev) => prev + equation);
+    }
+  };
+
+  // 🔹 Yeh ab parent se aane wale API functions call karega
+  const handleSectionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const sectionData = {
+      title: title.trim(),
+      instructions: instruction.trim(),
+      order: 0, // backend agar order leta hai
     };
 
-    const handle = (e: any) => {
-        e.preventDefault();
-        if (!title.trim()) return;
-        onSubmit(title.trim(), instruction.trim(), editing?.id);
-    };
+    if (editing) {
+      await handleUpdateSection(editing.id, sectionData);
+    } else {
+      await handleCreateSection(sectionData);
+    }
 
-    return (
-        <Modal open={open} onClose={onClose} title={editing ? 'Edit Section' : 'Create New Section'}>
-            <form onSubmit={handle} className="space-y-5">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                    <SimpleTextEditor
-                        value={title}
-                        onChange={setTitle}
-                        placeholder="Enter section title..."
-                        rows={2}
-                        onOpenEquationEditor={() => {
-                            setActiveField('title');
-                            setEquationFieldValue(title);
-                            setIsEquationEditorOpen(true);
-                        }}
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
-                    <SimpleTextEditor
-                        value={instruction}
-                        onChange={setInstruction}
-                        placeholder="Enter section instructions..."
-                        rows={3}
-                        onOpenEquationEditor={() => {
-                            setActiveField('instruction');
-                            setEquationFieldValue(instruction);
-                            setIsEquationEditorOpen(true);
-                        }}
-                    />
-                </div>
+    onClose();
+  };
 
-                <div className="flex justify-end gap-3 pt-2">
-                    <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors">Cancel</button>
-                    <button type="submit" className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">{editing ? 'Save Changes' : 'Add Section'}</button>
-                </div>
+  return (
+    <Modal open={open} onClose={onClose} title={editing ? 'Edit Section' : 'Create New Section'}>
+      <form onSubmit={handleSectionSubmit} className="space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <SimpleTextEditor
+            value={title}
+            onChange={setTitle}
+            placeholder="Enter section title..."
+            rows={2}
+            onOpenEquationEditor={() => {
+              setActiveField('title');
+              setEquationFieldValue(title);
+              setIsEquationEditorOpen(true);
+            }}
+          />
+        </div>
 
-                <EquationEditor
-                    isOpen={isEquationEditorOpen}
-                    onClose={() => setIsEquationEditorOpen(false)}
-                    onInsert={handleInsertEquation}
-                    initialEquation={equationFieldValue}
-                />
-            </form>
-        </Modal>
-    );
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
+          <SimpleTextEditor
+            value={instruction}
+            onChange={setInstruction}
+            placeholder="Enter section instructions..."
+            rows={3}
+            onOpenEquationEditor={() => {
+              setActiveField('instruction');
+              setEquationFieldValue(instruction);
+              setIsEquationEditorOpen(true);
+            }}
+          />
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+          >
+            {editing ? 'Save Changes' : 'Add Section'}
+          </button>
+        </div>
+
+        <EquationEditor
+          isOpen={isEquationEditorOpen}
+          onClose={() => setIsEquationEditorOpen(false)}
+          onInsert={handleInsertEquation}
+          initialEquation={equationFieldValue}
+        />
+      </form>
+    </Modal>
+  );
 };
+
 
 const GroupForm: React.FC<{
     open: boolean;
@@ -1355,17 +1408,17 @@ const ParaQuestion: React.FC<{ question: Question; questionNumber: string }> = (
                 </div>
             </div>
             <div className="ml-4 space-y-2">
-            {question.content.paraQuestions.map((pq: string, idx: number) => (
-                <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center">
-                        <span className="mr-2 font-medium text-blue-600 mt-1">{idx + 1}.</span>
-                        <span className="text-gray-700 flex-1" dangerouslySetInnerHTML={{ __html: renderMathContent(pq) }} />
+                {question.content.paraQuestions.map((pq: string, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between">
+                        <div className="flex items-center">
+                            <span className="mr-2 font-medium text-blue-600 mt-1">{idx + 1}.</span>
+                            <span className="text-gray-700 flex-1" dangerouslySetInnerHTML={{ __html: renderMathContent(pq) }} />
+                        </div>
+                        {Array.isArray(question.paraQuestionMarks) && typeof question.paraQuestionMarks[idx] === 'number' && (
+                            <span className="text-right text-blue-700 font-bold">{question.paraQuestionMarks[idx]} marks</span>
+                        )}
                     </div>
-                    {Array.isArray(question.paraQuestionMarks) && typeof question.paraQuestionMarks[idx] === 'number' && (
-                        <span className="text-right text-blue-700 font-bold">{question.paraQuestionMarks[idx]} marks</span>
-                    )}
-                </div>
-            ))}
+                ))}
             </div>
         </div>
     );
@@ -1397,11 +1450,12 @@ const QuestionDisplay: React.FC<{ question: Question; questionNumber: string; sh
 
 // ---------- Paper View Component ----------
 const PaperView: React.FC<{
+    paper: any;
     sections: Section[];
     onClose: () => void;
     onPrint: () => void;
     onDownloadPDF: () => void;
-}> = ({ sections, onClose, onPrint, onDownloadPDF }) => {
+}> = ({ paper, sections, onClose, onPrint, onDownloadPDF }) => {
     return (
         <div className="fixed inset-0 z-50 bg-white overflow-auto">
             <div className="max-w-4xl mx-auto">
@@ -1432,7 +1486,7 @@ const PaperView: React.FC<{
 
                 {/* Paper content */}
                 <div className="paper-content p-8 bg-white">
-                    <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">Exam Paper</h1>
+                    <h1 className="text-3xl font-bold text-center text-gray-800 mb-8"> {paper ? paper.title : "Loading..."}</h1>
 
                     <div className="space-y-8">
                         {sections.map((section, sIndex) => {
@@ -1545,7 +1599,187 @@ const PaperGeneratorAdvanced: React.FC = () => {
         }
     });
 
+    const { id } = useParams();
+    const { token } = useAuth();
+    const { toast } = useToast();
+    const navigate = useNavigate();
+
+    const [paper, setPaper] = useState<any>(null);
+
+
+
+    useEffect(() => {
+        if (!id || !token) return;
+
+        ApiService.request(`/user/papers/${id}`, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((res) => {
+                if (res.status && res.data?.paper) {
+                    setPaper(res.data.paper); // paper state update
+                } else {
+                    toast({
+                        title: "Error",
+                        description: res.message || "Failed to load paper",
+                        variant: "destructive",
+                    });
+                    navigate("/teacher"); // agar paper not found ho
+                }
+            })
+            .catch(() => {
+                toast({
+                    title: "Error",
+                    description: "Failed to load paper",
+                    variant: "destructive",
+                });
+            });
+    }, [id, token]);
+
+    const handleUpdatePaper = async (updates: any) => {
+        try {
+            const res = await ApiService.request(`/user/papers/${id}`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(updates),
+            });
+
+            if (res.status) {
+                setPaper(res.data.paper); // update state
+                toast({
+                    title: "Success",
+                    description: "Paper updated successfully",
+                });
+            } else {
+                toast({
+                    title: "Error",
+                    description: res.message || "Update failed",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to update paper",
+                variant: "destructive",
+            });
+        }
+    };
+
+
+    // 1️⃣ Section Create Function
+
+    const handleCreateSection = async (sectionData: any) => {
+        try {
+            const response = await ApiService.request(`/user/papers/${id}/sections`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify(sectionData),
+            });
+
+            setPaper((prev: any) => ({
+                ...prev,
+                sections: [...(prev?.sections || []), response.data.section],
+            }));
+
+            toast({ title: "Success", description: "Section created successfully" });
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    };
+
+    const handleUpdateSection = async (sectionId: string, sectionData: any) => {
+        try {
+            const response = await ApiService.request(`/user/papers/${id}/sections/${sectionId}`, {
+                method: "PUT",
+                headers: { Authorization: `Bearer ${token}` },
+                body: JSON.stringify(sectionData),
+            });
+
+            setPaper((prev: any) => ({
+                ...prev,
+                sections: prev.sections.map((s: any) =>
+                    s.id === sectionId ? response.data.section : s
+                ),
+            }));
+
+            toast({ title: "Success", description: "Section updated successfully" });
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+    };
+
+
+
+
+    // 3️⃣ Section Delete Function
+    const handleDeleteSection = async (sectionId: string) => {
+        if (!window.confirm("Are you sure you want to delete this section?")) return;
+
+        try {
+            await ApiService.request(`/user/papers/${id}/sections/${sectionId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            setPaper((prev: any) => ({
+                ...prev,
+                sections: prev.sections.filter((s: any) => s.id !== sectionId),
+            }));
+
+            toast({ title: "Success", description: "Section deleted successfully" });
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive",
+            });
+        }
+    };
+
+
+
+
+    const handleDeletePaper = async () => {
+        if (!window.confirm("Are you sure you want to delete this paper?")) return;
+
+        try {
+            const res = await ApiService.request(`/user/papers/${id}`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (res.status) {
+                toast({
+                    title: "Deleted",
+                    description: "Paper deleted successfully",
+                });
+                navigate("/teacher"); // Dashboard redirect
+            } else {
+                toast({
+                    title: "Error",
+                    description: res.message || "Delete failed",
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to delete paper",
+                variant: "destructive",
+            });
+        }
+    };
+
+
     // UI states
+
+
     const [sectionModalOpen, setSectionModalOpen] = useState(false);
     const [editingSection, setEditingSection] = useState<Section | null>(null);
 
@@ -1579,22 +1813,48 @@ const PaperGeneratorAdvanced: React.FC = () => {
         localStorage.setItem(LS_KEY, JSON.stringify(sections));
     }, [sections]);
 
-    // ---------- CRUD operations: Section ----------
-    const handleAddOrEditSection = (title: string, instruction: string, editingId?: string) => {
-        if (editingId) {
-            setSections((s) => s.map((sec) => (sec.id === editingId ? { ...sec, title, instruction } : sec)));
-            setEditingSection(null);
-            setSectionModalOpen(false);
-            return;
-        }
-        const newSec: Section = { id: uid('sec-'), title, instruction, groups: [] };
-        setSections((s) => [...s, newSec]);
-        setSectionModalOpen(false);
-    };
+// ---------- CRUD operations: Section ----------
+const handleAddOrEditSection = async (title: string, instruction: string, editingId?: string) => {
+  const sectionData = { title, instructions: instruction };
 
-    const handleDeleteSection = (sectionId: string) => {
-        setSections((s) => s.filter((sec) => sec.id !== sectionId));
-    };
+  try {
+    if (editingId) {
+      // 🔹 Update Section API
+      const response = await ApiService.request(`/user/papers/${id}/sections/${editingId}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(sectionData),
+      });
+
+      setSections((s) =>
+        s.map((sec) =>
+          sec.id === editingId ? response.data.section : sec
+        )
+      );
+
+      toast({ title: "Success", description: "Section updated successfully" });
+    } else {
+      // 🔹 Create Section API
+      const response = await ApiService.request(`/user/papers/${id}/sections`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(sectionData),
+      });
+
+      setSections((s) => [...s, response.data.section]);
+
+      toast({ title: "Success", description: "Section created successfully" });
+    }
+
+    setEditingSection(null);
+    setSectionModalOpen(false);
+  } catch (error: any) {
+    toast({ title: "Error", description: error.message, variant: "destructive" });
+  }
+};
+
+
+
 
     const handleDuplicateSection = (sectionId: string) => {
         const sec = sections.find((x) => x.id === sectionId);
@@ -1781,7 +2041,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
             <!DOCTYPE html>
             <html>
                 <head>
-                    <title>Exam Paper</title>
+                    <title>${paper ? paper.title : "Loading..."}</title>
                     <style>
                         body { font-family: Arial, sans-serif; line-height: 1.6; color: #000; padding: 20px; margin: 0; }
                         h1 { text-align: center; font-size: 24px; margin-bottom: 30px; }
@@ -1822,6 +2082,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 {/* Paper View */}
                 {paperViewOpen && (
                     <PaperView
+                        paper={paper}
                         sections={sections}
                         onClose={() => setPaperViewOpen(false)}
                         onPrint={handlePrint}
@@ -1865,9 +2126,13 @@ const PaperGeneratorAdvanced: React.FC = () => {
                             <Icon.Import /> Import
                             <input type="file" accept="application/json" onChange={(e) => importJson(e.target.files?.[0] ?? null)} className="hidden" />
                         </label>
-                        <button onClick={() => setShowRawJson((s) => !s)} className="px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-medium transition-colors">
-                            {showRawJson ? 'Hide JSON' : 'Show JSON'}
+                        <button
+                            onClick={handleDeletePaper}
+                            className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
+                        >
+                            Delete Paper
                         </button>
+
                         <button onClick={() => { localStorage.removeItem(LS_KEY); setSections([]); }} className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors">
                             Clear All
                         </button>
@@ -1884,20 +2149,20 @@ const PaperGeneratorAdvanced: React.FC = () => {
                             {sections.length === 0 ? (
                                 <div className="py-16 text-center text-gray-500 bg-gray-50 rounded-xl">
                                     <div className="text-blue-600 mb-3">
-                                      <svg
-  xmlns="http://www.w3.org/2000/svg"
-  className="h-12 w-12 mx-auto"
-  fill="none"
-  viewBox="0 0 24 24"
-  stroke="currentColor"
->
-  <path
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth={2}
-    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-  />
-</svg>
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-12 w-12 mx-auto"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                            />
+                                        </svg>
 
                                     </div>
                                     <p className="text-lg font-medium">No sections yet</p>
@@ -1917,12 +2182,13 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                         section={sec}
                                                         index={i}
                                                         onEdit={(s) => openEditSection(s)}
-                                                        onDelete={(id) => askConfirm({ type: 'delete-section', payload: { sectionId: id } })}
+                                                        onDelete={(id) => handleDeleteSection(id)}   // ✅ Parent ka function pass
                                                         onAddGroup={(id) => startAddGroup(id)}
                                                         onEditGroup={(sectionId, group) => openEditGroup(sectionId, group)}
-                                                        onDeleteGroup={(sectionId, groupId) => askConfirm({ type: 'delete-group', payload: { sectionId, groupId } })}
+                                                        onDeleteGroup={(sectionId, groupId) => handleDeleteGroup(sectionId, groupId)}
                                                         onDuplicateSection={(id) => handleDuplicateSection(id)}
                                                     />
+
 
                                                     {/* Expandable section content */}
                                                     <div className="mb-6">
@@ -2091,7 +2357,15 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 </main>
 
                 {/* Modals & confirmations */}
-                <SectionForm open={sectionModalOpen} onClose={() => { setSectionModalOpen(false); setEditingSection(null); }} onSubmit={handleAddOrEditSection} editing={editingSection} />
+                <SectionForm
+                    open={sectionModalOpen}
+                    onClose={() => { setSectionModalOpen(false); setEditingSection(null); }}
+                    editing={editingSection}
+                    handleCreateSection={handleCreateSection}
+                    handleUpdateSection={handleUpdateSection}
+                    
+                />
+
                 <GroupForm open={groupModalOpen} onClose={() => { setGroupModalOpen(false); setEditingGroup(null); setCurrentSectionIdForGroup(null); }} onSubmit={handleAddOrEditGroup} sectionTitle={sections.find((s) => s.id === currentSectionIdForGroup)?.title} editing={editingGroup} />
                 <QuestionForm open={questionModalOpen} onClose={() => { setQuestionModalOpen(false); setEditingQuestion(null); setCurrentSectionIdForQuestion(null); setCurrentGroupIdForQuestion(null); }} onSubmit={handleAddOrEditQuestion} type={currentTypeForQuestion} editing={editingQuestion} />
 
