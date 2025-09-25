@@ -27,10 +27,10 @@ export interface Question {
     id: string;
     type: string;
     content: any;
-    marks?: number; // main question marks
-    subQuestionMarks?: number[]; // for sub-questions
-    paraQuestionMarks?: number[]; // for para-questions
-    conditionalQuestionMarks?: number[]; // for conditional-questions
+    marks?: number;
+    subQuestionMarks?: number[];
+    paraQuestionMarks?: number[];
+    conditionalQuestionMarks?: number[];
 }
 
 export interface QuestionGroup {
@@ -38,7 +38,7 @@ export interface QuestionGroup {
     type: string;
     instruction: string;
     logic?: string;
-    numberingStyle: 'numeric' | 'roman' | 'alphabetic'; // Added numbering style
+    numberingStyle: 'numeric' | 'roman' | 'alphabetic';
     questions: Question[];
 }
 
@@ -49,10 +49,85 @@ export interface Section {
     groups: QuestionGroup[];
 }
 
+// API Response Types
+interface ApiQuestionType {
+    id: number;
+    name: string;
+    slug: string;
+    description: string;
+    has_options: boolean;
+    has_correct_answer: boolean;
+    can_have_sub_questions: boolean;
+    has_paragraph: boolean;
+}
+
+interface ApiPaper {
+    id: number;
+    title: string;
+    user_id: number;
+    class_id: number;
+    subject_id: number;
+    created_by: string;
+    uploaded_paper_file: string | null;
+    data_source: string;
+    duration: number;
+    total_marks: number;
+    created_at: string;
+    updated_at: string;
+    sections: ApiSection[];
+}
+
+interface ApiSection {
+    id: number;
+    paper_id: number;
+    title: string;
+    instructions: string;
+    order: number;
+    created_at: string;
+    updated_at: string;
+    section_groups: ApiSectionGroup[];
+}
+
+interface ApiSectionGroup {
+    id: number;
+    section_id: number;
+    question_type_id: number;
+    instructions: string;
+    logic: string | null;
+    order: number;
+    created_at: string;
+    updated_at: string;
+    questions: ApiQuestion[];
+}
+
+interface ApiQuestion {
+    id: number;
+    section_group_id: number;
+    parent_question_id: number | null;
+    question_text: string | null;
+    paragraph_text: string | null;
+    correct_answer: string | null;
+    marks: number;
+    order: number;
+    sub_order: number;
+    created_at: string;
+    updated_at: string;
+    options: ApiQuestionOption[];
+    subQuestions: ApiQuestion[];
+}
+
+interface ApiQuestionOption {
+    id: number;
+    paper_question_id: number;
+    option_text: string;
+    is_correct: boolean;
+    order: number;
+    created_at: string;
+    updated_at: string;
+}
 
 // ---------- Utilities ----------
 const uid = (prefix = '') => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const LS_KEY = 'paper_generator_v2';
 
 // Helper function to convert numbers to Roman numerals
 const toRoman = (num: number): string => {
@@ -86,7 +161,7 @@ const toRoman = (num: number): string => {
 const toAlphabetic = (num: number): string => {
     let result = '';
     while (num > 0) {
-        num--; // Adjust for 1-indexing
+        num--;
         result = String.fromCharCode(65 + (num % 26)) + result;
         num = Math.floor(num / 26);
     }
@@ -176,8 +251,6 @@ const EquationEditor: React.FC<{
 
     if (!isOpen) return null;
 
-
-
     const handleInsert = () => {
         if (!equation.trim()) return;
 
@@ -197,7 +270,6 @@ const EquationEditor: React.FC<{
             const newEquation = equation.substring(0, start) + symbol + equation.substring(end);
             setEquation(newEquation);
 
-            // Focus and set cursor position after the inserted symbol
             setTimeout(() => {
                 if (textareaRef.current) {
                     textareaRef.current.focus();
@@ -337,7 +409,7 @@ const EquationEditor: React.FC<{
     );
 };
 
-// ---------- Icons (Using Heroicons) ----------
+// ---------- Icons ----------
 const Icon = {
     Close: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>,
     Add: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>,
@@ -357,7 +429,7 @@ const Icon = {
     Eye: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>,
 };
 
-// ---------- Small UI primitives (Modal & Toast) ----------
+// ---------- Modal & Confirm Components ----------
 const Modal: React.FC<{ open: boolean; onClose: () => void; title?: string } & React.PropsWithChildren<{}>> = ({
     open,
     onClose,
@@ -449,12 +521,9 @@ const SortableSection: React.FC<{
                     >
                         <Icon.Delete />
                     </button>
-
                 </div>
-
             </div>
 
-            {/* Groups preview: small compact view with edit/delete */}
             <div className="mt-4 space-y-3">
                 {section.groups.length === 0 ? (
                     <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
@@ -485,7 +554,7 @@ const SortableSection: React.FC<{
     );
 };
 
-// ---------- Helper UI for titles ----------
+// ---------- Helper functions ----------
 const getGroupTitle = (type: string) => {
     const titles: Record<string, string> = {
         mcq: 'Multiple Choice Questions',
@@ -499,116 +568,302 @@ const getGroupTitle = (type: string) => {
     return titles[type] || 'Untitled Group';
 };
 
-// ---------- Forms (Section / Group / Question) ----------
-const SectionForm: React.FC<{
-  open: boolean;
-  onClose: () => void;
-  editing?: Section | null;
-  handleCreateSection: (data: { title: string; instructions: string; order: number }) => Promise<void>;
-  handleUpdateSection: (id: string, data: { title: string; instructions: string; order: number }) => Promise<void>;
-}> = ({ open, onClose, editing, handleCreateSection, handleUpdateSection }) => {
-  const [title, setTitle] = useState(editing?.title || '');
-  const [instruction, setInstruction] = useState(editing?.instruction || '');
-  const [isEquationEditorOpen, setIsEquationEditorOpen] = useState(false);
-  const [activeField, setActiveField] = useState<'title' | 'instruction' | null>(null);
-  const [equationFieldValue, setEquationFieldValue] = useState('');
-
-  useEffect(() => {
-    setTitle(editing?.title || '');
-    setInstruction(editing?.instruction || '');
-  }, [editing]);
-
-  const handleInsertEquation = (equation: string) => {
-    if (activeField === 'title') {
-      setTitle((prev) => prev + equation);
-    } else if (activeField === 'instruction') {
-      setInstruction((prev) => prev + equation);
-    }
-  };
-
-  // 🔹 Yeh ab parent se aane wale API functions call karega
-  const handleSectionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const sectionData = {
-      title: title.trim(),
-      instructions: instruction.trim(),
-      order: 0, // backend agar order leta hai
-    };
-
-    if (editing) {
-      await handleUpdateSection(editing.id, sectionData);
-    } else {
-      await handleCreateSection(sectionData);
-    }
-
-    onClose();
-  };
-
-  return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Edit Section' : 'Create New Section'}>
-      <form onSubmit={handleSectionSubmit} className="space-y-5">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-          <SimpleTextEditor
-            value={title}
-            onChange={setTitle}
-            placeholder="Enter section title..."
-            rows={2}
-            onOpenEquationEditor={() => {
-              setActiveField('title');
-              setEquationFieldValue(title);
-              setIsEquationEditorOpen(true);
-            }}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
-          <SimpleTextEditor
-            value={instruction}
-            onChange={setInstruction}
-            placeholder="Enter section instructions..."
-            rows={3}
-            onOpenEquationEditor={() => {
-              setActiveField('instruction');
-              setEquationFieldValue(instruction);
-              setIsEquationEditorOpen(true);
-            }}
-          />
-        </div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
-          >
-            {editing ? 'Save Changes' : 'Add Section'}
-          </button>
-        </div>
-
-        <EquationEditor
-          isOpen={isEquationEditorOpen}
-          onClose={() => setIsEquationEditorOpen(false)}
-          onInsert={handleInsertEquation}
-          initialEquation={equationFieldValue}
-        />
-      </form>
-    </Modal>
-  );
+const renderMathContent = (text: string) => {
+    if (!text) return text;
+    return text
+        .replace(/\$\$([^$]+)\$\$/g, '<div style="text-align: center; margin: 10px 0; font-size: 1.2em; background: #f8f9fa; padding: 8px; border-radius: 4px;">$1</div>')
+        .replace(/\$([^$]+)\$/g, '<span style="background: #e9ecef; padding: 2px 4px; border-radius: 3px; font-family: Times New Roman, serif;">$1</span>');
 };
 
+// ---------- API Conversion Functions ----------
+const convertApiSectionToLocal = (apiSection: ApiSection): Section => {
+    return {
+        id: apiSection.id.toString(),
+        title: apiSection.title,
+        instruction: apiSection.instructions,
+        groups: apiSection.section_groups.map(convertApiGroupToLocal)
+    };
+};
+
+const convertApiGroupToLocal = (apiGroup: ApiSectionGroup): QuestionGroup => {
+    return {
+        id: apiGroup.id.toString(),
+        type: getQuestionTypeSlug(apiGroup.question_type_id), // This will be mapped based on question types
+        instruction: apiGroup.instructions,
+        logic: apiGroup.logic || undefined,
+        numberingStyle: 'numeric', // Default, can be extended based on API
+        questions: apiGroup.questions.map(convertApiQuestionToLocal)
+    };
+};
+
+const convertApiQuestionToLocal = (apiQuestion: ApiQuestion): Question => {
+    const type = getQuestionTypeFromContent(apiQuestion);
+    
+    let content: any = {};
+    if (apiQuestion.paragraph_text) {
+        content.paraText = apiQuestion.paragraph_text;
+        content.paraQuestions = apiQuestion.sub_questions.map(sq => sq.question_text || '');
+    } else if (apiQuestion.sub_questions.length > 0) {
+        content.sub_questions = apiQuestion.sub_questions.map(sq => sq.question_text || '');
+        content.questionText = apiQuestion.question_text || '';
+    } else {
+        content.questionText = apiQuestion.question_text || '';
+    }
+
+    if (apiQuestion.options.length > 0) {
+        content.choices = apiQuestion.options.map(opt => opt.option_text);
+        content.correctAnswer = apiQuestion.options.findIndex(opt => opt.is_correct);
+    }
+
+    return {
+        id: apiQuestion.id.toString(),
+        type,
+        content,
+        marks: apiQuestion.marks
+    };
+};
+
+const getQuestionTypeSlug = (questionTypeId: number): string => {
+    // Map question type IDs to slugs
+    const typeMap: Record<number, string> = {
+        1: 'mcq',
+        2: 'true-false',
+        3: 'fill-in-the-blanks',
+        4: 'short-question',
+        5: 'long-question',
+        6: 'conditional',
+        7: 'para-question'
+    };
+    return typeMap[questionTypeId] || 'mcq';
+};
+
+const getQuestionTypeFromContent = (apiQuestion: ApiQuestion): string => {
+    if (apiQuestion.paragraph_text) return 'para-question';
+    if (apiQuestion.sub_questions.length > 0) {
+        if (apiQuestion.question_text?.includes('conditional') || apiQuestion.sub_questions.length > 1) 
+            return 'conditional';
+        return apiQuestion.sub_questions[0]?.question_text?.length || 0 > 100 ? 'long-question' : 'short-question';
+    }
+    if (apiQuestion.options.length === 2 && 
+        apiQuestion.options.some(opt => opt.option_text === 'True') && 
+        apiQuestion.options.some(opt => opt.option_text === 'False')) 
+        return 'true-false';
+    if (apiQuestion.options.length > 0) return 'mcq';
+    return 'fill-in-the-blanks';
+};
+
+// Convert local data to API format
+const convertLocalSectionToApi = (section: Section, paperId: number): any => {
+    return {
+        title: section.title,
+        instructions: section.instruction,
+        order: 0
+    };
+};
+
+const convertLocalGroupToApi = (group: QuestionGroup, sectionId: number): any => {
+    const questionTypeMap: Record<string, number> = {
+        'mcq': 1,
+        'true-false': 2,
+        'fill-in-the-blanks': 3,
+        'short-question': 4,
+        'long-question': 5,
+        'conditional': 6,
+        'para-question': 7
+    };
+
+    return {
+        question_type_id: questionTypeMap[group.type] || 1,
+        instructions: group.instruction,
+        logic: group.logic || null,
+        order: 0
+    };
+};
+
+const convertLocalQuestionToApi = (question: Question, groupId: number): any => {
+    const baseQuestion = {
+        marks: question.marks || 0,
+        order: 0
+    };
+
+    switch (question.type) {
+        case 'mcq':
+        case 'true-false':
+            return {
+                ...baseQuestion,
+                question_text: question.content.questionText,
+                options: question.content.choices.map((choice: string, index: number) => ({
+                    option_text: choice,
+                    is_correct: index === question.content.correctAnswer,
+                    order: index
+                }))
+            };
+        
+        case 'fill-in-the-blanks':
+            return {
+                ...baseQuestion,
+                question_text: question.content.questionText,
+                correct_answer: question.content.correctAnswer?.toString() || ''
+            };
+        
+        case 'short-question':
+        case 'long-question':
+            if (question.content.sub_questions && question.content.sub_questions.length > 0) {
+                return {
+                    ...baseQuestion,
+                    question_text: question.content.questionText,
+                    marks: 0, // Main question has no marks, sub-questions have marks
+                    sub_questions: question.content.sub_questions.map((subQ: string, index: number) => ({
+                        question_text: subQ,
+                        marks: question.subQuestionMarks?.[index] || 0,
+                        sub_order: index
+                    }))
+                };
+            }
+            return {
+                ...baseQuestion,
+                question_text: question.content.questionText
+            };
+        
+        case 'conditional':
+            return {
+                ...baseQuestion,
+                question_text: "Conditional Questions",
+                sub_questions: question.content.conditionalQuestions.map((condQ: string, index: number) => ({
+                    question_text: condQ,
+                    marks: question.conditionalQuestionMarks?.[index] || 0,
+                    sub_order: index
+                }))
+            };
+        
+        case 'para-question':
+            return {
+                ...baseQuestion,
+                paragraph_text: question.content.paraText,
+                marks: 0, // Main paragraph has no marks
+                sub_questions: question.content.paraQuestions.map((paraQ: string, index: number) => ({
+                    question_text: paraQ,
+                    marks: question.paraQuestionMarks?.[index] || 0,
+                    sub_order: index
+                }))
+            };
+        
+        default:
+            return {
+                ...baseQuestion,
+                question_text: question.content.questionText
+            };
+    }
+};
+
+// ---------- Forms ----------
+const SectionForm: React.FC<{
+    open: boolean;
+    onClose: () => void;
+    editing?: Section | null;
+    handleCreateSection: (data: { title: string; instructions: string; order: number }) => Promise<void>;
+    handleUpdateSection: (id: string, data: { title: string; instructions: string; order: number }) => Promise<void>;
+}> = ({ open, onClose, editing, handleCreateSection, handleUpdateSection }) => {
+    const [title, setTitle] = useState(editing?.title || '');
+    const [instruction, setInstruction] = useState(editing?.instruction || '');
+    const [isEquationEditorOpen, setIsEquationEditorOpen] = useState(false);
+    const [activeField, setActiveField] = useState<'title' | 'instruction' | null>(null);
+    const [equationFieldValue, setEquationFieldValue] = useState('');
+
+    useEffect(() => {
+        setTitle(editing?.title || '');
+        setInstruction(editing?.instruction || '');
+    }, [editing]);
+
+    const handleInsertEquation = (equation: string) => {
+        if (activeField === 'title') {
+            setTitle((prev) => prev + equation);
+        } else if (activeField === 'instruction') {
+            setInstruction((prev) => prev + equation);
+        }
+    };
+
+    const handleSectionSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        const sectionData = {
+            title: title.trim(),
+            instructions: instruction.trim(),
+            order: 0,
+        };
+
+        if (editing) {
+            await handleUpdateSection(editing.id, sectionData);
+        } else {
+            await handleCreateSection(sectionData);
+        }
+
+        onClose();
+    };
+
+    return (
+        <Modal open={open} onClose={onClose} title={editing ? 'Edit Section' : 'Create New Section'}>
+            <form onSubmit={handleSectionSubmit} className="space-y-5">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <SimpleTextEditor
+                        value={title}
+                        onChange={setTitle}
+                        placeholder="Enter section title..."
+                        rows={2}
+                        onOpenEquationEditor={() => {
+                            setActiveField('title');
+                            setEquationFieldValue(title);
+                            setIsEquationEditorOpen(true);
+                        }}
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
+                    <SimpleTextEditor
+                        value={instruction}
+                        onChange={setInstruction}
+                        placeholder="Enter section instructions..."
+                        rows={3}
+                        onOpenEquationEditor={() => {
+                            setActiveField('instruction');
+                            setEquationFieldValue(instruction);
+                            setIsEquationEditorOpen(true);
+                        }}
+                    />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                    >
+                        {editing ? 'Save Changes' : 'Add Section'}
+                    </button>
+                </div>
+
+                <EquationEditor
+                    isOpen={isEquationEditorOpen}
+                    onClose={() => setIsEquationEditorOpen(false)}
+                    onInsert={handleInsertEquation}
+                    initialEquation={equationFieldValue}
+                />
+            </form>
+        </Modal>
+    );
+};
 
 const GroupForm: React.FC<{
     open: boolean;
-    onClose: void;
+    onClose: () => void;
     onSubmit: (type: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => void;
     sectionTitle?: string;
     editing?: QuestionGroup | null;
@@ -630,14 +885,14 @@ const GroupForm: React.FC<{
         setInstruction(prev => prev + equation);
     };
 
-    const handle = (e: any) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSubmit(type, instruction.trim(), numberingStyle, type === 'conditional' ? logic : undefined, editing?.id);
     };
 
     return (
         <Modal open={open} onClose={onClose} title={editing ? 'Edit Group' : `Add Group to ${sectionTitle || ''}`}>
-            <form onSubmit={handle} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
                     <select
@@ -715,7 +970,7 @@ const QuestionForm: React.FC<{
     const [questionText, setQuestionText] = useState(editing?.content?.questionText || '');
     const [choices, setChoices] = useState<string[]>(editing?.content?.choices || ['', '']);
     const [correctAnswer, setCorrectAnswer] = useState<number>(editing?.content?.correctAnswer ?? 0);
-    const [subQuestions, setSubQuestions] = useState<string[]>(editing?.content?.subQuestions || []);
+    const [subQuestions, setSubQuestions] = useState<string[]>(editing?.content?.sub_questions || []);
     const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>(editing?.subQuestionMarks || []);
     const [marks, setMarks] = useState<number>(editing?.marks ?? 0);
     const [paraText, setParaText] = useState(editing?.content?.paraText || '');
@@ -733,7 +988,7 @@ const QuestionForm: React.FC<{
         setQuestionText(editing?.content?.questionText || '');
         setChoices(editing?.content?.choices || ['', '']);
         setCorrectAnswer(editing?.content?.correctAnswer ?? 0);
-        setSubQuestions(editing?.content?.subQuestions || []);
+        setSubQuestions(editing?.content?.sub_questions || []);
         setSubQuestionMarks(editing?.subQuestionMarks || []);
         setMarks(editing?.marks ?? 0);
         setParaText(editing?.content?.paraText || '');
@@ -741,7 +996,7 @@ const QuestionForm: React.FC<{
         setParaQuestionMarks(editing?.paraQuestionMarks || []);
         setConditionalQuestions(editing?.content?.conditionalQuestions || []);
         setConditionalQuestionMarks(editing?.conditionalQuestionMarks || []);
-        setShowSubQuestions((editing?.content?.subQuestions?.length || 0) > 0);
+        setShowSubQuestions((editing?.content?.sub_questions?.length || 0) > 0);
         setErrors({});
     }, [editing, open]);
 
@@ -784,12 +1039,10 @@ const QuestionForm: React.FC<{
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
 
-        // Validate question text for types that require it
         if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-the-blanks') && !questionText.trim()) {
             newErrors.questionText = 'Question text is required';
         }
 
-        // Validate main question or sub-questions for short/long questions
         if (type === 'short-question' || type === 'long-question') {
             if (!showSubQuestions && !questionText.trim()) {
                 newErrors.questionText = 'Question text is required when no sub-questions are added';
@@ -812,7 +1065,6 @@ const QuestionForm: React.FC<{
             }
         }
 
-        // Validate paragraph questions
         if (type === 'para-question') {
             if (!paraText.trim()) {
                 newErrors.paraText = 'Paragraph text is required';
@@ -831,7 +1083,6 @@ const QuestionForm: React.FC<{
             });
         }
 
-        // Validate conditional questions
         if (type === 'conditional') {
             conditionalQuestions.forEach((cq, index) => {
                 if (!cq.trim()) {
@@ -846,7 +1097,6 @@ const QuestionForm: React.FC<{
             });
         }
 
-        // Validate marks for simple questions
         if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-the-blanks') && marks <= 0) {
             newErrors.marks = 'Marks must be greater than 0';
         }
@@ -855,7 +1105,7 @@ const QuestionForm: React.FC<{
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e: any) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!validateForm()) {
@@ -871,7 +1121,7 @@ const QuestionForm: React.FC<{
             content.choices = ['True', 'False'];
             content.correctAnswer = correctAnswer;
         } else if (type === 'short-question' || type === 'long-question') {
-            content.subQuestions = subQuestions.filter(Boolean);
+            content.sub_questions = subQuestions.filter(Boolean);
         } else if (type === 'conditional') {
             content.conditionalQuestions = conditionalQuestions.filter(Boolean);
         } else if (type === 'para-question') {
@@ -879,7 +1129,6 @@ const QuestionForm: React.FC<{
             content.paraQuestions = paraQuestions.filter(Boolean);
         }
 
-        // Add marks logic
         let q: Question = { id: editing?.id || uid('q-'), type, content };
         if (type === 'short-question' || type === 'long-question') {
             if (showSubQuestions && subQuestions.length > 0) {
@@ -900,12 +1149,10 @@ const QuestionForm: React.FC<{
         onClose();
     };
 
-    // choice helpers
     const updateChoice = (i: number, v: string) => setChoices((s) => s.map((c, idx) => (idx === i ? v : c)));
     const addChoice = () => setChoices((s) => [...s, '']);
     const removeChoice = (i: number) => setChoices((s) => s.filter((_, idx) => idx !== i));
 
-    // sub question helpers
     const updateSub = (i: number, v: string) => setSubQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
     const updateSubMark = (i: number, v: number) => setSubQuestionMarks((marks) => {
         const arr = [...marks];
@@ -925,7 +1172,6 @@ const QuestionForm: React.FC<{
         }
     };
 
-    // paragraph helpers
     const updateParaQ = (i: number, v: string) => setParaQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
     const updateParaMark = (i: number, v: number) => setParaQuestionMarks((marks) => {
         const arr = [...marks];
@@ -941,7 +1187,6 @@ const QuestionForm: React.FC<{
         setParaQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
     };
 
-    // conditional helpers
     const updateCond = (i: number, v: string) => setConditionalQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
     const updateCondMark = (i: number, v: number) => setConditionalQuestionMarks((marks) => {
         const arr = [...marks];
@@ -1241,13 +1486,6 @@ const QuestionForm: React.FC<{
 };
 
 // ---------- Question Display Components ----------
-const renderMathContent = (text: string) => {
-    if (!text) return text;
-    return text
-        .replace(/\$\$([^$]+)\$\$/g, '<div style="text-align: center; margin: 10px 0; font-size: 1.2em; background: #f8f9fa; padding: 8px; border-radius: 4px;">$1</div>')
-        .replace(/\$([^$]+)\$/g, '<span style="background: #e9ecef; padding: 2px 4px; border-radius: 3px; font-family: Times New Roman, serif;">$1</span>');
-};
-
 const MCQQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
     return (
         <div className="mb-4">
@@ -1332,7 +1570,7 @@ const FillInBlanksQuestion: React.FC<{ question: Question; questionNumber: strin
 };
 
 const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string; numberingStyle: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
-    const hasSubQuestions = question.content.subQuestions && question.content.subQuestions.length > 0 && question.content.subQuestions.some((sq: string) => sq);
+    const hasSubQuestions = question.content.sub_questions && question.content.sub_questions.length > 0 && question.content.sub_questions.some((sq: string) => sq);
     return (
         <div className="mb-4">
             {question.content.questionText && (
@@ -1348,7 +1586,7 @@ const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string; 
             )}
             {hasSubQuestions && (
                 <div className="ml-4">
-                    {question.content.subQuestions.map((subQ: string, idx: number) => subQ && (
+                    {question.content.sub_questions.map((subQ: string, idx: number) => subQ && (
                         <div key={idx} className="mb-2 text-gray-700 flex justify-between items-center">
                             <div>
                                 <span className="mr-2">{formatNumber(idx + 1, numberingStyle)}. </span>
@@ -1459,7 +1697,6 @@ const PaperView: React.FC<{
     return (
         <div className="fixed inset-0 z-50 bg-white overflow-auto">
             <div className="max-w-4xl mx-auto">
-                {/* Header with actions - hidden in print */}
                 <div className="flex justify-between items-center p-6 border-b no-print">
                     <h1 className="text-3xl font-bold text-center text-gray-800">Paper Preview</h1>
                     <div className="flex gap-3">
@@ -1484,13 +1721,12 @@ const PaperView: React.FC<{
                     </div>
                 </div>
 
-                {/* Paper content */}
                 <div className="paper-content p-8 bg-white">
                     <h1 className="text-3xl font-bold text-center text-gray-800 mb-8"> {paper ? paper.title : "Loading..."}</h1>
 
                     <div className="space-y-8">
                         {sections.map((section, sIndex) => {
-                            let questionCounter = 0; // continuous numbering per section
+                            let questionCounter = 0;
                             return (
                                 <div key={section.id} className="mb-8">
                                     <h2 className="text-xl font-bold mb-2 text-gray-800">
@@ -1581,61 +1817,94 @@ const PaperView: React.FC<{
 
 // ---------- Main Component ----------
 const PaperGeneratorAdvanced: React.FC = () => {
-    const [sections, setSections] = useState<Section[]>(() => {
-        try {
-            const raw = localStorage.getItem(LS_KEY);
-            const parsed = raw ? JSON.parse(raw) : [];
-
-            // Ensure all groups have a numberingStyle property
-            return parsed.map((section: Section) => ({
-                ...section,
-                groups: section.groups.map((group: QuestionGroup) => ({
-                    ...group,
-                    numberingStyle: group.numberingStyle || 'numeric'
-                }))
-            }));
-        } catch {
-            return [];
-        }
-    });
-
+    const [sections, setSections] = useState<Section[]>([]);
     const { id } = useParams();
     const { token } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
 
-    const [paper, setPaper] = useState<any>(null);
+    const [paper, setPaper] = useState<ApiPaper | null>(null);
+    const [questionTypes, setQuestionTypes] = useState<ApiQuestionType[]>([]);
 
+    // UI states
+    const [sectionModalOpen, setSectionModalOpen] = useState(false);
+    const [editingSection, setEditingSection] = useState<Section | null>(null);
+    const [groupModalOpen, setGroupModalOpen] = useState(false);
+    const [currentSectionIdForGroup, setCurrentSectionIdForGroup] = useState<string | null>(null);
+    const [editingGroup, setEditingGroup] = useState<QuestionGroup | null>(null);
+    const [questionModalOpen, setQuestionModalOpen] = useState(false);
+    const [currentTypeForQuestion, setCurrentTypeForQuestion] = useState<string>('mcq');
+    const [currentSectionIdForQuestion, setCurrentSectionIdForQuestion] = useState<string | null>(null);
+    const [currentGroupIdForQuestion, setCurrentGroupIdForQuestion] = useState<string | null>(null);
+    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmPayload, setConfirmPayload] = useState<any>(null);
+    const [search, setSearch] = useState('');
+    const [showRawJson, setShowRawJson] = useState(false);
+    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+    const [paperViewOpen, setPaperViewOpen] = useState(false);
 
+    // drag-n-drop sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+    const [activeId, setActiveId] = useState<string | null>(null);
 
+    // Load paper and question types on component mount
     useEffect(() => {
         if (!id || !token) return;
 
-        ApiService.request(`/user/papers/${id}`, {
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((res) => {
-                if (res.status && res.data?.paper) {
-                    setPaper(res.data.paper); // paper state update
+        const loadData = async () => {
+            try {
+                // Load question types
+                const typesResponse = await ApiService.request('/user/question-types', {
+                    method: "GET",
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (typesResponse?.status) {
+                    setQuestionTypes(typesResponse.data.question_types);
+                }
+
+                // Load paper data
+                const paperResponse = await ApiService.request(`/user/papers/${id}`, {
+                    method: "GET",
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (paperResponse?.status && paperResponse?.data?.paper) {
+                    const paperData = paperResponse.data.paper;
+                    setPaper(paperData);
+                    
+                    // Convert API sections to local format
+                    const localSections = paperData.sections.map(convertApiSectionToLocal);
+                    setSections(localSections);
                 } else {
                     toast({
                         title: "Error",
-                        description: res.message || "Failed to load paper",
+                        description: paperResponse.message || "Failed to load paper",
                         variant: "destructive",
                     });
-                    navigate("/teacher"); // agar paper not found ho
+                    // navigate("/teacher");
+                    console.log("Failed to load paper");
                 }
-            })
-            .catch(() => {
+            } catch (error) {
+                console.log("error : ",error);
                 toast({
                     title: "Error",
-                    description: "Failed to load paper",
+                    description: "Failed to load paper data",
                     variant: "destructive",
                 });
-            });
-    }, [id, token]);
+            }
+        };
 
+        loadData();
+    }, [id, token, navigate, toast]);
+
+    // ---------- API Functions ----------
+
+    // Paper operations
     const handleUpdatePaper = async (updates: any) => {
         try {
             const res = await ApiService.request(`/user/papers/${id}`, {
@@ -1648,7 +1917,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (res.status) {
-                setPaper(res.data.paper); // update state
+                setPaper(res.data.paper);
                 toast({
                     title: "Success",
                     description: "Paper updated successfully",
@@ -1669,89 +1938,13 @@ const PaperGeneratorAdvanced: React.FC = () => {
         }
     };
 
-
-    // 1️⃣ Section Create Function
-
-    const handleCreateSection = async (sectionData: any) => {
-        try {
-            const response = await ApiService.request(`/user/papers/${id}/sections`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify(sectionData),
-            });
-
-            setPaper((prev: any) => ({
-                ...prev,
-                sections: [...(prev?.sections || []), response.data.section],
-            }));
-
-            toast({ title: "Success", description: "Section created successfully" });
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        }
-    };
-
-    const handleUpdateSection = async (sectionId: string, sectionData: any) => {
-        try {
-            const response = await ApiService.request(`/user/papers/${id}/sections/${sectionId}`, {
-                method: "PUT",
-                headers: { Authorization: `Bearer ${token}` },
-                body: JSON.stringify(sectionData),
-            });
-
-            setPaper((prev: any) => ({
-                ...prev,
-                sections: prev.sections.map((s: any) =>
-                    s.id === sectionId ? response.data.section : s
-                ),
-            }));
-
-            toast({ title: "Success", description: "Section updated successfully" });
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-        }
-    };
-
-
-
-
-    // 3️⃣ Section Delete Function
-    const handleDeleteSection = async (sectionId: string) => {
-        if (!window.confirm("Are you sure you want to delete this section?")) return;
-
-        try {
-            await ApiService.request(`/user/papers/${id}/sections/${sectionId}`, {
-                method: "DELETE",
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            setPaper((prev: any) => ({
-                ...prev,
-                sections: prev.sections.filter((s: any) => s.id !== sectionId),
-            }));
-
-            toast({ title: "Success", description: "Section deleted successfully" });
-        } catch (error: any) {
-            toast({
-                title: "Error",
-                description: error.message,
-                variant: "destructive",
-            });
-        }
-    };
-
-
-
-
     const handleDeletePaper = async () => {
         if (!window.confirm("Are you sure you want to delete this paper?")) return;
 
         try {
             const res = await ApiService.request(`/user/papers/${id}`, {
                 method: "DELETE",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             if (res.status) {
@@ -1759,7 +1952,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                     title: "Deleted",
                     description: "Paper deleted successfully",
                 });
-                navigate("/teacher"); // Dashboard redirect
+                navigate("/teacher");
             } else {
                 toast({
                     title: "Error",
@@ -1776,121 +1969,344 @@ const PaperGeneratorAdvanced: React.FC = () => {
         }
     };
 
+    // Section operations
+    const handleCreateSection = async (sectionData: any) => {
+        try {
+            const response = await ApiService.request(`/user/papers/${id}/sections`, {
+                method: "POST",
+                headers: { 
+                    Authorization: `Bearer ${token}`, 
+                    "Content-Type": "application/json" 
+                },
+                body: JSON.stringify(sectionData),
+            });
 
-    // UI states
+            if (response.status) {
+                const newSection = convertApiSectionToLocal(response.data.section);
+                setSections(prev => [...prev, newSection]);
+                toast({ title: "Success", description: "Section created successfully" });
+            } else {
+                throw new Error(response.message || "Failed to create section");
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.message, 
+                variant: "destructive" 
+            });
+        }
+    };
 
+    const handleUpdateSection = async (sectionId: string, sectionData: any) => {
+        try {
+            const response = await ApiService.request(`/user/papers/${id}/sections/${sectionId}`, {
+                method: "PUT",
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(sectionData),
+            });
 
-    const [sectionModalOpen, setSectionModalOpen] = useState(false);
-    const [editingSection, setEditingSection] = useState<Section | null>(null);
+            if (response.status) {
+                const updatedSection = convertApiSectionToLocal(response.data.section);
+                setSections(prev => prev.map(s => s.id === sectionId ? updatedSection : s));
+                toast({ title: "Success", description: "Section updated successfully" });
+            } else {
+                throw new Error(response.message || "Failed to update section");
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.message, 
+                variant: "destructive" 
+            });
+        }
+    };
 
-    const [groupModalOpen, setGroupModalOpen] = useState(false);
-    const [currentSectionIdForGroup, setCurrentSectionIdForGroup] = useState<string | null>(null);
-    const [editingGroup, setEditingGroup] = useState<QuestionGroup | null>(null);
+    const handleDeleteSection = async (sectionId: string) => {
+        try {
+            const response = await ApiService.request(`/user/papers/${id}/sections/${sectionId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            });
 
-    const [questionModalOpen, setQuestionModalOpen] = useState(false);
-    const [currentTypeForQuestion, setCurrentTypeForQuestion] = useState<string>('mcq');
-    const [currentSectionIdForQuestion, setCurrentSectionIdForQuestion] = useState<string | null>(null);
-    const [currentGroupIdForQuestion, setCurrentGroupIdForQuestion] = useState<string | null>(null);
-    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+            if (response.status) {
+                setSections(prev => prev.filter(s => s.id !== sectionId));
+                toast({ title: "Success", description: "Section deleted successfully" });
+            } else {
+                throw new Error(response.message || "Failed to delete section");
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.message, 
+                variant: "destructive" 
+            });
+        }
+    };
 
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [confirmPayload, setConfirmPayload] = useState<any>(null);
+    // Group operations
+    const handleCreateGroup = async (sectionId: string, groupData: any) => {
+        try {
+            const response = await ApiService.request(`/user/sections/${sectionId}/groups`, {
+                method: "POST",
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(groupData),
+            });
 
-    const [search, setSearch] = useState('');
-    const [showRawJson, setShowRawJson] = useState(false);
-    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
-    const [paperViewOpen, setPaperViewOpen] = useState(false);
+            if (response.status) {
+                const newGroup = convertApiGroupToLocal(response.data.group);
+                setSections(prev => prev.map(s => 
+                    s.id === sectionId 
+                        ? { ...s, groups: [...s.groups, newGroup] }
+                        : s
+                ));
+                toast({ title: "Success", description: "Group created successfully" });
+            } else {
+                throw new Error(response.message || "Failed to create group");
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.message, 
+                variant: "destructive" 
+            });
+        }
+    };
 
-    // drag-n-drop sensors
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-    );
-    const [activeId, setActiveId] = useState<string | null>(null);
+    const handleUpdateGroup = async (sectionId: string, groupId: string, groupData: any) => {
+        try {
+            const response = await ApiService.request(`/user/sections/${sectionId}/groups/${groupId}`, {
+                method: "PUT",
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(groupData),
+            });
 
-    // persist
-    useEffect(() => {
-        localStorage.setItem(LS_KEY, JSON.stringify(sections));
-    }, [sections]);
+            if (response.status) {
+                const updatedGroup = convertApiGroupToLocal(response.data.group);
+                setSections(prev => prev.map(s => 
+                    s.id === sectionId 
+                        ? { ...s, groups: s.groups.map(g => g.id === groupId ? updatedGroup : g) }
+                        : s
+                ));
+                toast({ title: "Success", description: "Group updated successfully" });
+            } else {
+                throw new Error(response.message || "Failed to update group");
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.message, 
+                variant: "destructive" 
+            });
+        }
+    };
 
-// ---------- CRUD operations: Section ----------
-const handleAddOrEditSection = async (title: string, instruction: string, editingId?: string) => {
-  const sectionData = { title, instructions: instruction };
+    const handleDeleteGroup = async (sectionId: string, groupId: string) => {
+        try {
+            const response = await ApiService.request(`/user/sections/${sectionId}/groups/${groupId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            });
 
-  try {
-    if (editingId) {
-      // 🔹 Update Section API
-      const response = await ApiService.request(`/user/papers/${id}/sections/${editingId}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify(sectionData),
-      });
+            if (response.status) {
+                setSections(prev => prev.map(s => 
+                    s.id === sectionId 
+                        ? { ...s, groups: s.groups.filter(g => g.id !== groupId) }
+                        : s
+                ));
+                toast({ title: "Success", description: "Group deleted successfully" });
+            } else {
+                throw new Error(response.message || "Failed to delete group");
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.message, 
+                variant: "destructive" 
+            });
+        }
+    };
 
-      setSections((s) =>
-        s.map((sec) =>
-          sec.id === editingId ? response.data.section : sec
-        )
-      );
+    // Question operations
+    const handleCreateQuestion = async (groupId: string, questionData: any) => {
+        try {
+            const response = await ApiService.request(`/user/groups/${groupId}/questions`, {
+                method: "POST",
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(questionData),
+            });
 
-      toast({ title: "Success", description: "Section updated successfully" });
-    } else {
-      // 🔹 Create Section API
-      const response = await ApiService.request(`/user/papers/${id}/sections`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify(sectionData),
-      });
+            if (response.status) {
+                const newQuestion = convertApiQuestionToLocal(response.data.question);
+                setSections(prev => prev.map(s => ({
+                    ...s,
+                    groups: s.groups.map(g => 
+                        g.id === groupId 
+                            ? { ...g, questions: [...g.questions, newQuestion] }
+                            : g
+                    )
+                })));
+                toast({ title: "Success", description: "Question created successfully" });
+            } else {
+                throw new Error(response.message || "Failed to create question");
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.message, 
+                variant: "destructive" 
+            });
+        }
+    };
 
-      setSections((s) => [...s, response.data.section]);
+    const handleUpdateQuestion = async (groupId: string, questionId: string, questionData: any) => {
+        try {
+            const response = await ApiService.request(`/user/groups/${groupId}/questions/${questionId}`, {
+                method: "PUT",
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(questionData),
+            });
 
-      toast({ title: "Success", description: "Section created successfully" });
-    }
+            if (response.status) {
+                const updatedQuestion = convertApiQuestionToLocal(response.data.question);
+                setSections(prev => prev.map(s => ({
+                    ...s,
+                    groups: s.groups.map(g => 
+                        g.id === groupId 
+                            ? { ...g, questions: g.questions.map(q => q.id === questionId ? updatedQuestion : q) }
+                            : g
+                    )
+                })));
+                toast({ title: "Success", description: "Question updated successfully" });
+            } else {
+                throw new Error(response.message || "Failed to update question");
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.message, 
+                variant: "destructive" 
+            });
+        }
+    };
 
-    setEditingSection(null);
-    setSectionModalOpen(false);
-  } catch (error: any) {
-    toast({ title: "Error", description: error.message, variant: "destructive" });
-  }
-};
+    const handleDeleteQuestion = async (sectionId: string, groupId: string, questionId: string) => {
+        try {
+            const response = await ApiService.request(`/user/groups/${groupId}/questions/${questionId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            });
 
+            if (response.status) {
+                setSections(prev => prev.map(s => 
+                    s.id === sectionId 
+                        ? { ...s, groups: s.groups.map(g => 
+                            g.id === groupId 
+                                ? { ...g, questions: g.questions.filter(q => q.id !== questionId) }
+                                : g
+                        )}
+                        : s
+                ));
+                toast({ title: "Success", description: "Question deleted successfully" });
+            } else {
+                throw new Error(response.message || "Failed to delete question");
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "Error", 
+                description: error.message, 
+                variant: "destructive" 
+            });
+        }
+    };
 
+    // ---------- UI Handlers ----------
 
+    const handleAddOrEditSection = async (title: string, instruction: string, editingId?: string) => {
+        const sectionData = { title, instructions: instruction, order: 0 };
 
+        if (editingId) {
+            await handleUpdateSection(editingId, sectionData);
+        } else {
+            await handleCreateSection(sectionData);
+        }
+        setSectionModalOpen(false);
+        setEditingSection(null);
+    };
+
+    const handleAddOrEditGroup = async (type: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => {
+        if (!currentSectionIdForGroup) return;
+
+        const groupData = convertLocalGroupToApi({
+            id: editingId || '',
+            type,
+            instruction,
+            logic,
+            numberingStyle,
+            questions: []
+        }, parseInt(currentSectionIdForGroup));
+
+        if (editingId) {
+            await handleUpdateGroup(currentSectionIdForGroup, editingId, groupData);
+        } else {
+            await handleCreateGroup(currentSectionIdForGroup, groupData);
+        }
+        setGroupModalOpen(false);
+        setEditingGroup(null);
+    };
+
+    const handleAddOrEditQuestion = async (question: Question, editingId?: string) => {
+        if (!currentGroupIdForQuestion) return;
+
+        const questionData = convertLocalQuestionToApi(question, parseInt(currentGroupIdForQuestion));
+
+        if (editingId) {
+            await handleUpdateQuestion(currentGroupIdForQuestion, editingId, questionData);
+        } else {
+            await handleCreateQuestion(currentGroupIdForQuestion, questionData);
+        }
+        setQuestionModalOpen(false);
+        setEditingQuestion(null);
+    };
+
+    // Duplicate section (local only)
     const handleDuplicateSection = (sectionId: string) => {
         const sec = sections.find((x) => x.id === sectionId);
         if (!sec) return;
-        const clone: Section = { ...sec, id: uid('sec-'), title: sec.title + ' (copy)', groups: sec.groups.map((g) => ({ ...g, id: uid('g-'), questions: g.questions.map((q) => ({ ...q, id: uid('q-') })) })) };
+        const clone: Section = { 
+            ...sec, 
+            id: uid('sec-'), 
+            title: sec.title + ' (copy)', 
+            groups: sec.groups.map((g) => ({ 
+                ...g, 
+                id: uid('g-'), 
+                questions: g.questions.map((q) => ({ ...q, id: uid('q-') })) 
+            })) 
+        };
         setSections((s) => [...s, clone]);
     };
 
-    // ---------- CRUD operations: Group ----------
+    // UI helpers
     const startAddGroup = (sectionId: string) => {
         setCurrentSectionIdForGroup(sectionId);
         setEditingGroup(null);
         setGroupModalOpen(true);
     };
 
-    const handleAddOrEditGroup = (type: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => {
-        if (!currentSectionIdForGroup) return;
-        setSections((s) =>
-            s.map((sec) => {
-                if (sec.id !== currentSectionIdForGroup) return sec;
-                if (editingId) {
-                    return { ...sec, groups: sec.groups.map((g) => (g.id === editingId ? { ...g, type, instruction, logic, numberingStyle } : g)) };
-                }
-                const newGroup: QuestionGroup = { id: uid('g-'), type, instruction, logic, numberingStyle, questions: [] };
-                return { ...sec, groups: [...sec.groups, newGroup] };
-            })
-        );
-        setGroupModalOpen(false);
-        setEditingGroup(null);
-    };
-
-    const handleDeleteGroup = (sectionId: string, groupId: string) => {
-        setSections((s) => s.map((sec) => (sec.id === sectionId ? { ...sec, groups: sec.groups.filter((g) => g.id !== groupId) } : sec)));
-    };
-
-    // ---------- CRUD operations: Question ----------
     const startAddQuestion = (sectionId: string, groupId: string, type?: string) => {
         setCurrentSectionIdForQuestion(sectionId);
         setCurrentGroupIdForQuestion(groupId);
@@ -1899,36 +2315,6 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
         setQuestionModalOpen(true);
     };
 
-    const handleAddOrEditQuestion = (question: Question, editingId?: string) => {
-        if (!currentSectionIdForQuestion || !currentGroupIdForQuestion) return;
-        setSections((s) =>
-            s.map((sec) => {
-                if (sec.id !== currentSectionIdForQuestion) return sec;
-                return {
-                    ...sec,
-                    groups: sec.groups.map((g) => {
-                        if (g.id !== currentGroupIdForQuestion) return g;
-                        if (editingId) {
-                            return { ...g, questions: g.questions.map((q) => (q.id === editingId ? question : q)) };
-                        }
-                        return { ...g, questions: [...g.questions, question] };
-                    }),
-                };
-            })
-        );
-        setQuestionModalOpen(false);
-    };
-
-    const handleDeleteQuestion = (sectionId: string, groupId: string, questionId: string) => {
-        setSections((s) =>
-            s.map((sec) => {
-                if (sec.id !== sectionId) return sec;
-                return { ...sec, groups: sec.groups.map((g) => (g.id === groupId ? { ...g, questions: g.questions.filter((q) => q.id !== questionId) } : g)) };
-            })
-        );
-    };
-
-    // ---------- Edit helpers (open modals with data) ----------
     const openEditSection = (sec: Section) => {
         setEditingSection(sec);
         setSectionModalOpen(true);
@@ -1943,12 +2329,11 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
     const openEditQuestion = (sectionId: string, groupId: string, question: Question) => {
         setCurrentSectionIdForQuestion(sectionId);
         setCurrentGroupIdForQuestion(groupId);
-        setCurrentTypeForQuestion(question.type); // FIX: Set the current type to the question's type
+        setCurrentTypeForQuestion(question.type);
         setEditingQuestion(question);
         setQuestionModalOpen(true);
     };
 
-    // ---------- Toggle section expansion ----------
     const toggleSectionExpansion = (sectionId: string) => {
         setExpandedSections(prev => ({
             ...prev,
@@ -1956,11 +2341,11 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
         }));
     };
 
-    // ---------- Confirm wrapper ----------
     const askConfirm = (payload: any) => {
         setConfirmPayload(payload);
         setConfirmOpen(true);
     };
+
     const runConfirmed = () => {
         if (!confirmPayload) return;
         const { type, payload } = confirmPayload;
@@ -1971,7 +2356,7 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
         setConfirmPayload(null);
     };
 
-    // ---------- DnD for sections only ----------
+    // DnD handlers
     const handleDragStart = (e: DragStartEvent) => setActiveId(e.active.id as string);
     const handleDragEnd = (e: DragEndEvent) => {
         setActiveId(null);
@@ -1986,7 +2371,7 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
         }
     };
 
-    // ---------- Export / Import ----------
+    // Export/Import (local only)
     const exportJson = () => {
         const data = JSON.stringify(sections, null, 2);
         const blob = new Blob([data], { type: 'application/json' });
@@ -2005,7 +2390,6 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
             try {
                 const parsed = JSON.parse(String(e.target?.result));
                 if (Array.isArray(parsed)) {
-                    // Ensure all groups have a numberingStyle property
                     const processed = parsed.map((section: Section) => ({
                         ...section,
                         groups: section.groups.map((group: QuestionGroup) => ({
@@ -2024,13 +2408,12 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
         reader.readAsText(file);
     };
 
-    // ---------- Paper View Functions ----------
+    // Paper View Functions
     const handlePrint = () => {
         window.print();
     };
 
     const handleDownloadPDF = () => {
-        // Create a new window with the paper content for printing
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
@@ -2064,14 +2447,12 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
         `);
 
         printWindow.document.close();
-
-        // Wait for content to load then trigger print
         printWindow.onload = () => {
             printWindow.print();
         };
     };
 
-    // ---------- Search helper ----------
+    // Search helper
     const filteredSections = sections
         .map((sec) => ({ ...sec, groups: sec.groups.filter((g) => g.type.includes(search) || g.instruction?.includes(search) || search === '') }))
         .filter((s) => s.title.toLowerCase().includes(search.toLowerCase()) || s.instruction?.toLowerCase().includes(search.toLowerCase()) || s.groups.length > 0 || search === '');
@@ -2079,7 +2460,6 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 p-6">
             <div className="max-w-7xl mx-auto">
-                {/* Paper View */}
                 {paperViewOpen && (
                     <PaperView
                         paper={paper}
@@ -2133,7 +2513,7 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
                             Delete Paper
                         </button>
 
-                        <button onClick={() => { localStorage.removeItem(LS_KEY); setSections([]); }} className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors">
+                        <button onClick={() => setSections([])} className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors">
                             Clear All
                         </button>
                     </div>
@@ -2163,7 +2543,6 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
                                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                                             />
                                         </svg>
-
                                     </div>
                                     <p className="text-lg font-medium">No sections yet</p>
                                     <p className="mt-1">Create your first section to get started</p>
@@ -2182,15 +2561,13 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
                                                         section={sec}
                                                         index={i}
                                                         onEdit={(s) => openEditSection(s)}
-                                                        onDelete={(id) => handleDeleteSection(id)}   // ✅ Parent ka function pass
+                                                        onDelete={(id) => askConfirm({ type: 'delete-section', payload: { sectionId: id } })}
                                                         onAddGroup={(id) => startAddGroup(id)}
                                                         onEditGroup={(sectionId, group) => openEditGroup(sectionId, group)}
-                                                        onDeleteGroup={(sectionId, groupId) => handleDeleteGroup(sectionId, groupId)}
+                                                        onDeleteGroup={(sectionId, groupId) => askConfirm({ type: 'delete-group', payload: { sectionId, groupId } })}
                                                         onDuplicateSection={(id) => handleDuplicateSection(id)}
                                                     />
 
-
-                                                    {/* Expandable section content */}
                                                     <div className="mb-6">
                                                         <div className="flex justify-between items-center mb-4">
                                                             <h3 className="text-lg font-medium text-gray-800">Groups in {sec.title.replace(/<[^>]*>/g, '')}</h3>
@@ -2363,19 +2740,36 @@ const handleAddOrEditSection = async (title: string, instruction: string, editin
                     editing={editingSection}
                     handleCreateSection={handleCreateSection}
                     handleUpdateSection={handleUpdateSection}
-                    
                 />
 
-                <GroupForm open={groupModalOpen} onClose={() => { setGroupModalOpen(false); setEditingGroup(null); setCurrentSectionIdForGroup(null); }} onSubmit={handleAddOrEditGroup} sectionTitle={sections.find((s) => s.id === currentSectionIdForGroup)?.title} editing={editingGroup} />
-                <QuestionForm open={questionModalOpen} onClose={() => { setQuestionModalOpen(false); setEditingQuestion(null); setCurrentSectionIdForQuestion(null); setCurrentGroupIdForQuestion(null); }} onSubmit={handleAddOrEditQuestion} type={currentTypeForQuestion} editing={editingQuestion} />
+                <GroupForm 
+                    open={groupModalOpen} 
+                    onClose={() => { setGroupModalOpen(false); setEditingGroup(null); setCurrentSectionIdForGroup(null); }} 
+                    onSubmit={handleAddOrEditGroup} 
+                    sectionTitle={sections.find((s) => s.id === currentSectionIdForGroup)?.title} 
+                    editing={editingGroup} 
+                />
+                
+                <QuestionForm 
+                    open={questionModalOpen} 
+                    onClose={() => { setQuestionModalOpen(false); setEditingQuestion(null); setCurrentSectionIdForQuestion(null); setCurrentGroupIdForQuestion(null); }} 
+                    onSubmit={handleAddOrEditQuestion} 
+                    type={currentTypeForQuestion} 
+                    editing={editingQuestion} 
+                />
 
-                <Confirm open={confirmOpen} onConfirm={runConfirmed} onCancel={() => setConfirmOpen(false)} message={
-                    confirmPayload?.type === 'delete-section'
-                        ? 'Delete this section and all its groups & questions? This cannot be undone.'
-                        : confirmPayload?.type === 'delete-group'
-                            ? 'Delete this group and all its questions?'
-                            : 'Delete this question?'
-                } />
+                <Confirm 
+                    open={confirmOpen} 
+                    onConfirm={runConfirmed} 
+                    onCancel={() => setConfirmOpen(false)} 
+                    message={
+                        confirmPayload?.type === 'delete-section'
+                            ? 'Delete this section and all its groups & questions? This cannot be undone.'
+                            : confirmPayload?.type === 'delete-group'
+                                ? 'Delete this group and all its questions?'
+                                : 'Delete this question?'
+                    } 
+                />
             </div>
         </div>
     );
