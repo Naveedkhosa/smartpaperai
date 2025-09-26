@@ -15,6 +15,12 @@ export class ApiService {
 
     try {
       const response = await fetch(url, config);
+
+      if (response.status === 401) {
+        localStorage.removeItem('smartpaperai_token');
+        window.location.href = '/login';
+        return;
+      }
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -63,9 +69,4 @@ export const authApi = {
   getProfile: () => ApiService.get('/user/profile'),
 };
 
-// Classes API
-export const classesApi = {
-  getAll: () => ApiService.get('/user/classes'),
-  create: (classData: any) => ApiService.post('/user/classes', classData),
-  // ... other class-related methods
-};
+

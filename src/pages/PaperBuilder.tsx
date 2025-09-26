@@ -21,413 +21,8 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { formatNumber, Icon, Section, Question, QuestionGroup, ApiPaper, ApiSectionGroup, ApiSection, ApiQuestionType, ApiQuestion, ApiQuestionOption } from "./utilities";
 
-// ---------- Types ----------
-export interface Question {
-    id: string;
-    type: string;
-    content: any;
-    marks?: number;
-    subQuestionMarks?: number[];
-    paraQuestionMarks?: number[];
-    conditionalQuestionMarks?: number[];
-}
-
-export interface QuestionGroup {
-    id: string;
-    type: string;
-    instruction: string;
-    logic?: string;
-    numberingStyle: 'numeric' | 'roman' | 'alphabetic';
-    questions: Question[];
-}
-
-export interface Section {
-    id: string;
-    title: string;
-    instruction: string;
-    groups: QuestionGroup[];
-}
-
-// API Response Types
-interface ApiQuestionType {
-    id: number;
-    name: string;
-    slug: string;
-    description: string;
-    has_options: boolean;
-    has_correct_answer: boolean;
-    can_have_sub_questions: boolean;
-    has_paragraph: boolean;
-}
-
-interface ApiPaper {
-    id: number;
-    title: string;
-    user_id: number;
-    class_id: number;
-    subject_id: number;
-    created_by: string;
-    uploaded_paper_file: string | null;
-    data_source: string;
-    duration: number;
-    total_marks: number;
-    created_at: string;
-    updated_at: string;
-    sections: ApiSection[];
-}
-
-interface ApiSection {
-    id: number;
-    paper_id: number;
-    title: string;
-    instructions: string;
-    order: number;
-    created_at: string;
-    updated_at: string;
-    section_groups: ApiSectionGroup[];
-}
-
-interface ApiSectionGroup {
-    id: number;
-    section_id: number;
-    question_type_id: number;
-    instructions: string;
-    logic: string | null;
-    order: number;
-    created_at: string;
-    updated_at: string;
-    questions: ApiQuestion[];
-}
-
-interface ApiQuestion {
-    id: number;
-    section_group_id: number;
-    parent_question_id: number | null;
-    question_text: string | null;
-    paragraph_text: string | null;
-    correct_answer: string | null;
-    marks: number;
-    order: number;
-    sub_order: number;
-    created_at: string;
-    updated_at: string;
-    options: ApiQuestionOption[];
-    subQuestions: ApiQuestion[];
-}
-
-interface ApiQuestionOption {
-    id: number;
-    paper_question_id: number;
-    option_text: string;
-    is_correct: boolean;
-    order: number;
-    created_at: string;
-    updated_at: string;
-}
-
-// ---------- Utilities ----------
-const uid = (prefix = '') => `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-// Helper function to convert numbers to Roman numerals
-const toRoman = (num: number): string => {
-    const romanNumerals = [
-        { value: 1000, symbol: 'M' },
-        { value: 900, symbol: 'CM' },
-        { value: 500, symbol: 'D' },
-        { value: 400, symbol: 'CD' },
-        { value: 100, symbol: 'C' },
-        { value: 90, symbol: 'XC' },
-        { value: 50, symbol: 'L' },
-        { value: 40, symbol: 'XL' },
-        { value: 10, symbol: 'X' },
-        { value: 9, symbol: 'IX' },
-        { value: 5, symbol: 'V' },
-        { value: 4, symbol: 'IV' },
-        { value: 1, symbol: 'I' }
-    ];
-
-    let result = '';
-    for (const { value, symbol } of romanNumerals) {
-        while (num >= value) {
-            result += symbol;
-            num -= value;
-        }
-    }
-    return result;
-};
-
-// Helper function to convert numbers to alphabetic (A, B, C, ... AA, AB, etc.)
-const toAlphabetic = (num: number): string => {
-    let result = '';
-    while (num > 0) {
-        num--;
-        result = String.fromCharCode(65 + (num % 26)) + result;
-        num = Math.floor(num / 26);
-    }
-    return result || 'A';
-};
-
-// Format number based on style
-const formatNumber = (num: number, style: 'numeric' | 'roman' | 'alphabetic'): string => {
-    switch (style) {
-        case 'roman':
-            return toRoman(num);
-        case 'alphabetic':
-            return toAlphabetic(num);
-        default:
-            return num.toString();
-    }
-};
-
-// ---------- Simple Text Editor Component ----------
-const SimpleTextEditor: React.FC<{
-    value: string;
-    onChange: (value: string) => void;
-    placeholder?: string;
-    rows?: number;
-    showMathButton?: boolean;
-    onOpenEquationEditor?: () => void;
-}> = ({ value, onChange, placeholder, rows = 3, showMathButton = true, onOpenEquationEditor }) => {
-    return (
-        <div className="relative">
-            <textarea
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder={placeholder}
-                rows={rows}
-                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            {showMathButton && (
-                <button
-                    type="button"
-                    onClick={onOpenEquationEditor}
-                    className="absolute right-2 bottom-2 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-1 text-sm"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Math
-                </button>
-            )}
-        </div>
-    );
-};
-
-// ---------- Equation Editor Component ----------
-const EquationEditor: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    onInsert: (equation: string) => void;
-    initialEquation?: string;
-}> = ({ isOpen, onClose, onInsert, initialEquation = '' }) => {
-    const [equation, setEquation] = useState(initialEquation);
-    const [isBlock, setIsBlock] = useState(true);
-    const [preview, setPreview] = useState('');
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    useEffect(() => {
-        if (isOpen) {
-            setEquation(initialEquation);
-            setTimeout(() => {
-                if (textareaRef.current) {
-                    textareaRef.current.focus();
-                    textareaRef.current.setSelectionRange(
-                        textareaRef.current.value.length,
-                        textareaRef.current.value.length
-                    );
-                }
-            }, 100);
-        }
-    }, [isOpen, initialEquation]);
-
-    useEffect(() => {
-        if (equation.trim()) {
-            setPreview(isBlock ? `$$${equation.trim()}$$` : `$${equation.trim()}$`);
-        } else {
-            setPreview('');
-        }
-    }, [equation, isBlock]);
-
-    if (!isOpen) return null;
-
-    const handleInsert = () => {
-        if (!equation.trim()) return;
-
-        const formattedEquation = isBlock
-            ? `$$${equation.trim()}$$`
-            : `$${equation.trim()}$`;
-
-        onInsert(formattedEquation);
-        setEquation('');
-        onClose();
-    };
-
-    const insertSymbol = (symbol: string) => {
-        if (textareaRef.current) {
-            const start = textareaRef.current.selectionStart;
-            const end = textareaRef.current.selectionEnd;
-            const newEquation = equation.substring(0, start) + symbol + equation.substring(end);
-            setEquation(newEquation);
-
-            setTimeout(() => {
-                if (textareaRef.current) {
-                    textareaRef.current.focus();
-                    textareaRef.current.setSelectionRange(start + symbol.length, start + symbol.length);
-                }
-            }, 0);
-        }
-    };
-
-    const commonSymbols = [
-        { symbol: '\\frac{a}{b}', label: 'Fraction' },
-        { symbol: '\\sqrt{x}', label: 'Square Root' },
-        { symbol: 'x^{2}', label: 'Exponent' },
-        { symbol: 'x_{n}', label: 'Subscript' },
-        { symbol: '\\pi', label: 'Pi' },
-        { symbol: '\\alpha', label: 'Alpha' },
-        { symbol: '\\beta', label: 'Beta' },
-        { symbol: '\\theta', label: 'Theta' },
-        { symbol: '\\sum', label: 'Sum' },
-        { symbol: '\\int', label: 'Integral' },
-        { symbol: '\\pm', label: 'Plus/Minus' },
-        { symbol: '\\infty', label: 'Infinity' },
-    ];
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="max-w-4xl w-full bg-white rounded-xl shadow-2xl p-6 border border-gray-200 max-h-[90vh] overflow-auto">
-                <div className="flex justify-between items-center mb-4 pb-3 border-b">
-                    <h3 className="text-xl font-semibold text-gray-800">Equation Editor</h3>
-                    <button onClick={onClose} className="p-1 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                    </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Enter LaTeX equation
-                            </label>
-                            <textarea
-                                ref={textareaRef}
-                                value={equation}
-                                onChange={(e) => setEquation(e.target.value)}
-                                placeholder="E.g., x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"
-                                rows={6}
-                                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                            />
-                        </div>
-
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                            <h4 className="font-medium text-gray-700 mb-2">Common Symbols</h4>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                                {commonSymbols.map((item, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => insertSymbol(item.symbol)}
-                                        className="p-2 bg-white border border-gray-200 rounded-md text-sm hover:bg-blue-50 transition-colors"
-                                        title={item.label}
-                                    >
-                                        {item.symbol}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="radio"
-                                    checked={isBlock}
-                                    onChange={() => setIsBlock(true)}
-                                    className="text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="text-sm text-gray-700">Block equation ($$...$$)</span>
-                            </label>
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="radio"
-                                    checked={!isBlock}
-                                    onChange={() => setIsBlock(false)}
-                                    className="text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="text-sm text-gray-700">Inline equation ($...$)</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Preview
-                            </label>
-                            <div className="min-h-[120px] p-4 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center">
-                                {preview ? (
-                                    <div className="text-lg font-serif">
-                                        {preview}
-                                    </div>
-                                ) : (
-                                    <span className="text-gray-400">Equation preview will appear here</span>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                            <h4 className="font-medium text-blue-800 mb-2">Tips:</h4>
-                            <ul className="text-xs text-blue-700 space-y-1">
-                                <li>• Use LaTeX syntax for mathematical expressions</li>
-                                <li>• Preview updates as you type</li>
-                                <li>• Click on symbols to insert them at cursor position</li>
-                                <li>• Choose between inline or block display</li>
-                                <li>• Equations will be rendered properly in the final paper</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-6 mt-4 border-t">
-                    <button
-                        onClick={onClose}
-                        className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleInsert}
-                        disabled={!equation.trim()}
-                        className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium transition-colors"
-                    >
-                        Insert Equation
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// ---------- Icons ----------
-const Icon = {
-    Close: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>,
-    Add: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>,
-    Edit: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>,
-    Delete: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>,
-    Duplicate: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" /><path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z" /></svg>,
-    Drag: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" /></svg>,
-    Export: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>,
-    Import: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>,
-    Search: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>,
-    Question: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>,
-    Check: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>,
-    ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>,
-    ChevronUp: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>,
-    Print: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clipRule="evenodd" /></svg>,
-    Download: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>,
-    Eye: () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>,
-};
 
 // ---------- Modal & Confirm Components ----------
 const Modal: React.FC<{ open: boolean; onClose: () => void; title?: string } & React.PropsWithChildren<{}>> = ({
@@ -464,14 +59,14 @@ const Confirm = ({ open, onConfirm, onCancel, message }: any) => (
 
 // ---------- Sortable Section component ----------
 const SortableSection: React.FC<{
-    section: Section;
+    section: ApiSection;
     index: number;
-    onEdit: (s: Section) => void;
-    onDelete: (id: string) => void;
-    onAddGroup: (sectionId: string) => void;
-    onEditGroup: (sectionId: string, group: QuestionGroup) => void;
-    onDeleteGroup: (sectionId: string, groupId: string) => void;
-    onDuplicateSection: (sectionId: string) => void;
+    onEdit: (s: ApiSection) => void;
+    onDelete: (id: Number) => void;
+    onAddGroup: (sectionId: Number) => void;
+    onEditGroup: (sectionId: Number, group: ApiSectionGroup) => void;
+    onDeleteGroup: (sectionId: Number, groupId: Number) => void;
+    onDuplicateSection: (sectionId: Number) => void;
 }> = ({ section, index, onEdit, onDelete, onAddGroup, onEditGroup, onDeleteGroup, onDuplicateSection }) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
     const style = { transform: CSS.Transform.toString(transform), transition } as React.CSSProperties;
@@ -488,7 +83,7 @@ const SortableSection: React.FC<{
                     </div>
                     <div className="flex-1 cursor-pointer" onClick={() => onEdit(section)}>
                         <h3 className="text-xl font-semibold text-gray-900">{section.title}</h3>
-                        {section.instruction && <p className="text-gray-600 mt-1" dangerouslySetInnerHTML={{ __html: section.instruction.replace(/\$([^$]+)\$/g, '<em>$1</em>') }} />}
+                        {section.instructions && <p className="text-gray-600 mt-1" dangerouslySetInnerHTML={{ __html: section.instructions.replace(/\$([^$]+)\$/g, '<em>$1</em>') }} />}
                     </div>
                 </div>
 
@@ -525,18 +120,18 @@ const SortableSection: React.FC<{
             </div>
 
             <div className="mt-4 space-y-3">
-                {section.groups.length === 0 ? (
+                {section.section_groups.length === 0 ? (
                     <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
                         No groups yet. Add a question group to this section.
                     </div>
                 ) : (
-                    section.groups.map((g, gi) => (
+                    section.section_groups.map((g:ApiSectionGroup, gi) => (
                         <div key={g.id} className="bg-gray-50 rounded-lg p-4 flex justify-between items-start gap-3 border border-gray-200">
                             <div className="flex-1">
-                                <div className="text-sm font-medium text-green-700">{getGroupTitle(g.type)}</div>
-                                {g.instruction && <div className="text-gray-600 text-sm mt-1" dangerouslySetInnerHTML={{ __html: g.instruction.replace(/\$([^$]+)\$/g, '<em>$1</em>') }} />}
+                                <div className="text-sm font-medium text-green-700">{getGroupTitle(g?.question_type?.slug)}</div>
+                                {g.instructions && <div className="text-gray-600 text-sm mt-1" dangerouslySetInnerHTML={{ __html: g.instructions.replace(/\$([^$]+)\$/g, '<em>$1</em>') }} />}
                                 <div className="text-gray-500 text-xs mt-2">Questions: {g.questions.length}</div>
-                                <div className="text-gray-500 text-xs">Numbering: {g.numberingStyle}</div>
+                                <div className="text-gray-500 text-xs">Numbering: {g.numbering_style}</div>
                             </div>
                             <div className="flex gap-2">
                                 <button onClick={() => onEditGroup(section.id, g)} className="p-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Group">
@@ -557,13 +152,13 @@ const SortableSection: React.FC<{
 // ---------- Helper functions ----------
 const getGroupTitle = (type: string) => {
     const titles: Record<string, string> = {
-        mcq: 'Multiple Choice Questions',
+        "mcq": 'Multiple Choice Questions',
         'true-false': 'True / False',
-        'fill-in-the-blanks': 'Fill in the Blanks',
-        'short-question': 'Short Questions',
-        'long-question': 'Long Questions',
-        conditional: 'Conditional Questions',
-        'para-question': 'Paragraph Questions',
+        'fill-in-blanks': 'Fill in the Blanks',
+        'short-answer': 'Short Questions',
+        'long-answer': 'Long Questions',
+        "conditional": 'Conditional Questions',
+        'paragraph': 'Paragraph Questions',
     };
     return titles[type] || 'Untitled Group';
 };
@@ -588,17 +183,16 @@ const convertApiSectionToLocal = (apiSection: ApiSection): Section => {
 const convertApiGroupToLocal = (apiGroup: ApiSectionGroup): QuestionGroup => {
     return {
         id: apiGroup.id.toString(),
-        type: getQuestionTypeSlug(apiGroup.question_type_id), // This will be mapped based on question types
+        type: apiGroup.question_type.slug,
         instruction: apiGroup.instructions,
         logic: apiGroup.logic || undefined,
         numberingStyle: 'numeric', // Default, can be extended based on API
-        questions: apiGroup.questions.map(convertApiQuestionToLocal)
+        questions: apiGroup.questions.map((q) => convertApiQuestionToLocal(q, apiGroup.question_type.slug))
     };
 };
 
-const convertApiQuestionToLocal = (apiQuestion: ApiQuestion): Question => {
-    const type = getQuestionTypeFromContent(apiQuestion);
-    
+const convertApiQuestionToLocal = (apiQuestion: ApiQuestion, type: string): Question => {
+
     let content: any = {};
     if (apiQuestion.paragraph_text) {
         content.paraText = apiQuestion.paragraph_text;
@@ -623,34 +217,7 @@ const convertApiQuestionToLocal = (apiQuestion: ApiQuestion): Question => {
     };
 };
 
-const getQuestionTypeSlug = (questionTypeId: number): string => {
-    // Map question type IDs to slugs
-    const typeMap: Record<number, string> = {
-        1: 'mcq',
-        2: 'true-false',
-        3: 'fill-in-the-blanks',
-        4: 'short-question',
-        5: 'long-question',
-        6: 'conditional',
-        7: 'para-question'
-    };
-    return typeMap[questionTypeId] || 'mcq';
-};
 
-const getQuestionTypeFromContent = (apiQuestion: ApiQuestion): string => {
-    if (apiQuestion.paragraph_text) return 'para-question';
-    if (apiQuestion.sub_questions.length > 0) {
-        if (apiQuestion.question_text?.includes('conditional') || apiQuestion.sub_questions.length > 1) 
-            return 'conditional';
-        return apiQuestion.sub_questions[0]?.question_text?.length || 0 > 100 ? 'long-question' : 'short-question';
-    }
-    if (apiQuestion.options.length === 2 && 
-        apiQuestion.options.some(opt => opt.option_text === 'True') && 
-        apiQuestion.options.some(opt => opt.option_text === 'False')) 
-        return 'true-false';
-    if (apiQuestion.options.length > 0) return 'mcq';
-    return 'fill-in-the-blanks';
-};
 
 // Convert local data to API format
 const convertLocalSectionToApi = (section: Section, paperId: number): any => {
@@ -698,14 +265,14 @@ const convertLocalQuestionToApi = (question: Question, groupId: number): any => 
                     order: index
                 }))
             };
-        
+
         case 'fill-in-the-blanks':
             return {
                 ...baseQuestion,
                 question_text: question.content.questionText,
                 correct_answer: question.content.correctAnswer?.toString() || ''
             };
-        
+
         case 'short-question':
         case 'long-question':
             if (question.content.sub_questions && question.content.sub_questions.length > 0) {
@@ -724,30 +291,30 @@ const convertLocalQuestionToApi = (question: Question, groupId: number): any => 
                 ...baseQuestion,
                 question_text: question.content.questionText
             };
-        
+
         case 'conditional':
             return {
                 ...baseQuestion,
                 question_text: "Conditional Questions",
-                sub_questions: question.content.conditionalQuestions.map((condQ: string, index: number) => ({
+                sub_questions: question.content.sub_questions.map((condQ: string, index: number) => ({
                     question_text: condQ,
                     marks: question.conditionalQuestionMarks?.[index] || 0,
                     sub_order: index
                 }))
             };
-        
+
         case 'para-question':
             return {
                 ...baseQuestion,
                 paragraph_text: question.content.paraText,
                 marks: 0, // Main paragraph has no marks
-                sub_questions: question.content.paraQuestions.map((paraQ: string, index: number) => ({
+                sub_questions: question.content.sub_questions.map((paraQ: string, index: number) => ({
                     question_text: paraQ,
                     marks: question.paraQuestionMarks?.[index] || 0,
                     sub_order: index
                 }))
             };
-        
+
         default:
             return {
                 ...baseQuestion,
@@ -775,13 +342,7 @@ const SectionForm: React.FC<{
         setInstruction(editing?.instruction || '');
     }, [editing]);
 
-    const handleInsertEquation = (equation: string) => {
-        if (activeField === 'title') {
-            setTitle((prev) => prev + equation);
-        } else if (activeField === 'instruction') {
-            setInstruction((prev) => prev + equation);
-        }
-    };
+    
 
     const handleSectionSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -806,32 +367,13 @@ const SectionForm: React.FC<{
             <form onSubmit={handleSectionSubmit} className="space-y-5">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                    <SimpleTextEditor
-                        value={title}
-                        onChange={setTitle}
-                        placeholder="Enter section title..."
-                        rows={2}
-                        onOpenEquationEditor={() => {
-                            setActiveField('title');
-                            setEquationFieldValue(title);
-                            setIsEquationEditorOpen(true);
-                        }}
-                    />
+                    <input type="text" className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={title} placeholder="Enter Section Title" onChange={(e) => { setTitle(e.target.value) }} />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
-                    <SimpleTextEditor
-                        value={instruction}
-                        onChange={setInstruction}
-                        placeholder="Enter section instructions..."
-                        rows={3}
-                        onOpenEquationEditor={() => {
-                            setActiveField('instruction');
-                            setEquationFieldValue(instruction);
-                            setIsEquationEditorOpen(true);
-                        }}
-                    />
+                    <textarea onChange={(e) => { setInstruction(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Section Instructions...">{instruction}</textarea>
+
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">
@@ -849,13 +391,6 @@ const SectionForm: React.FC<{
                         {editing ? 'Save Changes' : 'Add Section'}
                     </button>
                 </div>
-
-                <EquationEditor
-                    isOpen={isEquationEditorOpen}
-                    onClose={() => setIsEquationEditorOpen(false)}
-                    onInsert={handleInsertEquation}
-                    initialEquation={equationFieldValue}
-                />
             </form>
         </Modal>
     );
@@ -872,7 +407,6 @@ const GroupForm: React.FC<{
     const [instruction, setInstruction] = useState(editing?.instruction || '');
     const [logic, setLogic] = useState(editing?.logic || 'OR');
     const [numberingStyle, setNumberingStyle] = useState<'numeric' | 'roman' | 'alphabetic'>(editing?.numberingStyle || 'numeric');
-    const [isEquationEditorOpen, setIsEquationEditorOpen] = useState(false);
 
     useEffect(() => {
         setType(editing?.type || 'mcq');
@@ -881,9 +415,7 @@ const GroupForm: React.FC<{
         setNumberingStyle(editing?.numberingStyle || 'numeric');
     }, [editing]);
 
-    const handleInsertEquation = (equation: string) => {
-        setInstruction(prev => prev + equation);
-    };
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -923,13 +455,13 @@ const GroupForm: React.FC<{
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
-                    <SimpleTextEditor
-                        value={instruction}
-                        onChange={setInstruction}
-                        placeholder="Enter group instructions..."
-                        rows={3}
-                        onOpenEquationEditor={() => setIsEquationEditorOpen(true)}
-                    />
+                    <textarea
+                        onChange={(e) => { setInstruction(e.target.value) }}
+                        className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter group Instructions..."
+                    >
+                        {instruction}
+                    </textarea>
+
                 </div>
                 {type === 'conditional' && (
                     <div>
@@ -949,12 +481,6 @@ const GroupForm: React.FC<{
                     <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors">Cancel</button>
                     <button type="submit" className="px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">{editing ? 'Save Changes' : 'Add Group'}</button>
                 </div>
-
-                <EquationEditor
-                    isOpen={isEquationEditorOpen}
-                    onClose={() => setIsEquationEditorOpen(false)}
-                    onInsert={handleInsertEquation}
-                />
             </form>
         </Modal>
     );
@@ -980,9 +506,7 @@ const QuestionForm: React.FC<{
     const [conditionalQuestionMarks, setConditionalQuestionMarks] = useState<number[]>(editing?.conditionalQuestionMarks || []);
     const [showSubQuestions, setShowSubQuestions] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [isEquationEditorOpen, setIsEquationEditorOpen] = useState(false);
     const [activeField, setActiveField] = useState<string | null>(null);
-    const [equationFieldValue, setEquationFieldValue] = useState('');
 
     useEffect(() => {
         setQuestionText(editing?.content?.questionText || '');
@@ -1016,34 +540,16 @@ const QuestionForm: React.FC<{
         setErrors({});
     };
 
-    const handleInsertEquation = (equation: string) => {
-        if (activeField === 'questionText') {
-            setQuestionText(prev => prev + equation);
-        } else if (activeField === 'paraText') {
-            setParaText(prev => prev + equation);
-        } else if (activeField?.startsWith('choice-')) {
-            const index = parseInt(activeField.split('-')[1]);
-            setChoices(prev => prev.map((c, i) => i === index ? c + equation : c));
-        } else if (activeField?.startsWith('subQuestion-')) {
-            const index = parseInt(activeField.split('-')[1]);
-            setSubQuestions(prev => prev.map((sq, i) => i === index ? sq + equation : sq));
-        } else if (activeField?.startsWith('paraQuestion-')) {
-            const index = parseInt(activeField.split('-')[1]);
-            setParaQuestions(prev => prev.map((pq, i) => i === index ? pq + equation : pq));
-        } else if (activeField?.startsWith('conditionalQuestion-')) {
-            const index = parseInt(activeField.split('-')[1]);
-            setConditionalQuestions(prev => prev.map((cq, i) => i === index ? cq + equation : cq));
-        }
-    };
+
 
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
 
-        if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-the-blanks') && !questionText.trim()) {
+        if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks') && !questionText.trim()) {
             newErrors.questionText = 'Question text is required';
         }
 
-        if (type === 'short-question' || type === 'long-question') {
+        if (type === 'short-answer' || type === 'long-answer') {
             if (!showSubQuestions && !questionText.trim()) {
                 newErrors.questionText = 'Question text is required when no sub-questions are added';
             }
@@ -1065,7 +571,7 @@ const QuestionForm: React.FC<{
             }
         }
 
-        if (type === 'para-question') {
+        if (type === 'paragraph') {
             if (!paraText.trim()) {
                 newErrors.paraText = 'Paragraph text is required';
             }
@@ -1084,7 +590,7 @@ const QuestionForm: React.FC<{
         }
 
         if (type === 'conditional') {
-            conditionalQuestions.forEach((cq, index) => {
+            conditionalQuestions?.forEach((cq, index) => {
                 if (!cq.trim()) {
                     newErrors[`conditionalQuestion-${index}`] = 'Conditional question text is required';
                 }
@@ -1097,7 +603,7 @@ const QuestionForm: React.FC<{
             });
         }
 
-        if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-the-blanks') && marks <= 0) {
+        if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks') && marks <= 0) {
             newErrors.marks = 'Marks must be greater than 0';
         }
 
@@ -1113,33 +619,33 @@ const QuestionForm: React.FC<{
         }
 
         const content: any = {};
-        if (type !== 'para-question' && type !== 'conditional') content.questionText = questionText;
+        if (type !== 'paragraph' && type !== 'conditional') content.questionText = questionText;
         if (type === 'mcq') {
             content.choices = choices;
             content.correctAnswer = correctAnswer;
         } else if (type === 'true-false') {
             content.choices = ['True', 'False'];
             content.correctAnswer = correctAnswer;
-        } else if (type === 'short-question' || type === 'long-question') {
+        } else if (type === 'short-answer' || type === 'long-answer') {
             content.sub_questions = subQuestions.filter(Boolean);
         } else if (type === 'conditional') {
-            content.conditionalQuestions = conditionalQuestions.filter(Boolean);
-        } else if (type === 'para-question') {
+            content.conditionalQuestions = conditionalQuestions?.filter(Boolean);
+        } else if (type === 'paragraph') {
             content.paraText = paraText;
             content.paraQuestions = paraQuestions.filter(Boolean);
         }
 
         let q: Question = { id: editing?.id || uid('q-'), type, content };
-        if (type === 'short-question' || type === 'long-question') {
+        if (type === 'short-answer' || type === 'long-answer') {
             if (showSubQuestions && subQuestions.length > 0) {
                 q.subQuestionMarks = subQuestionMarks.slice(0, subQuestions.length);
             } else {
                 q.marks = marks;
             }
-        } else if (type === 'para-question') {
+        } else if (type === 'paragraph') {
             q.paraQuestionMarks = paraQuestionMarks.slice(0, paraQuestions.length);
         } else if (type === 'conditional') {
-            q.conditionalQuestionMarks = conditionalQuestionMarks.slice(0, conditionalQuestions.length);
+            q.conditionalQuestionMarks = conditionalQuestionMarks.slice(0, conditionalQuestions?.length);
         } else {
             q.marks = marks;
         }
@@ -1205,22 +711,13 @@ const QuestionForm: React.FC<{
     return (
         <Modal open={open} onClose={() => { onClose(); reset(); }} title={editing ? 'Edit Question' : 'Add Question'}>
             <form onSubmit={handleSubmit} className="space-y-5 max-h-[70vh] overflow-auto pr-2">
-                {(type === 'mcq' || type === 'true-false' || type === 'fill-in-the-blanks' || type === 'short-question' || type === 'long-question') && (
+                {(type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks' || type === 'short-answer' || type === 'long-answer') && (
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
-                        <SimpleTextEditor
-                            value={questionText}
-                            onChange={setQuestionText}
-                            placeholder="Enter your question..."
-                            rows={3}
-                            onOpenEquationEditor={() => {
-                                setActiveField('questionText');
-                                setEquationFieldValue(questionText);
-                                setIsEquationEditorOpen(true);
-                            }}
-                        />
+                        <textarea onChange={(e) => { setQuestionText(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Section Instructions...">{questionText}</textarea>
+
                         {errors.questionText && <p className="text-red-500 text-sm mt-1">{errors.questionText}</p>}
-                        {(type === 'mcq' || type === 'true-false' || type === 'fill-in-the-blanks') && (
+                        {(type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks') && (
                             <div className="mt-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
                                 <input
@@ -1243,17 +740,7 @@ const QuestionForm: React.FC<{
                             {choices.map((c, i) => (
                                 <div key={i} className="flex gap-3 items-start">
                                     <div className="flex-1">
-                                        <SimpleTextEditor
-                                            value={c}
-                                            onChange={(v) => updateChoice(i, v)}
-                                            placeholder={`Choice ${String.fromCharCode(65 + i)}`}
-                                            rows={2}
-                                            onOpenEquationEditor={() => {
-                                                setActiveField(`choice-${i}`);
-                                                setEquationFieldValue(c);
-                                                setIsEquationEditorOpen(true);
-                                            }}
-                                        />
+                                        <textarea onChange={(e) => { updateChoice(i, e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Choice ${String.fromCharCode(65 + i)}`}>{c}</textarea>
                                     </div>
                                     <label className="flex items-center gap-2 text-sm text-gray-700 mt-2">
                                         <input
@@ -1294,7 +781,7 @@ const QuestionForm: React.FC<{
                     </div>
                 )}
 
-                {(type === 'short-question' || type === 'long-question') && (
+                {(type === 'short-answer' || type === 'long-answer') && (
                     <div>
                         {!showSubQuestions && (
                             <div className="flex flex-col items-start mb-2">
@@ -1326,17 +813,8 @@ const QuestionForm: React.FC<{
                                 {subQuestions.map((s, i) => (
                                     <div key={i} className="flex gap-3 items-start">
                                         <div className="flex-1">
-                                            <SimpleTextEditor
-                                                value={s}
-                                                onChange={(v) => updateSub(i, v)}
-                                                placeholder={`Sub-question ${i + 1}`}
-                                                rows={2}
-                                                onOpenEquationEditor={() => {
-                                                    setActiveField(`subQuestion-${i}`);
-                                                    setEquationFieldValue(s);
-                                                    setIsEquationEditorOpen(true);
-                                                }}
-                                            />
+                                            <textarea onChange={(e) => { updateSub(i, e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Sub-question ${i + 1}`}>{s}</textarea>
+
                                             {errors[`subQuestion-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`subQuestion-${i}`]}</p>}
                                         </div>
                                         <div className="flex flex-col items-center ml-2">
@@ -1366,20 +844,11 @@ const QuestionForm: React.FC<{
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Conditional Questions</label>
                         <div className="space-y-3">
-                            {conditionalQuestions.map((c, i) => (
+                            {conditionalQuestions?.map((c, i) => (
                                 <div key={i} className="flex gap-3 items-start">
                                     <div className="flex-1">
-                                        <SimpleTextEditor
-                                            value={c}
-                                            onChange={(v) => updateCond(i, v)}
-                                            placeholder={`Conditional question ${i + 1}`}
-                                            rows={2}
-                                            onOpenEquationEditor={() => {
-                                                setActiveField(`conditionalQuestion-${i}`);
-                                                setEquationFieldValue(c);
-                                                setIsEquationEditorOpen(true);
-                                            }}
-                                        />
+                                        <textarea onChange={(e) => { updateCond(i, e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Conditional question ${i + 1}`}>{c}</textarea>
+
                                         {errors[`conditionalQuestion-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`conditionalQuestion-${i}`]}</p>}
                                     </div>
                                     <div className="flex flex-col items-center ml-2">
@@ -1393,7 +862,7 @@ const QuestionForm: React.FC<{
                                         />
                                         {errors[`conditionalQuestionMark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`conditionalQuestionMark-${i}`]}</p>}
                                     </div>
-                                    {conditionalQuestions.length > 1 && (
+                                    {conditionalQuestions?.length > 1 && (
                                         <button type="button" onClick={() => removeCond(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
                                             <Icon.Delete />
                                         </button>
@@ -1407,21 +876,12 @@ const QuestionForm: React.FC<{
                     </div>
                 )}
 
-                {type === 'para-question' && (
+                {type === 'paragraph' && (
                     <>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Paragraph Text</label>
-                            <SimpleTextEditor
-                                value={paraText}
-                                onChange={setParaText}
-                                placeholder="Enter the paragraph text..."
-                                rows={4}
-                                onOpenEquationEditor={() => {
-                                    setActiveField('paraText');
-                                    setEquationFieldValue(paraText);
-                                    setIsEquationEditorOpen(true);
-                                }}
-                            />
+                            <textarea onChange={(e) => { setParaText(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter the paragraph text...">{paraText}</textarea>
+
                             {errors.paraText && <p className="text-red-500 text-sm mt-1">{errors.paraText}</p>}
                         </div>
                         <div>
@@ -1430,19 +890,12 @@ const QuestionForm: React.FC<{
                                 {paraQuestions.map((pq, i) => (
                                     <div key={i} className="flex gap-3 items-start">
                                         <div className="flex-1">
-                                            <SimpleTextEditor
-                                                value={pq}
-                                                onChange={(v) => updateParaQ(i, v)}
-                                                placeholder={`Question ${i + 1}`}
-                                                rows={2}
-                                                onOpenEquationEditor={() => {
-                                                    setActiveField(`paraQuestion-${i}`);
-                                                    setEquationFieldValue(pq);
-                                                    setIsEquationEditorOpen(true);
-                                                }}
-                                            />
+
+                                            <textarea onChange={(e) => { updateParaQ(i, e.target.value) }} placeholder={`Question ${i + 1}`} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" >{pq}</textarea>
                                             {errors[`paraQuestion-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`paraQuestion-${i}`]}</p>}
                                         </div>
+
+
                                         <div className="flex flex-col items-center ml-2">
                                             <label className="block text-xs text-gray-700">Marks</label>
                                             <input
@@ -1473,39 +926,34 @@ const QuestionForm: React.FC<{
                     <button type="button" onClick={() => { onClose(); reset(); }} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors">Cancel</button>
                     <button type="submit" className="px-5 py-2.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium transition-colors">{editing ? 'Save Changes' : 'Add Question'}</button>
                 </div>
-
-                <EquationEditor
-                    isOpen={isEquationEditorOpen}
-                    onClose={() => setIsEquationEditorOpen(false)}
-                    onInsert={handleInsertEquation}
-                    initialEquation={equationFieldValue}
-                />
             </form>
         </Modal>
     );
 };
 
 // ---------- Question Display Components ----------
-const MCQQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
+const MCQQuestion: React.FC<{ question: ApiQuestion; questionNumber: string, numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
     return (
         <div className="mb-4">
             <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
                 <div>
                     <span className="mr-2">{questionNumber}.</span>
-                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                    <span>{question?.question_text}</span>
                 </div>
                 {typeof question.marks === 'number' && (
                     <span className="text-right text-blue-700 font-bold">{question.marks} marks</span>
                 )}
             </div>
             <div className="ml-4 space-y-2">
-                {question.content.choices.map((choice: string, idx: number) => (
+                {question?.options?.map((choice: ApiQuestionOption, idx: number) => (
                     <div key={idx} className="flex items-start">
                         <span className="mr-2 font-medium text-blue-600 mt-1">
                             {String.fromCharCode(65 + idx)}.
                         </span>
-                        <span className="text-gray-700 flex-1" dangerouslySetInnerHTML={{ __html: renderMathContent(choice) }} />
-                        {idx === question.content.correctAnswer && (
+                        <span className="text-gray-700 flex-1">
+                            {choice.option_text}
+                        </span>
+                        {choice.is_correct && (
                             <span className="ml-2 text-green-600 text-sm flex items-center">
                                 <Icon.Check /> Correct
                             </span>
@@ -1517,49 +965,47 @@ const MCQQuestion: React.FC<{ question: Question; questionNumber: string }> = ({
     );
 };
 
-const TrueFalseQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
+const TrueFalseQuestion: React.FC<{ question: ApiQuestion; questionNumber: string, numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
     return (
         <div className="mb-4">
             <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
                 <div>
                     <span className="mr-2">{questionNumber}. </span>
-                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                    <span>{question?.question_text}</span>
                 </div>
                 {typeof question.marks === 'number' && (
                     <span className="text-right text-blue-700 font-bold">{question.marks} marks</span>
                 )}
             </div>
             <div className="ml-4 space-y-2">
-                <div className="flex items-center">
-                    <span className="mr-2 font-medium text-blue-600">A.</span>
-                    <span className="text-gray-700">True</span>
-                    {question.content.correctAnswer === 0 && (
-                        <span className="ml-2 text-green-600 text-sm flex items-center">
-                            <Icon.Check /> Correct
-                        </span>
-                    )}
-                </div>
-                <div className="flex items-center">
-                    <span className="mr-2 font-medium text-blue-600">B.</span>
-                    <span className="text-gray-700">False</span>
-                    {question.content.correctAnswer === 1 && (
-                        <span className="ml-2 text-green-600 text-sm flex items-center">
-                            <Icon.Check /> Correct
-                        </span>
-                    )}
-                </div>
+                {question?.options?.map((opt: ApiQuestionOption, oindex) => {
+                    return (
+                        <>
+                            <div className="flex items-center">
+                                <span className="mr-2 font-medium text-blue-600">{formatNumber(oindex + 1, 'alphabetic')}</span>
+                                <span className="text-gray-700">{opt.option_text}</span>
+                                {opt.is_correct && (
+                                    <span className="ml-2 text-green-600 text-sm flex items-center">
+                                        <Icon.Check /> Correct
+                                    </span>
+                                )}
+                            </div>
+                        </>
+                    )
+                })}
+
             </div>
         </div>
     );
 };
 
-const FillInBlanksQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
+const FillInBlanksQuestion: React.FC<{ question: ApiQuestion; questionNumber: string, numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
     return (
         <div className="mb-4">
             <div className="font-medium text-gray-800 flex justify-between items-center">
                 <div>
                     <span className="mr-2">{questionNumber}. </span>
-                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                    <span>{question?.question_text}</span>
                 </div>
                 {typeof question.marks === 'number' && (
                     <span className="text-right text-blue-700 font-bold">{question.marks} marks</span>
@@ -1569,32 +1015,32 @@ const FillInBlanksQuestion: React.FC<{ question: Question; questionNumber: strin
     );
 };
 
-const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string; numberingStyle: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
-    const hasSubQuestions = question.content.sub_questions && question.content.sub_questions.length > 0 && question.content.sub_questions.some((sq: string) => sq);
+const ShortLongQuestion: React.FC<{ question: ApiQuestion; questionNumber: string; numberingStyle: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
+
     return (
         <div className="mb-4">
-            {question.content.questionText && (
+            {question.question_text && (
                 <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
                     <div>
                         <span className="mr-2">{questionNumber}. </span>
-                        <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                        <span>{question.question_text}</span>
                     </div>
-                    {!hasSubQuestions && typeof question.marks === 'number' && (
+                    {question?.sub_questions?.length == 0 && typeof question.marks === 'number' && (
                         <span className="text-right text-blue-700 font-bold">{question.marks} marks</span>
                     )}
                 </div>
             )}
-            {hasSubQuestions && (
+            {question?.sub_questions?.length > 0 && (
                 <div className="ml-4">
-                    {question.content.sub_questions.map((subQ: string, idx: number) => subQ && (
+                    {question?.sub_questions?.map((subQ: ApiQuestion, idx: number) => subQ && (
                         <div key={idx} className="mb-2 text-gray-700 flex justify-between items-center">
                             <div>
                                 <span className="mr-2">{formatNumber(idx + 1, numberingStyle)}. </span>
                                 <span dangerouslySetInnerHTML={{ __html: renderMathContent(subQ) }} />
                             </div>
-                            {Array.isArray(question.subQuestionMarks) && typeof question.subQuestionMarks[idx] === 'number' && (
-                                <span className="text-right text-blue-700 font-bold">{question.subQuestionMarks[idx]} marks</span>
-                            )}
+
+                            <span className="text-right text-blue-700 font-bold">{subQ.marks} marks</span>
+
                         </div>
                     ))}
                 </div>
@@ -1603,17 +1049,17 @@ const ShortLongQuestion: React.FC<{ question: Question; questionNumber: string; 
     );
 };
 
-const ConditionalQuestion: React.FC<{ question: Question; questionNumber: string; showOr: boolean }> = ({ question, questionNumber, showOr }) => {
+const ConditionalQuestion: React.FC<{ question: ApiQuestion; questionNumber: string; numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
     return (
         <div className="mb-4">
             <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
                 <div>
                     <span className="mr-2">{questionNumber}</span>
-                    Conditional Questions
+                    {question.question_text}
                 </div>
             </div>
             <div className="ml-4">
-                {question.content.conditionalQuestions.map((condQ: string, idx: number) => (
+                {question?.sub_questions?.map((condQ: ApiQuestion, idx: number) => (
                     <React.Fragment key={idx}>
                         {idx > 0 && (
                             <div className="text-center my-2">
@@ -1623,11 +1069,9 @@ const ConditionalQuestion: React.FC<{ question: Question; questionNumber: string
                         <div className="mb-2 text-gray-700 flex justify-between items-center">
                             <div>
                                 <span className="mr-2">{idx + 1}.</span>
-                                <span dangerouslySetInnerHTML={{ __html: renderMathContent(condQ) }} />
+                                <span>{condQ.question_text}</span>
                             </div>
-                            {Array.isArray(question.conditionalQuestionMarks) && typeof question.conditionalQuestionMarks[idx] === 'number' && (
-                                <span className="text-right text-blue-700 font-bold">{question.conditionalQuestionMarks[idx]} marks</span>
-                            )}
+                            <span className="text-right text-blue-700 font-bold">{condQ?.marks} marks</span>
                         </div>
                     </React.Fragment>
                 ))}
@@ -1636,25 +1080,23 @@ const ConditionalQuestion: React.FC<{ question: Question; questionNumber: string
     );
 };
 
-const ParaQuestion: React.FC<{ question: Question; questionNumber: string }> = ({ question, questionNumber }) => {
+const ParaQuestion: React.FC<{ question: ApiQuestion; questionNumber: string, numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
     return (
         <div className="mb-4">
             <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
                 <div>
                     <span className="mr-2">{questionNumber}.</span>
-                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.paraText) }} />
+                    <span>{question?.paragraph_text}</span>
                 </div>
             </div>
             <div className="ml-4 space-y-2">
-                {question.content.paraQuestions.map((pq: string, idx: number) => (
+                {question?.sub_questions?.map((pq: ApiQuestion, idx: number) => (
                     <div key={idx} className="flex items-center justify-between">
                         <div className="flex items-center">
                             <span className="mr-2 font-medium text-blue-600 mt-1">{idx + 1}.</span>
-                            <span className="text-gray-700 flex-1" dangerouslySetInnerHTML={{ __html: renderMathContent(pq) }} />
+                            <span className="text-gray-700 flex-1">{pq?.question_text}</span>
                         </div>
-                        {Array.isArray(question.paraQuestionMarks) && typeof question.paraQuestionMarks[idx] === 'number' && (
-                            <span className="text-right text-blue-700 font-bold">{question.paraQuestionMarks[idx]} marks</span>
-                        )}
+                        <span className="text-right text-blue-700 font-bold">{pq?.marks} marks</span>
                     </div>
                 ))}
             </div>
@@ -1662,38 +1104,37 @@ const ParaQuestion: React.FC<{ question: Question; questionNumber: string }> = (
     );
 };
 
-const QuestionDisplay: React.FC<{ question: Question; questionNumber: string; showOr?: boolean; numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, showOr = false, numberingStyle = 'numeric' }) => {
-    switch (question.type) {
+const QuestionDisplay: React.FC<{ question: ApiQuestion; type: ApiQuestionType, questionNumber: string; showOr?: boolean; numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, type, questionNumber, showOr = false, numberingStyle = 'numeric' }) => {
+    switch (type.slug) {
         case 'mcq':
-            return <MCQQuestion question={question} questionNumber={questionNumber} />;
+            return <MCQQuestion question={question} questionNumber={questionNumber} numberingStyle={numberingStyle} />;
         case 'true-false':
-            return <TrueFalseQuestion question={question} questionNumber={questionNumber} />;
-        case 'fill-in-the-blanks':
-            return <FillInBlanksQuestion question={question} questionNumber={questionNumber} />;
-        case 'short-question':
-        case 'long-question':
+            return <TrueFalseQuestion question={question} questionNumber={questionNumber} numberingStyle={numberingStyle} />;
+        case 'fill-in-blanks':
+            return <FillInBlanksQuestion question={question} questionNumber={questionNumber} numberingStyle={numberingStyle} />;
+        case 'short-answer':
+        case 'long-answer':
             return <ShortLongQuestion question={question} questionNumber={questionNumber} numberingStyle={numberingStyle} />;
         case 'conditional':
-            return <ConditionalQuestion question={question} questionNumber={questionNumber} showOr={showOr} />;
-        case 'para-question':
-            return <ParaQuestion question={question} questionNumber={questionNumber} />;
+            return <ConditionalQuestion question={question} questionNumber={questionNumber} numberingStyle={numberingStyle} />;
+        case 'paragraph':
+            return <ParaQuestion question={question} questionNumber={questionNumber} numberingStyle={numberingStyle} />;
         default:
             return (
                 <div className="mb-4 text-gray-800">
                     <span className="mr-2">{questionNumber}</span>
-                    <span dangerouslySetInnerHTML={{ __html: renderMathContent(question.content.questionText) }} />
+                    <span>{question.question_text}</span>
                 </div>)
     }
 };
 
 // ---------- Paper View Component ----------
 const PaperView: React.FC<{
-    paper: any;
-    sections: Section[];
+    paper: ApiPaper;
     onClose: () => void;
     onPrint: () => void;
     onDownloadPDF: () => void;
-}> = ({ paper, sections, onClose, onPrint, onDownloadPDF }) => {
+}> = ({ paper, onClose, onPrint, onDownloadPDF }) => {
     return (
         <div className="fixed inset-0 z-50 bg-white overflow-auto">
             <div className="max-w-4xl mx-auto">
@@ -1725,7 +1166,7 @@ const PaperView: React.FC<{
                     <h1 className="text-3xl font-bold text-center text-gray-800 mb-8"> {paper ? paper.title : "Loading..."}</h1>
 
                     <div className="space-y-8">
-                        {sections.map((section, sIndex) => {
+                        {paper?.sections.map((section: ApiSection, sIndex) => {
                             let questionCounter = 0;
                             return (
                                 <div key={section.id} className="mb-8">
@@ -1736,31 +1177,31 @@ const PaperView: React.FC<{
                                             }}
                                         />
                                     </h2>
-                                    {section.instruction && (
+                                    {section.instructions && (
                                         <p
                                             className="text-gray-600 mb-4 italic"
                                             dangerouslySetInnerHTML={{
-                                                __html: renderMathContent(section.instruction),
+                                                __html: renderMathContent(section.instructions),
                                             }}
                                         />
                                     )}
-                                    {section.groups.map((group) => (
+                                    {section?.section_groups?.map((group: ApiSectionGroup) => (
                                         <div key={group.id} className="mb-6 ml-4">
-                                            {group.instruction && (
+                                            {group.instructions && (
                                                 <p
                                                     className="text-gray-600 mb-3"
                                                     dangerouslySetInnerHTML={{
-                                                        __html: renderMathContent(group.instruction),
+                                                        __html: group.instructions,
                                                     }}
                                                 />
                                             )}
                                             <div className="space-y-4 ml-4">
-                                                {group.questions.map((question, qIndex) => {
+                                                {group?.questions?.map((question: ApiQuestion, qIndex) => {
                                                     questionCounter++;
                                                     const questionNumber = `${questionCounter}`;
                                                     return (
                                                         <div key={question.id} className="mb-4">
-                                                            <QuestionDisplay question={question} questionNumber={questionNumber} numberingStyle={group.numberingStyle} />
+                                                            <QuestionDisplay question={question} type={group?.question_type} questionNumber={questionNumber} numberingStyle={group?.numbering_style} />
                                                         </div>
                                                     );
                                                 })}
@@ -1876,7 +1317,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 if (paperResponse?.status && paperResponse?.data?.paper) {
                     const paperData = paperResponse.data.paper;
                     setPaper(paperData);
-                    
+
                     // Convert API sections to local format
                     const localSections = paperData.sections.map(convertApiSectionToLocal);
                     setSections(localSections);
@@ -1890,7 +1331,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                     console.log("Failed to load paper");
                 }
             } catch (error) {
-                console.log("error : ",error);
+                console.log("error : ", error);
                 toast({
                     title: "Error",
                     description: "Failed to load paper data",
@@ -1974,9 +1415,9 @@ const PaperGeneratorAdvanced: React.FC = () => {
         try {
             const response = await ApiService.request(`/user/papers/${id}/sections`, {
                 method: "POST",
-                headers: { 
-                    Authorization: `Bearer ${token}`, 
-                    "Content-Type": "application/json" 
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(sectionData),
             });
@@ -1989,19 +1430,19 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 throw new Error(response.message || "Failed to create section");
             }
         } catch (error: any) {
-            toast({ 
-                title: "Error", 
-                description: error.message, 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
             });
         }
     };
 
-    const handleUpdateSection = async (sectionId: string, sectionData: any) => {
+    const handleUpdateSection = async (sectionId: Number, sectionData: any) => {
         try {
             const response = await ApiService.request(`/user/papers/${id}/sections/${sectionId}`, {
                 method: "PUT",
-                headers: { 
+                headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json"
                 },
@@ -2016,15 +1457,15 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 throw new Error(response.message || "Failed to update section");
             }
         } catch (error: any) {
-            toast({ 
-                title: "Error", 
-                description: error.message, 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
             });
         }
     };
 
-    const handleDeleteSection = async (sectionId: string) => {
+    const handleDeleteSection = async (sectionId: Number) => {
         try {
             const response = await ApiService.request(`/user/papers/${id}/sections/${sectionId}`, {
                 method: "DELETE",
@@ -2038,20 +1479,20 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 throw new Error(response.message || "Failed to delete section");
             }
         } catch (error: any) {
-            toast({ 
-                title: "Error", 
-                description: error.message, 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
             });
         }
     };
 
     // Group operations
-    const handleCreateGroup = async (sectionId: string, groupData: any) => {
+    const handleCreateGroup = async (sectionId: Number, groupData: any) => {
         try {
             const response = await ApiService.request(`/user/sections/${sectionId}/groups`, {
                 method: "POST",
-                headers: { 
+                headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json"
                 },
@@ -2060,8 +1501,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
 
             if (response.status) {
                 const newGroup = convertApiGroupToLocal(response.data.group);
-                setSections(prev => prev.map(s => 
-                    s.id === sectionId 
+                setSections(prev => prev.map(s =>
+                    s.id === sectionId
                         ? { ...s, groups: [...s.groups, newGroup] }
                         : s
                 ));
@@ -2070,19 +1511,19 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 throw new Error(response.message || "Failed to create group");
             }
         } catch (error: any) {
-            toast({ 
-                title: "Error", 
-                description: error.message, 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
             });
         }
     };
 
-    const handleUpdateGroup = async (sectionId: string, groupId: string, groupData: any) => {
+    const handleUpdateGroup = async (sectionId: Number, groupId: Number, groupData: any) => {
         try {
             const response = await ApiService.request(`/user/sections/${sectionId}/groups/${groupId}`, {
                 method: "PUT",
-                headers: { 
+                headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json"
                 },
@@ -2091,8 +1532,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
 
             if (response.status) {
                 const updatedGroup = convertApiGroupToLocal(response.data.group);
-                setSections(prev => prev.map(s => 
-                    s.id === sectionId 
+                setSections(prev => prev.map(s =>
+                    s.id === sectionId
                         ? { ...s, groups: s.groups.map(g => g.id === groupId ? updatedGroup : g) }
                         : s
                 ));
@@ -2101,15 +1542,15 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 throw new Error(response.message || "Failed to update group");
             }
         } catch (error: any) {
-            toast({ 
-                title: "Error", 
-                description: error.message, 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
             });
         }
     };
 
-    const handleDeleteGroup = async (sectionId: string, groupId: string) => {
+    const handleDeleteGroup = async (sectionId: Number, groupId: Number) => {
         try {
             const response = await ApiService.request(`/user/sections/${sectionId}/groups/${groupId}`, {
                 method: "DELETE",
@@ -2117,8 +1558,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                setSections(prev => prev.map(s => 
-                    s.id === sectionId 
+                setSections(prev => prev.map(s =>
+                    s.id === sectionId
                         ? { ...s, groups: s.groups.filter(g => g.id !== groupId) }
                         : s
                 ));
@@ -2127,20 +1568,20 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 throw new Error(response.message || "Failed to delete group");
             }
         } catch (error: any) {
-            toast({ 
-                title: "Error", 
-                description: error.message, 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
             });
         }
     };
 
     // Question operations
-    const handleCreateQuestion = async (groupId: string, questionData: any) => {
+    const handleCreateQuestion = async (groupId: Number, questionData: any) => {
         try {
             const response = await ApiService.request(`/user/groups/${groupId}/questions`, {
                 method: "POST",
-                headers: { 
+                headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json"
                 },
@@ -2151,8 +1592,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 const newQuestion = convertApiQuestionToLocal(response.data.question);
                 setSections(prev => prev.map(s => ({
                     ...s,
-                    groups: s.groups.map(g => 
-                        g.id === groupId 
+                    groups: s.groups.map(g =>
+                        g.id === groupId
                             ? { ...g, questions: [...g.questions, newQuestion] }
                             : g
                     )
@@ -2162,19 +1603,19 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 throw new Error(response.message || "Failed to create question");
             }
         } catch (error: any) {
-            toast({ 
-                title: "Error", 
-                description: error.message, 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
             });
         }
     };
 
-    const handleUpdateQuestion = async (groupId: string, questionId: string, questionData: any) => {
+    const handleUpdateQuestion = async (groupId: Number, questionId: string, questionData: any) => {
         try {
             const response = await ApiService.request(`/user/groups/${groupId}/questions/${questionId}`, {
                 method: "PUT",
-                headers: { 
+                headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json"
                 },
@@ -2185,8 +1626,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 const updatedQuestion = convertApiQuestionToLocal(response.data.question);
                 setSections(prev => prev.map(s => ({
                     ...s,
-                    groups: s.groups.map(g => 
-                        g.id === groupId 
+                    groups: s.groups.map(g =>
+                        g.id === groupId
                             ? { ...g, questions: g.questions.map(q => q.id === questionId ? updatedQuestion : q) }
                             : g
                     )
@@ -2196,15 +1637,15 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 throw new Error(response.message || "Failed to update question");
             }
         } catch (error: any) {
-            toast({ 
-                title: "Error", 
-                description: error.message, 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
             });
         }
     };
 
-    const handleDeleteQuestion = async (sectionId: string, groupId: string, questionId: string) => {
+    const handleDeleteQuestion = async (sectionId: Number, groupId: Number, questionId: string) => {
         try {
             const response = await ApiService.request(`/user/groups/${groupId}/questions/${questionId}`, {
                 method: "DELETE",
@@ -2212,13 +1653,15 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                setSections(prev => prev.map(s => 
-                    s.id === sectionId 
-                        ? { ...s, groups: s.groups.map(g => 
-                            g.id === groupId 
-                                ? { ...g, questions: g.questions.filter(q => q.id !== questionId) }
-                                : g
-                        )}
+                setSections(prev => prev.map(s =>
+                    s.id === sectionId
+                        ? {
+                            ...s, groups: s.groups.map(g =>
+                                g.id === groupId
+                                    ? { ...g, questions: g.questions.filter(q => q.id !== questionId) }
+                                    : g
+                            )
+                        }
                         : s
                 ));
                 toast({ title: "Success", description: "Question deleted successfully" });
@@ -2226,10 +1669,10 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 throw new Error(response.message || "Failed to delete question");
             }
         } catch (error: any) {
-            toast({ 
-                title: "Error", 
-                description: error.message, 
-                variant: "destructive" 
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
             });
         }
     };
@@ -2284,30 +1727,30 @@ const PaperGeneratorAdvanced: React.FC = () => {
     };
 
     // Duplicate section (local only)
-    const handleDuplicateSection = (sectionId: string) => {
+    const handleDuplicateSection = (sectionId: Number) => {
         const sec = sections.find((x) => x.id === sectionId);
         if (!sec) return;
-        const clone: Section = { 
-            ...sec, 
-            id: uid('sec-'), 
-            title: sec.title + ' (copy)', 
-            groups: sec.groups.map((g) => ({ 
-                ...g, 
-                id: uid('g-'), 
-                questions: g.questions.map((q) => ({ ...q, id: uid('q-') })) 
-            })) 
+        const clone: Section = {
+            ...sec,
+            id: uid('sec-'),
+            title: sec.title + ' (copy)',
+            groups: sec.groups.map((g) => ({
+                ...g,
+                id: uid('g-'),
+                questions: g.questions.map((q) => ({ ...q, id: uid('q-') }))
+            }))
         };
         setSections((s) => [...s, clone]);
     };
 
     // UI helpers
-    const startAddGroup = (sectionId: string) => {
+    const startAddGroup = (sectionId: Number) => {
         setCurrentSectionIdForGroup(sectionId);
         setEditingGroup(null);
         setGroupModalOpen(true);
     };
 
-    const startAddQuestion = (sectionId: string, groupId: string, type?: string) => {
+    const startAddQuestion = (sectionId: Number, groupId: Number, type?: string) => {
         setCurrentSectionIdForQuestion(sectionId);
         setCurrentGroupIdForQuestion(groupId);
         setCurrentTypeForQuestion(type || 'mcq');
@@ -2315,18 +1758,18 @@ const PaperGeneratorAdvanced: React.FC = () => {
         setQuestionModalOpen(true);
     };
 
-    const openEditSection = (sec: Section) => {
+    const openEditSection = (sec: ApiSection) => {
         setEditingSection(sec);
         setSectionModalOpen(true);
     };
 
-    const openEditGroup = (sectionId: string, group: QuestionGroup) => {
+    const openEditGroup = (sectionId: Number, group: ApiSectionGroup) => {
         setCurrentSectionIdForGroup(sectionId);
         setEditingGroup(group);
         setGroupModalOpen(true);
     };
 
-    const openEditQuestion = (sectionId: string, groupId: string, question: Question) => {
+    const openEditQuestion = (sectionId: Number, groupId: Number, question: Question) => {
         setCurrentSectionIdForQuestion(sectionId);
         setCurrentGroupIdForQuestion(groupId);
         setCurrentTypeForQuestion(question.type);
@@ -2334,7 +1777,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
         setQuestionModalOpen(true);
     };
 
-    const toggleSectionExpansion = (sectionId: string) => {
+    const toggleSectionExpansion = (sectionId: Number) => {
         setExpandedSections(prev => ({
             ...prev,
             [sectionId]: !prev[sectionId]
@@ -2463,7 +1906,6 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 {paperViewOpen && (
                     <PaperView
                         paper={paper}
-                        sections={sections}
                         onClose={() => setPaperViewOpen(false)}
                         onPrint={handlePrint}
                         onDownloadPDF={handleDownloadPDF}
@@ -2526,7 +1968,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                 <span style={{ color: '#2563eb' }}><Icon.Question /></span> Paper Structure
                             </h2>
 
-                            {sections.length === 0 ? (
+                            {paper?.sections.length === 0 ? (
                                 <div className="py-16 text-center text-gray-500 bg-gray-50 rounded-xl">
                                     <div className="text-blue-600 mb-3">
                                         <svg
@@ -2553,7 +1995,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                             ) : (
                                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                                     <SortableContext items={sections.map((s) => s.id)}>
-                                        {filteredSections.map((sec, i) => {
+                                        {paper?.sections.map((sec:ApiSection, i) => {
                                             let question_counter = 0;
                                             return (
                                                 <div key={sec.id}>
@@ -2587,13 +2029,13 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                             </button>
                                                         </div>
 
-                                                        {expandedSections[sec.id] && sec.groups.map((g) => (
+                                                        {expandedSections[sec.id] && sec?.section_groups?.map((g:ApiSectionGroup) => (
                                                             <div key={g.id} className="bg-gray-50 rounded-xl p-5 mb-5 border border-gray-200">
                                                                 <div className="flex justify-between items-center mb-4 pb-3 border-b">
                                                                     <div>
-                                                                        <div className="text-md font-bold text-green-700">{getGroupTitle(g.type)}</div>
-                                                                        {g.instruction && <div className="text-gray-600 text-sm mt-1" dangerouslySetInnerHTML={{ __html: renderMathContent(g.instruction) }} />}
-                                                                        <div className="text-gray-500 text-xs mt-2">Numbering: {g.numberingStyle}</div>
+                                                                        <div className="text-md font-bold text-green-700">{getGroupTitle(g.question_type?.slug)}</div>
+                                                                        {g.instructions && <div className="text-gray-600 text-sm mt-1" dangerouslySetInnerHTML={{ __html: renderMathContent(g.instructions) }} />}
+                                                                        <div className="text-gray-500 text-xs mt-2">Numbering: {g?.numbering_style}</div>
                                                                     </div>
                                                                     <div className="flex gap-2">
                                                                         <button onClick={() => openEditGroup(sec.id, g)} className="p-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Group">
@@ -2614,13 +2056,13 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                                             No questions yet in this group.
                                                                         </div>
                                                                     ) : (
-                                                                        g.questions.map((q, qIndex) => {
+                                                                        g.questions.map((q:ApiQuestion, qIndex) => {
                                                                             question_counter++;
                                                                             return (
                                                                                 <div key={q.id} className="bg-white rounded-lg p-4 border border-gray-200">
                                                                                     <div className="flex justify-between items-start mb-3">
                                                                                         <div className="flex-1">
-                                                                                            <QuestionDisplay question={q} questionNumber={`${question_counter}`} numberingStyle={g.numberingStyle} />
+                                                                                            <QuestionDisplay question={q} type={g?.question_type} questionNumber={`${question_counter}`} numberingStyle={g.numbering_style} />
                                                                                         </div>
                                                                                         <div className="flex gap-2 ml-4">
                                                                                             <button onClick={() => openEditQuestion(sec.id, g.id, q)} className="p-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Question">
@@ -2672,28 +2114,6 @@ const PaperGeneratorAdvanced: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
-                            <h3 className="font-semibold text-gray-800 border-b pb-3 mb-4 flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                                </svg>
-                                Equation Editor Tips
-                            </h3>
-                            <ul className="text-gray-700 text-sm space-y-3">
-                                <li className="flex items-start gap-2">
-                                    <span className="text-blue-600 mt-0.5">•</span>
-                                    <span>Use LaTeX syntax for mathematical equations</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-blue-600 mt-0.5">•</span>
-                                    <span>Common symbols: \frac, \sqrt, \pi, \alpha, \beta, \sum, \int, etc.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-blue-600 mt-0.5">•</span>
-                                    <span>Choose between inline ($...$) or block ($$...$$) equations</span>
-                                </li>
-                            </ul>
-                        </div>
 
                         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200">
                             <h3 className="font-semibold text-gray-800 border-b pb-3 mb-4 flex items-center gap-2">
@@ -2742,33 +2162,33 @@ const PaperGeneratorAdvanced: React.FC = () => {
                     handleUpdateSection={handleUpdateSection}
                 />
 
-                <GroupForm 
-                    open={groupModalOpen} 
-                    onClose={() => { setGroupModalOpen(false); setEditingGroup(null); setCurrentSectionIdForGroup(null); }} 
-                    onSubmit={handleAddOrEditGroup} 
-                    sectionTitle={sections.find((s) => s.id === currentSectionIdForGroup)?.title} 
-                    editing={editingGroup} 
-                />
-                
-                <QuestionForm 
-                    open={questionModalOpen} 
-                    onClose={() => { setQuestionModalOpen(false); setEditingQuestion(null); setCurrentSectionIdForQuestion(null); setCurrentGroupIdForQuestion(null); }} 
-                    onSubmit={handleAddOrEditQuestion} 
-                    type={currentTypeForQuestion} 
-                    editing={editingQuestion} 
+                <GroupForm
+                    open={groupModalOpen}
+                    onClose={() => { setGroupModalOpen(false); setEditingGroup(null); setCurrentSectionIdForGroup(null); }}
+                    onSubmit={handleAddOrEditGroup}
+                    sectionTitle={paper?.sections.find((s: any) => s.id === currentSectionIdForGroup)?.title}
+                    editing={editingGroup}
                 />
 
-                <Confirm 
-                    open={confirmOpen} 
-                    onConfirm={runConfirmed} 
-                    onCancel={() => setConfirmOpen(false)} 
+                <QuestionForm
+                    open={questionModalOpen}
+                    onClose={() => { setQuestionModalOpen(false); setEditingQuestion(null); setCurrentSectionIdForQuestion(null); setCurrentGroupIdForQuestion(null); }}
+                    onSubmit={handleAddOrEditQuestion}
+                    type={currentTypeForQuestion}
+                    editing={editingQuestion}
+                />
+
+                <Confirm
+                    open={confirmOpen}
+                    onConfirm={runConfirmed}
+                    onCancel={() => setConfirmOpen(false)}
                     message={
                         confirmPayload?.type === 'delete-section'
                             ? 'Delete this section and all its groups & questions? This cannot be undone.'
                             : confirmPayload?.type === 'delete-group'
                                 ? 'Delete this group and all its questions?'
                                 : 'Delete this question?'
-                    } 
+                    }
                 />
             </div>
         </div>
