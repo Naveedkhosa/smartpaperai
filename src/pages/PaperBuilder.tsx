@@ -21,7 +21,7 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { formatNumber, Icon, Section, Question, QuestionGroup, ApiPaper, ApiSectionGroup, ApiSection, ApiQuestionType, ApiQuestion, ApiQuestionOption } from "./utilities";
+import { formatNumber, Icon, Section, Question, QuestionGroup, ApiPaper, ApiSectionGroup, ApiSection, ApiQuestionType, ApiQuestion, ApiQuestionOption, uid } from "./utilities";
 
 
 // ---------- Modal & Confirm Components ----------
@@ -329,16 +329,15 @@ const SectionForm: React.FC<{
     onClose: () => void;
     editing?: ApiSection | null;
     handleCreateSection: (data: { title: string; instructions: string; order: number }) => Promise<void>;
-    handleUpdateSection: (id: number, data: { title: string; instructions: string,order: number }) => Promise<void>;
+    handleUpdateSection: (id: number, data: { title: string; instructions: string, order: number }) => Promise<void>;
 }> = ({ open, onClose, editing, handleCreateSection, handleUpdateSection }) => {
     const [title, setTitle] = useState(editing?.title || '');
     const [instruction, setInstruction] = useState(editing?.instructions || '');
-   
+
 
     useEffect(() => {
         setTitle(editing?.title || '');
         setInstruction(editing?.instructions || '');
-        console.log(editing);
     }, [editing]);
 
 
@@ -371,8 +370,7 @@ const SectionForm: React.FC<{
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
-                    <textarea onChange={(e) => { setInstruction(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Section Instructions..." defaultValue={instruction}/>
-
+                    <textarea onChange={(e) => { setInstruction(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Section Instructions..." value={instruction} ></textarea>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">
@@ -398,27 +396,35 @@ const SectionForm: React.FC<{
 const GroupForm: React.FC<{
     open: boolean;
     onClose: () => void;
-    onSubmit: (type: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => void;
+    types: ApiQuestionType[];
+    handleAddOrEditGroup: (data: any, editingId?: number) => Promise<void>;
     sectionTitle?: string;
-    editing?: QuestionGroup | null;
-}> = ({ open, onClose, onSubmit, sectionTitle, editing }) => {
-    const [type, setType] = useState(editing?.type || 'mcq');
-    const [instruction, setInstruction] = useState(editing?.instruction || '');
+    editing?: ApiSectionGroup | null;
+}> = ({ open, onClose, types, handleAddOrEditGroup, sectionTitle, editing }) => {
+    const [type, setType] = useState(editing?.question_type_id);
+    const [instruction, setInstruction] = useState(editing?.instructions || '');
     const [logic, setLogic] = useState(editing?.logic || 'OR');
-    const [numberingStyle, setNumberingStyle] = useState<'numeric' | 'roman' | 'alphabetic'>(editing?.numberingStyle || 'numeric');
+    const [numberingStyle, setNumberingStyle] = useState<'numeric' | 'roman' | 'alphabetic'>(editing?.numbering_style || 'numeric');
 
     useEffect(() => {
-        setType(editing?.type || 'mcq');
-        setInstruction(editing?.instruction || '');
+        setType(editing?.question_type_id);
+        setInstruction(editing?.instructions || '');
         setLogic(editing?.logic || 'OR');
-        setNumberingStyle(editing?.numberingStyle || 'numeric');
+        setNumberingStyle(editing?.numbering_style || 'numeric');
     }, [editing]);
 
 
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(type, instruction.trim(), numberingStyle, type === 'conditional' ? logic : undefined, editing?.id);
+        if (!type) return;
+        handleAddOrEditGroup({
+            question_type_id: type,
+            instructions: instruction.trim(),
+            logic: logic || 'OR',
+            numbering_style: numberingStyle,
+            order: 0
+        }, editing?.id);
     };
 
     return (
@@ -428,20 +434,16 @@ const GroupForm: React.FC<{
                     <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
                     <select
                         value={type}
-                        onChange={(e) => setType(e.target.value)}
+                        onChange={(e) => setType(parseInt(e.target.value))}
                         className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                        <option value="mcq">Multiple Choice Questions</option>
-                        <option value="true-false">True/False Questions</option>
-                        <option value="fill-in-the-blanks">Fill in the Blanks</option>
-                        <option value="short-question">Short Questions</option>
-                        <option value="long-question">Long Questions</option>
-                        <option value="conditional">Conditional Questions</option>
-                        <option value="para-question">Paragraph Questions</option>
+                        {types?.map((qtype) => (
+                            <option key={qtype?.id} value={qtype?.id}>{qtype?.name}</option>
+                        ))}
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Numbering Style</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sub Numbering Style</label>
                     <select
                         value={numberingStyle}
                         onChange={(e) => setNumberingStyle(e.target.value as 'numeric' | 'roman' | 'alphabetic')}
@@ -455,26 +457,13 @@ const GroupForm: React.FC<{
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
                     <textarea
+                    value={instruction}
                         onChange={(e) => { setInstruction(e.target.value) }}
                         className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter group Instructions..."
-                    >
-                        {instruction}
-                    </textarea>
+                    ></textarea>
 
                 </div>
-                {type === 'conditional' && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Logic</label>
-                        <select
-                            value={logic}
-                            onChange={(e) => setLogic(e.target.value)}
-                            className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                            <option value="OR">OR (answer any one)</option>
-                            <option value="AND">AND (answer all)</option>
-                        </select>
-                    </div>
-                )}
+
 
                 <div className="flex justify-end gap-3 pt-2">
                     <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors">Cancel</button>
@@ -488,7 +477,7 @@ const GroupForm: React.FC<{
 const QuestionForm: React.FC<{
     open: boolean;
     onClose: () => void;
-    onSubmit: (question: Question, editingId?: string) => void;
+    onSubmit: (question: Question, editingId?: number) => void;
     type: string;
     editing?: Question | null;
 }> = ({ open, onClose, onSubmit, type, editing }) => {
@@ -649,7 +638,7 @@ const QuestionForm: React.FC<{
             q.marks = marks;
         }
 
-        onSubmit(q, editing?.id);
+        onSubmit(q, parseInt(editing?.id || '0'));
         reset();
         onClose();
     };
@@ -1271,11 +1260,11 @@ const PaperGeneratorAdvanced: React.FC = () => {
     const [editingSection, setEditingSection] = useState<ApiSection | null>(null);
     const [groupModalOpen, setGroupModalOpen] = useState(false);
     const [currentSectionIdForGroup, setCurrentSectionIdForGroup] = useState<number | null>(null);
-    const [editingGroup, setEditingGroup] = useState<QuestionGroup | null>(null);
+    const [editingGroup, setEditingGroup] = useState<ApiSectionGroup | null>(null);
     const [questionModalOpen, setQuestionModalOpen] = useState(false);
     const [currentTypeForQuestion, setCurrentTypeForQuestion] = useState<string>('mcq');
-    const [currentSectionIdForQuestion, setCurrentSectionIdForQuestion] = useState<string | null>(null);
-    const [currentGroupIdForQuestion, setCurrentGroupIdForQuestion] = useState<string | null>(null);
+    const [currentSectionIdForQuestion, setCurrentSectionIdForQuestion] = useState<number | null>(null);
+    const [currentGroupIdForQuestion, setCurrentGroupIdForQuestion] = useState<number | null>(null);
     const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmPayload, setConfirmPayload] = useState<any>(null);
@@ -1316,17 +1305,12 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 if (paperResponse?.status && paperResponse?.data?.paper) {
                     const paperData = paperResponse.data.paper;
                     setPaper(paperData);
-
-                    // Convert API sections to local format
-                    // const localSections = paperData.sections.map(convertApiSectionToLocal);
-                    // setSections(localSections);
                 } else {
                     toast({
                         title: "Error",
                         description: paperResponse.message || "Failed to load paper",
                         variant: "destructive",
                     });
-                    // navigate("/teacher");
                     console.log("Failed to load paper");
                 }
             } catch (error) {
@@ -1344,7 +1328,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
 
     // ---------- API Functions ----------
 
-   
+
     // Section operations
     const handleCreateSection = async (sectionData: any) => {
         try {
@@ -1576,19 +1560,10 @@ const PaperGeneratorAdvanced: React.FC = () => {
 
     // ---------- UI Handlers ----------
 
-    
 
-    const handleAddOrEditGroup = async (type: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => {
+
+    const handleAddOrEditGroup = async (groupData:any, editingId?: number) => {
         if (!currentSectionIdForGroup) return;
-
-       const groupData =  {
-            id: editingId || '',
-            type,
-            instruction,
-            logic,
-            numberingStyle,
-            questions: []
-        };
 
         if (editingId) {
             await handleUpdateGroup(currentSectionIdForGroup, editingId, groupData);
@@ -1599,10 +1574,10 @@ const PaperGeneratorAdvanced: React.FC = () => {
         setEditingGroup(null);
     };
 
-    const handleAddOrEditQuestion = async (question: Question, editingId?: string) => {
+    const handleAddOrEditQuestion = async (question: Question, editingId?: number) => {
         if (!currentGroupIdForQuestion) return;
 
-        const questionData = convertLocalQuestionToApi(question, parseInt(currentGroupIdForQuestion));
+        const questionData = convertLocalQuestionToApi(question, currentGroupIdForQuestion);
 
         if (editingId) {
             await handleUpdateQuestion(currentGroupIdForQuestion, editingId, questionData);
@@ -1631,13 +1606,13 @@ const PaperGeneratorAdvanced: React.FC = () => {
     };
 
     // UI helpers
-    const startAddGroup = (sectionId: Number) => {
+    const startAddGroup = (sectionId: number) => {
         setCurrentSectionIdForGroup(sectionId);
         setEditingGroup(null);
         setGroupModalOpen(true);
     };
 
-    const startAddQuestion = (sectionId: Number, groupId: Number, type?: string) => {
+    const startAddQuestion = (sectionId: number, groupId: number, type?: string) => {
         setCurrentSectionIdForQuestion(sectionId);
         setCurrentGroupIdForQuestion(groupId);
         setCurrentTypeForQuestion(type || 'mcq');
@@ -1650,21 +1625,23 @@ const PaperGeneratorAdvanced: React.FC = () => {
         setSectionModalOpen(true);
     };
 
-    const openEditGroup = (sectionId: Number, group: ApiSectionGroup) => {
+    const openEditGroup = (sectionId: number, group: ApiSectionGroup) => {
         setCurrentSectionIdForGroup(sectionId);
         setEditingGroup(group);
         setGroupModalOpen(true);
     };
 
-    const openEditQuestion = (sectionId: Number, groupId: Number, question: Question) => {
+    const openEditQuestion = (sectionId: number, groupId: number, question: ApiQuestion,type:string) => {
+        // Api Question to Local Question 
+        const localQuestion = convertApiQuestionToLocal(question,type)
         setCurrentSectionIdForQuestion(sectionId);
         setCurrentGroupIdForQuestion(groupId);
-        setCurrentTypeForQuestion(question.type);
-        setEditingQuestion(question);
+        setCurrentTypeForQuestion(type);
+        setEditingQuestion(localQuestion);
         setQuestionModalOpen(true);
     };
 
-    const toggleSectionExpansion = (sectionId: Number) => {
+    const toggleSectionExpansion = (sectionId: number) => {
         setExpandedSections(prev => ({
             ...prev,
             [sectionId]: !prev[sectionId]
@@ -1925,7 +1902,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                                         <button onClick={() => askConfirm({ type: 'delete-group', payload: { sectionId: sec.id, groupId: g.id } })} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors" title="Delete Group">
                                                                             <Icon.Delete />
                                                                         </button>
-                                                                        <button onClick={() => startAddQuestion(sec.id, g.id, g.type)} className="px-3 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium flex items-center gap-1 transition-colors">
+                                                                        <button onClick={() => startAddQuestion(sec.id, g.id, g?.question_type?.slug)} className="px-3 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium flex items-center gap-1 transition-colors">
                                                                             <Icon.Add /> Question
                                                                         </button>
                                                                     </div>
@@ -1946,7 +1923,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                                                             <QuestionDisplay question={q} type={g?.question_type} questionNumber={`${question_counter}`} numberingStyle={g.numbering_style} />
                                                                                         </div>
                                                                                         <div className="flex gap-2 ml-4">
-                                                                                            <button onClick={() => openEditQuestion(sec.id, g.id, q)} className="p-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Question">
+                                                                                            <button onClick={() => openEditQuestion(sec.id, g.id, q,g.question_type.slug)} className="p-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Question">
                                                                                                 <Icon.Edit />
                                                                                             </button>
                                                                                             <button onClick={() => askConfirm({ type: 'delete-question', payload: { sectionId: sec.id, groupId: g.id, questionId: q.id } })} className="p-1.5 rounded-md bg-red-100 hover:bg-red-200 text-red-700 transition-colors" title="Delete Question">
@@ -1982,15 +1959,15 @@ const PaperGeneratorAdvanced: React.FC = () => {
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-600">Sections</span>
-                                    <span className="font-medium text-blue-600">{sections.length}</span>
+                                    <span className="font-medium text-blue-600">{paper?.sections?.length}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-600">Groups</span>
-                                    <span className="font-medium text-green-600">{sections.reduce((acc, sec) => acc + sec.groups.length, 0)}</span>
+                                    <span className="font-medium text-green-600">{paper?.sections?.reduce((acc, sec) => acc + sec.section_groups.length, 0)}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-600">Questions</span>
-                                    <span className="font-medium text-purple-600">{sections.reduce((acc, sec) => acc + sec.groups.reduce((acc2, grp) => acc2 + grp.questions.length, 0), 0)}</span>
+                                    <span className="font-medium text-purple-600">{paper?.sections?.reduce((acc, sec) => acc + sec.section_groups.reduce((acc2, grp) => acc2 + grp.questions.length, 0), 0)}</span>
                                 </div>
                             </div>
                         </div>
@@ -2046,7 +2023,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 <GroupForm
                     open={groupModalOpen}
                     onClose={() => { setGroupModalOpen(false); setEditingGroup(null); setCurrentSectionIdForGroup(null); }}
-                    onSubmit={handleAddOrEditGroup}
+                    types={questionTypes}
+                    handleAddOrEditGroup={handleAddOrEditGroup}
                     sectionTitle={paper?.sections.find((s: any) => s.id === currentSectionIdForGroup)?.title}
                     editing={editingGroup}
                 />
