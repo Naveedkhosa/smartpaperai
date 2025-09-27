@@ -108,7 +108,7 @@ export interface QuestionGroup {
 }
 
 export interface Section {
-    id: string;
+    id: number;
     title: string;
     instruction: string;
     groups: QuestionGroup[];

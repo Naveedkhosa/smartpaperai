@@ -125,7 +125,7 @@ const SortableSection: React.FC<{
                         No groups yet. Add a question group to this section.
                     </div>
                 ) : (
-                    section.section_groups.map((g:ApiSectionGroup, gi) => (
+                    section.section_groups.map((g: ApiSectionGroup, gi) => (
                         <div key={g.id} className="bg-gray-50 rounded-lg p-4 flex justify-between items-start gap-3 border border-gray-200">
                             <div className="flex-1">
                                 <div className="text-sm font-medium text-green-700">{getGroupTitle(g?.question_type?.slug)}</div>
@@ -327,22 +327,21 @@ const convertLocalQuestionToApi = (question: Question, groupId: number): any => 
 const SectionForm: React.FC<{
     open: boolean;
     onClose: () => void;
-    editing?: Section | null;
+    editing?: ApiSection | null;
     handleCreateSection: (data: { title: string; instructions: string; order: number }) => Promise<void>;
-    handleUpdateSection: (id: string, data: { title: string; instructions: string; order: number }) => Promise<void>;
+    handleUpdateSection: (id: number, data: { title: string; instructions: string,order: number }) => Promise<void>;
 }> = ({ open, onClose, editing, handleCreateSection, handleUpdateSection }) => {
     const [title, setTitle] = useState(editing?.title || '');
-    const [instruction, setInstruction] = useState(editing?.instruction || '');
-    const [isEquationEditorOpen, setIsEquationEditorOpen] = useState(false);
-    const [activeField, setActiveField] = useState<'title' | 'instruction' | null>(null);
-    const [equationFieldValue, setEquationFieldValue] = useState('');
+    const [instruction, setInstruction] = useState(editing?.instructions || '');
+   
 
     useEffect(() => {
         setTitle(editing?.title || '');
-        setInstruction(editing?.instruction || '');
+        setInstruction(editing?.instructions || '');
+        console.log(editing);
     }, [editing]);
 
-    
+
 
     const handleSectionSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -350,7 +349,7 @@ const SectionForm: React.FC<{
         const sectionData = {
             title: title.trim(),
             instructions: instruction.trim(),
-            order: 0,
+            order: 0
         };
 
         if (editing) {
@@ -372,7 +371,7 @@ const SectionForm: React.FC<{
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
-                    <textarea onChange={(e) => { setInstruction(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Section Instructions...">{instruction}</textarea>
+                    <textarea onChange={(e) => { setInstruction(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Section Instructions..." defaultValue={instruction}/>
 
                 </div>
 
@@ -1036,7 +1035,7 @@ const ShortLongQuestion: React.FC<{ question: ApiQuestion; questionNumber: strin
                         <div key={idx} className="mb-2 text-gray-700 flex justify-between items-center">
                             <div>
                                 <span className="mr-2">{formatNumber(idx + 1, numberingStyle)}. </span>
-                                <span dangerouslySetInnerHTML={{ __html: renderMathContent(subQ) }} />
+                                <span>{subQ.question_text}</span>
                             </div>
 
                             <span className="text-right text-blue-700 font-bold">{subQ.marks} marks</span>
@@ -1049,7 +1048,7 @@ const ShortLongQuestion: React.FC<{ question: ApiQuestion; questionNumber: strin
     );
 };
 
-const ConditionalQuestion: React.FC<{ question: ApiQuestion; questionNumber: string; numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
+const ConditionalQuestion: React.FC<{ question: ApiQuestion; questionNumber: string; numberingStyle: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
     return (
         <div className="mb-4">
             <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
@@ -1068,7 +1067,7 @@ const ConditionalQuestion: React.FC<{ question: ApiQuestion; questionNumber: str
                         )}
                         <div className="mb-2 text-gray-700 flex justify-between items-center">
                             <div>
-                                <span className="mr-2">{idx + 1}.</span>
+                                <span className="mr-2">{formatNumber(idx + 1, numberingStyle)}. </span>
                                 <span>{condQ.question_text}</span>
                             </div>
                             <span className="text-right text-blue-700 font-bold">{condQ?.marks} marks</span>
@@ -1080,7 +1079,7 @@ const ConditionalQuestion: React.FC<{ question: ApiQuestion; questionNumber: str
     );
 };
 
-const ParaQuestion: React.FC<{ question: ApiQuestion; questionNumber: string, numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
+const ParaQuestion: React.FC<{ question: ApiQuestion; questionNumber: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
     return (
         <div className="mb-4">
             <div className="font-medium mb-3 text-gray-800 flex justify-between items-center">
@@ -1093,7 +1092,7 @@ const ParaQuestion: React.FC<{ question: ApiQuestion; questionNumber: string, nu
                 {question?.sub_questions?.map((pq: ApiQuestion, idx: number) => (
                     <div key={idx} className="flex items-center justify-between">
                         <div className="flex items-center">
-                            <span className="mr-2 font-medium text-blue-600 mt-1">{idx + 1}.</span>
+                            <span className="mr-2 font-medium text-blue-600 mt-1">{formatNumber(idx + 1, numberingStyle)}. </span>
                             <span className="text-gray-700 flex-1">{pq?.question_text}</span>
                         </div>
                         <span className="text-right text-blue-700 font-bold">{pq?.marks} marks</span>
@@ -1130,7 +1129,7 @@ const QuestionDisplay: React.FC<{ question: ApiQuestion; type: ApiQuestionType, 
 
 // ---------- Paper View Component ----------
 const PaperView: React.FC<{
-    paper: ApiPaper;
+    paper: ApiPaper | null;
     onClose: () => void;
     onPrint: () => void;
     onDownloadPDF: () => void;
@@ -1269,9 +1268,9 @@ const PaperGeneratorAdvanced: React.FC = () => {
 
     // UI states
     const [sectionModalOpen, setSectionModalOpen] = useState(false);
-    const [editingSection, setEditingSection] = useState<Section | null>(null);
+    const [editingSection, setEditingSection] = useState<ApiSection | null>(null);
     const [groupModalOpen, setGroupModalOpen] = useState(false);
-    const [currentSectionIdForGroup, setCurrentSectionIdForGroup] = useState<string | null>(null);
+    const [currentSectionIdForGroup, setCurrentSectionIdForGroup] = useState<number | null>(null);
     const [editingGroup, setEditingGroup] = useState<QuestionGroup | null>(null);
     const [questionModalOpen, setQuestionModalOpen] = useState(false);
     const [currentTypeForQuestion, setCurrentTypeForQuestion] = useState<string>('mcq');
@@ -1319,8 +1318,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
                     setPaper(paperData);
 
                     // Convert API sections to local format
-                    const localSections = paperData.sections.map(convertApiSectionToLocal);
-                    setSections(localSections);
+                    // const localSections = paperData.sections.map(convertApiSectionToLocal);
+                    // setSections(localSections);
                 } else {
                     toast({
                         title: "Error",
@@ -1345,71 +1344,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
 
     // ---------- API Functions ----------
 
-    // Paper operations
-    const handleUpdatePaper = async (updates: any) => {
-        try {
-            const res = await ApiService.request(`/user/papers/${id}`, {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(updates),
-            });
-
-            if (res.status) {
-                setPaper(res.data.paper);
-                toast({
-                    title: "Success",
-                    description: "Paper updated successfully",
-                });
-            } else {
-                toast({
-                    title: "Error",
-                    description: res.message || "Update failed",
-                    variant: "destructive",
-                });
-            }
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to update paper",
-                variant: "destructive",
-            });
-        }
-    };
-
-    const handleDeletePaper = async () => {
-        if (!window.confirm("Are you sure you want to delete this paper?")) return;
-
-        try {
-            const res = await ApiService.request(`/user/papers/${id}`, {
-                method: "DELETE",
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            if (res.status) {
-                toast({
-                    title: "Deleted",
-                    description: "Paper deleted successfully",
-                });
-                navigate("/teacher");
-            } else {
-                toast({
-                    title: "Error",
-                    description: res.message || "Delete failed",
-                    variant: "destructive",
-                });
-            }
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to delete paper",
-                variant: "destructive",
-            });
-        }
-    };
-
+   
     // Section operations
     const handleCreateSection = async (sectionData: any) => {
         try {
@@ -1423,8 +1358,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                const newSection = convertApiSectionToLocal(response.data.section);
-                setSections(prev => [...prev, newSection]);
+                setPaper(prev => prev ? { ...prev, sections: [...prev.sections, response.data.section] } : prev);
                 toast({ title: "Success", description: "Section created successfully" });
             } else {
                 throw new Error(response.message || "Failed to create section");
@@ -1450,8 +1384,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                const updatedSection = convertApiSectionToLocal(response.data.section);
-                setSections(prev => prev.map(s => s.id === sectionId ? updatedSection : s));
+                setPaper(prev => prev ? { ...prev, sections: prev.sections.map((sec: ApiSection) => sec.id === sectionId ? response.data.section : sec) } : prev);
                 toast({ title: "Success", description: "Section updated successfully" });
             } else {
                 throw new Error(response.message || "Failed to update section");
@@ -1473,7 +1406,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                setSections(prev => prev.filter(s => s.id !== sectionId));
+                //    remove this section from paper
+                setPaper(prev => prev ? { ...prev, sections: prev.sections.filter((sec: ApiSection) => sec.id !== sectionId) } : prev);
                 toast({ title: "Success", description: "Section deleted successfully" });
             } else {
                 throw new Error(response.message || "Failed to delete section");
@@ -1500,12 +1434,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                const newGroup = convertApiGroupToLocal(response.data.group);
-                setSections(prev => prev.map(s =>
-                    s.id === sectionId
-                        ? { ...s, groups: [...s.groups, newGroup] }
-                        : s
-                ));
+                setPaper(prev => prev ? { ...prev, sections: prev.sections.map((sec: ApiSection) => sec.id === sectionId ? { ...sec, section_groups: [...sec.section_groups, response.data.group] } : sec) } : prev);
                 toast({ title: "Success", description: "Group created successfully" });
             } else {
                 throw new Error(response.message || "Failed to create group");
@@ -1531,12 +1460,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                const updatedGroup = convertApiGroupToLocal(response.data.group);
-                setSections(prev => prev.map(s =>
-                    s.id === sectionId
-                        ? { ...s, groups: s.groups.map(g => g.id === groupId ? updatedGroup : g) }
-                        : s
-                ));
+                setPaper(prev => prev ? { ...prev, sections: prev.sections.map((sec: ApiSection) => sec.id === sectionId ? { ...sec, section_groups: sec.section_groups.map((grp: ApiSectionGroup) => grp.id === groupId ? response.data.group : grp) } : sec) } : prev);
                 toast({ title: "Success", description: "Group updated successfully" });
             } else {
                 throw new Error(response.message || "Failed to update group");
@@ -1558,11 +1482,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                setSections(prev => prev.map(s =>
-                    s.id === sectionId
-                        ? { ...s, groups: s.groups.filter(g => g.id !== groupId) }
-                        : s
-                ));
+                // remove that group from paper
+                setPaper(prev => prev ? { ...prev, sections: prev.sections.map((sec: ApiSection) => sec.id === sectionId ? { ...sec, section_groups: sec.section_groups.filter((grp: ApiSectionGroup) => grp.id !== groupId) } : sec) } : prev);
                 toast({ title: "Success", description: "Group deleted successfully" });
             } else {
                 throw new Error(response.message || "Failed to delete group");
@@ -1589,15 +1510,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                const newQuestion = convertApiQuestionToLocal(response.data.question);
-                setSections(prev => prev.map(s => ({
-                    ...s,
-                    groups: s.groups.map(g =>
-                        g.id === groupId
-                            ? { ...g, questions: [...g.questions, newQuestion] }
-                            : g
-                    )
-                })));
+                // add this question to paper
+                setPaper(prev => prev ? { ...prev, sections: prev.sections.map((sec: ApiSection) => ({ ...sec, section_groups: sec.section_groups.map((grp: ApiSectionGroup) => grp.id === groupId ? { ...grp, questions: [...grp.questions, response.data.question] } : grp) })) } : prev);
                 toast({ title: "Success", description: "Question created successfully" });
             } else {
                 throw new Error(response.message || "Failed to create question");
@@ -1611,7 +1525,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
         }
     };
 
-    const handleUpdateQuestion = async (groupId: Number, questionId: string, questionData: any) => {
+    const handleUpdateQuestion = async (groupId: Number, questionId: Number, questionData: any) => {
         try {
             const response = await ApiService.request(`/user/groups/${groupId}/questions/${questionId}`, {
                 method: "PUT",
@@ -1623,15 +1537,8 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                const updatedQuestion = convertApiQuestionToLocal(response.data.question);
-                setSections(prev => prev.map(s => ({
-                    ...s,
-                    groups: s.groups.map(g =>
-                        g.id === groupId
-                            ? { ...g, questions: g.questions.map(q => q.id === questionId ? updatedQuestion : q) }
-                            : g
-                    )
-                })));
+                //    update this question in paper
+                setPaper(prev => prev ? { ...prev, sections: prev.sections.map((sec: ApiSection) => ({ ...sec, section_groups: sec.section_groups.map((grp: ApiSectionGroup) => grp.id === groupId ? { ...grp, questions: grp.questions.map((q: ApiQuestion) => q.id === questionId ? response.data.question : q) } : grp) })) } : prev);
                 toast({ title: "Success", description: "Question updated successfully" });
             } else {
                 throw new Error(response.message || "Failed to update question");
@@ -1645,7 +1552,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
         }
     };
 
-    const handleDeleteQuestion = async (sectionId: Number, groupId: Number, questionId: string) => {
+    const handleDeleteQuestion = async (sectionId: Number, groupId: Number, questionId: Number) => {
         try {
             const response = await ApiService.request(`/user/groups/${groupId}/questions/${questionId}`, {
                 method: "DELETE",
@@ -1653,17 +1560,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
             });
 
             if (response.status) {
-                setSections(prev => prev.map(s =>
-                    s.id === sectionId
-                        ? {
-                            ...s, groups: s.groups.map(g =>
-                                g.id === groupId
-                                    ? { ...g, questions: g.questions.filter(q => q.id !== questionId) }
-                                    : g
-                            )
-                        }
-                        : s
-                ));
+                setPaper(prev => prev ? { ...prev, sections: prev.sections.map((sec: ApiSection) => sec.id === sectionId ? { ...sec, section_groups: sec.section_groups.map((grp: ApiSectionGroup) => grp.id === groupId ? { ...grp, questions: grp.questions.filter((q: ApiQuestion) => q.id !== questionId) } : grp) } : sec) } : prev);
                 toast({ title: "Success", description: "Question deleted successfully" });
             } else {
                 throw new Error(response.message || "Failed to delete question");
@@ -1679,29 +1576,19 @@ const PaperGeneratorAdvanced: React.FC = () => {
 
     // ---------- UI Handlers ----------
 
-    const handleAddOrEditSection = async (title: string, instruction: string, editingId?: string) => {
-        const sectionData = { title, instructions: instruction, order: 0 };
-
-        if (editingId) {
-            await handleUpdateSection(editingId, sectionData);
-        } else {
-            await handleCreateSection(sectionData);
-        }
-        setSectionModalOpen(false);
-        setEditingSection(null);
-    };
+    
 
     const handleAddOrEditGroup = async (type: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => {
         if (!currentSectionIdForGroup) return;
 
-        const groupData = convertLocalGroupToApi({
+       const groupData =  {
             id: editingId || '',
             type,
             instruction,
             logic,
             numberingStyle,
             questions: []
-        }, parseInt(currentSectionIdForGroup));
+        };
 
         if (editingId) {
             await handleUpdateGroup(currentSectionIdForGroup, editingId, groupData);
@@ -1896,9 +1783,9 @@ const PaperGeneratorAdvanced: React.FC = () => {
     };
 
     // Search helper
-    const filteredSections = sections
-        .map((sec) => ({ ...sec, groups: sec.groups.filter((g) => g.type.includes(search) || g.instruction?.includes(search) || search === '') }))
-        .filter((s) => s.title.toLowerCase().includes(search.toLowerCase()) || s.instruction?.toLowerCase().includes(search.toLowerCase()) || s.groups.length > 0 || search === '');
+    // const filteredSections = sections
+    //     .map((sec) => ({ ...sec, groups: sec.groups.filter((g) => g.type.includes(search) || g.instruction?.includes(search) || search === '') }))
+    //     .filter((s) => s.title.toLowerCase().includes(search.toLowerCase()) || s.instruction?.toLowerCase().includes(search.toLowerCase()) || s.groups.length > 0 || search === '');
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 p-6">
@@ -1948,12 +1835,6 @@ const PaperGeneratorAdvanced: React.FC = () => {
                             <Icon.Import /> Import
                             <input type="file" accept="application/json" onChange={(e) => importJson(e.target.files?.[0] ?? null)} className="hidden" />
                         </label>
-                        <button
-                            onClick={handleDeletePaper}
-                            className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
-                        >
-                            Delete Paper
-                        </button>
 
                         <button onClick={() => setSections([])} className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors">
                             Clear All
@@ -1995,7 +1876,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                             ) : (
                                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                                     <SortableContext items={sections.map((s) => s.id)}>
-                                        {paper?.sections.map((sec:ApiSection, i) => {
+                                        {paper?.sections.map((sec: ApiSection, i) => {
                                             let question_counter = 0;
                                             return (
                                                 <div key={sec.id}>
@@ -2029,7 +1910,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                             </button>
                                                         </div>
 
-                                                        {expandedSections[sec.id] && sec?.section_groups?.map((g:ApiSectionGroup) => (
+                                                        {expandedSections[sec.id] && sec?.section_groups?.map((g: ApiSectionGroup) => (
                                                             <div key={g.id} className="bg-gray-50 rounded-xl p-5 mb-5 border border-gray-200">
                                                                 <div className="flex justify-between items-center mb-4 pb-3 border-b">
                                                                     <div>
@@ -2056,7 +1937,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                                             No questions yet in this group.
                                                                         </div>
                                                                     ) : (
-                                                                        g.questions.map((q:ApiQuestion, qIndex) => {
+                                                                        g.questions.map((q: ApiQuestion, qIndex) => {
                                                                             question_counter++;
                                                                             return (
                                                                                 <div key={q.id} className="bg-white rounded-lg p-4 border border-gray-200">
