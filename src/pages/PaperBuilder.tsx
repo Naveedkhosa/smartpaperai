@@ -163,89 +163,6 @@ const getGroupTitle = (type: string) => {
     return titles[type] || 'Untitled Group';
 };
 
-const renderMathContent = (text: string) => {
-    if (!text) return text;
-    return text
-        .replace(/\$\$([^$]+)\$\$/g, '<div style="text-align: center; margin: 10px 0; font-size: 1.2em; background: #f8f9fa; padding: 8px; border-radius: 4px;">$1</div>')
-        .replace(/\$([^$]+)\$/g, '<span style="background: #e9ecef; padding: 2px 4px; border-radius: 3px; font-family: Times New Roman, serif;">$1</span>');
-};
-
-// ---------- API Conversion Functions ----------
-const convertApiSectionToLocal = (apiSection: ApiSection): Section => {
-    return {
-        id: apiSection.id.toString(),
-        title: apiSection.title,
-        instruction: apiSection.instructions,
-        groups: apiSection.section_groups.map(convertApiGroupToLocal)
-    };
-};
-
-const convertApiGroupToLocal = (apiGroup: ApiSectionGroup): QuestionGroup => {
-    return {
-        id: apiGroup.id.toString(),
-        type: apiGroup.question_type.slug,
-        instruction: apiGroup.instructions,
-        logic: apiGroup.logic || undefined,
-        numberingStyle: 'numeric', // Default, can be extended based on API
-        questions: apiGroup.questions.map((q) => convertApiQuestionToLocal(q, apiGroup.question_type.slug))
-    };
-};
-
-const convertApiQuestionToLocal = (apiQuestion: ApiQuestion, type: string): Question => {
-
-    let content: any = {};
-    if (apiQuestion.paragraph_text) {
-        content.paraText = apiQuestion.paragraph_text;
-        content.paraQuestions = apiQuestion.sub_questions.map(sq => sq.question_text || '');
-    } else if (apiQuestion.sub_questions.length > 0) {
-        content.sub_questions = apiQuestion.sub_questions.map(sq => sq.question_text || '');
-        content.questionText = apiQuestion.question_text || '';
-    } else {
-        content.questionText = apiQuestion.question_text || '';
-    }
-
-    if (apiQuestion.options.length > 0) {
-        content.choices = apiQuestion.options.map(opt => opt.option_text);
-        content.correctAnswer = apiQuestion.options.findIndex(opt => opt.is_correct);
-    }
-
-    return {
-        id: apiQuestion.id.toString(),
-        type,
-        content,
-        marks: apiQuestion.marks
-    };
-};
-
-
-
-// Convert local data to API format
-const convertLocalSectionToApi = (section: Section, paperId: number): any => {
-    return {
-        title: section.title,
-        instructions: section.instruction,
-        order: 0
-    };
-};
-
-const convertLocalGroupToApi = (group: QuestionGroup, sectionId: number): any => {
-    const questionTypeMap: Record<string, number> = {
-        'mcq': 1,
-        'true-false': 2,
-        'fill-in-the-blanks': 3,
-        'short-question': 4,
-        'long-question': 5,
-        'conditional': 6,
-        'para-question': 7
-    };
-
-    return {
-        question_type_id: questionTypeMap[group.type] || 1,
-        instructions: group.instruction,
-        logic: group.logic || null,
-        order: 0
-    };
-};
 
 const convertLocalQuestionToApi = (question: Question, groupId: number): any => {
     const baseQuestion = {
@@ -474,450 +391,953 @@ const GroupForm: React.FC<{
     );
 };
 
-const QuestionForm: React.FC<{
-    open: boolean;
-    onClose: () => void;
-    onSubmit: (question: Question, editingId?: number) => void;
-    type: string;
-    editing?: Question | null;
+
+// Local helper type for sub-question form rows
+interface SubFormItem {
+  id?: number;
+  question_text: string;
+  correct_answer?: string | null;
+  marks: number;
+  sub_order: number;
+}
+
+const QuestionForm: React.FC<{ 
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (question: ApiQuestion, editingId?: number) => void;
+  type: ApiQuestionType;
+  editing?: ApiQuestion | null;
 }> = ({ open, onClose, onSubmit, type, editing }) => {
-    const [questionText, setQuestionText] = useState(editing?.content?.questionText || '');
-    const [choices, setChoices] = useState<string[]>(editing?.content?.choices || ['', '']);
-    const [correctAnswer, setCorrectAnswer] = useState<number>(editing?.content?.correctAnswer ?? 0);
-    const [subQuestions, setSubQuestions] = useState<string[]>(editing?.content?.sub_questions || []);
-    const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>(editing?.subQuestionMarks || []);
-    const [marks, setMarks] = useState<number>(editing?.marks ?? 0);
-    const [paraText, setParaText] = useState(editing?.content?.paraText || '');
-    const [paraQuestions, setParaQuestions] = useState<string[]>(editing?.content?.paraQuestions || []);
-    const [paraQuestionMarks, setParaQuestionMarks] = useState<number[]>(editing?.paraQuestionMarks || []);
-    const [conditionalQuestions, setConditionalQuestions] = useState<string[]>(editing?.content?.conditionalQuestions || []);
-    const [conditionalQuestionMarks, setConditionalQuestionMarks] = useState<number[]>(editing?.conditionalQuestionMarks || []);
-    const [showSubQuestions, setShowSubQuestions] = useState(false);
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    const [activeField, setActiveField] = useState<string | null>(null);
+  // small id generator for client-only temporary ids (negative to avoid clash with server ids)
+  const generateTempId = () => -Date.now() - Math.floor(Math.random() * 1000);
 
-    useEffect(() => {
-        setQuestionText(editing?.content?.questionText || '');
-        setChoices(editing?.content?.choices || ['', '']);
-        setCorrectAnswer(editing?.content?.correctAnswer ?? 0);
-        setSubQuestions(editing?.content?.sub_questions || []);
-        setSubQuestionMarks(editing?.subQuestionMarks || []);
-        setMarks(editing?.marks ?? 0);
-        setParaText(editing?.content?.paraText || '');
-        setParaQuestions(editing?.content?.paraQuestions || []);
-        setParaQuestionMarks(editing?.paraQuestionMarks || []);
-        setConditionalQuestions(editing?.content?.conditionalQuestions || []);
-        setConditionalQuestionMarks(editing?.conditionalQuestionMarks || []);
-        setShowSubQuestions((editing?.content?.sub_questions?.length || 0) > 0);
-        setErrors({});
-    }, [editing, open]);
+  // Main fields
+  const [questionText, setQuestionText] = useState<string>(editing?.question_text ?? '');
+  const [paragraphText, setParagraphText] = useState<string>(editing?.paragraph_text ?? '');
+  const [marks, setMarks] = useState<number>(editing?.marks ?? 0);
+  const [order, setOrder] = useState<number>(editing?.order ?? 0);
 
-    const reset = () => {
-        setQuestionText('');
-        setChoices(['', '']);
-        setCorrectAnswer(0);
-        setSubQuestions([]);
-        setSubQuestionMarks([]);
-        setMarks(0);
-        setParaText('');
-        setParaQuestions([]);
-        setParaQuestionMarks([]);
-        setConditionalQuestions([]);
-        setConditionalQuestionMarks([]);
-        setShowSubQuestions(false);
-        setErrors({});
+  // Options for MCQ / True-False
+  const [choices, setChoices] = useState<Array<{ id?: number; option_text: string; is_correct: boolean; order: number }>>(() => {
+    if (editing?.options && editing.options.length > 0) {
+      return editing.options.map((o) => ({ id: o.id, option_text: o.option_text, is_correct: !!o.is_correct, order: o.order }));
+    }
+    return [
+      { id: undefined, option_text: '', is_correct: false, order: 0 },
+      { id: undefined, option_text: '', is_correct: false, order: 1 },
+    ];
+  });
+
+  // Fill-in-the-blank answer
+  const [fillAnswer, setFillAnswer] = useState<string>(editing?.correct_answer ?? '');
+
+  // Sub-questions used by short/long/paragraph/conditional
+  const [subQuestions, setSubQuestions] = useState<SubFormItem[]>(() => {
+    if (editing?.sub_questions && editing.sub_questions.length > 0) {
+      return editing.sub_questions.map((s, idx) => ({
+        id: s.id,
+        question_text: s.question_text ?? '',
+        correct_answer: s.correct_answer ?? null,
+        marks: s.marks ?? 0,
+        sub_order: s.sub_order ?? idx,
+      }));
+    }
+    return [];
+  });
+
+  // whether sub-questions UI is visible for short/long
+  const [showSubQuestions, setShowSubQuestions] = useState<boolean>(subQuestions.length > 0);
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // sync editing -> form when modal opens or editing changes
+  useEffect(() => {
+    setQuestionText(editing?.question_text ?? '');
+    setParagraphText(editing?.paragraph_text ?? '');
+    setMarks(editing?.marks ?? 0);
+    setOrder(editing?.order ?? 0);
+    setFillAnswer(editing?.correct_answer ?? '');
+
+    if (editing?.options && editing.options.length > 0) {
+      setChoices(editing.options.map((o) => ({ id: o.id, option_text: o.option_text, is_correct: !!o.is_correct, order: o.order })));
+    } else {
+      setChoices([{ id: undefined, option_text: '', is_correct: false, order: 0 }, { id: undefined, option_text: '', is_correct: false, order: 1 }]);
+    }
+
+    if (editing?.sub_questions && editing.sub_questions.length > 0) {
+      setSubQuestions(editing.sub_questions.map((s, idx) => ({ id: s.id, question_text: s.question_text ?? '', correct_answer: s.correct_answer ?? null, marks: s.marks ?? 0, sub_order: s.sub_order ?? idx })));
+      setShowSubQuestions(true);
+    } else {
+      setSubQuestions([]);
+      setShowSubQuestions(false);
+    }
+
+    setErrors({});
+  }, [editing, open]);
+
+  const reset = () => {
+    setQuestionText('');
+    setParagraphText('');
+    setMarks(0);
+    setOrder(0);
+    setChoices([{ id: undefined, option_text: '', is_correct: false, order: 0 }, { id: undefined, option_text: '', is_correct: false, order: 1 }]);
+    setFillAnswer('');
+    setSubQuestions([]);
+    setShowSubQuestions(false);
+    setErrors({});
+  };
+
+  // ---------- Validation ----------
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    const slug = type.slug;
+
+    // For mcq/true-false/fill-in-blanks: question_text required
+    if ((slug === 'mcq' || slug === 'true-false' || slug === 'fill-in-blanks') && !questionText.trim()) {
+      newErrors.question_text = 'Question text is required.';
+    }
+
+    // MCQ
+    if (slug === 'mcq') {
+      if (!choices || choices.length < 2) newErrors.choices = 'At least two choices are required.';
+      choices.forEach((c, idx) => {
+        if (!c.option_text.trim()) newErrors[`choice-${idx}`] = `Choice ${idx + 1} text is required.`;
+      });
+      const correctCount = choices.filter((c) => c.is_correct).length;
+      if (correctCount !== 1) newErrors.choices_correct = 'Exactly one choice must be marked correct.';
+      if (marks <= 0) newErrors.marks = 'Marks must be greater than 0.';
+    }
+
+    // True/False
+    if (slug === 'true-false') {
+      const correctCount = choices.filter((c) => c.is_correct).length;
+      if (correctCount !== 1) newErrors.choices_correct = 'Exactly one answer (True/False) must be marked correct.';
+      if (marks <= 0) newErrors.marks = 'Marks must be greater than 0.';
+    }
+
+    // Fill-in-blanks
+    if (slug === 'fill-in-blanks') {
+      if (!fillAnswer.trim()) newErrors.correct_answer = 'Correct answer is required for fill in the blanks.';
+      if (marks <= 0) newErrors.marks = 'Marks must be greater than 0.';
+    }
+
+    // Short/Long answer (sub-questions optional)
+    if (slug === 'short-answer' || slug === 'long-answer') {
+      if (!showSubQuestions && !questionText.trim()) {
+        newErrors.question_text = 'Question text is required when no sub-questions are added.';
+      }
+
+      if (showSubQuestions) {
+        if (!subQuestions || subQuestions.length === 0) {
+          newErrors.sub_questions = 'Add at least one sub-question or disable sub-questions.';
+        }
+        subQuestions.forEach((s, idx) => {
+          if (!s.question_text.trim()) newErrors[`sub-${idx}`] = `Sub-question ${idx + 1} text is required.`;
+          if (s.marks <= 0) newErrors[`sub-mark-${idx}`] = `Sub-question ${idx + 1} marks must be greater than 0.`;
+        });
+      } else {
+        if (marks <= 0) newErrors.marks = 'Marks must be greater than 0.';
+      }
+    }
+
+    // Paragraph (paragraph_text required and sub-questions required)
+    if (slug === 'paragraph') {
+      if (!paragraphText.trim()) newErrors.paragraph_text = 'Paragraph text is required.';
+      if (!subQuestions || subQuestions.length === 0) newErrors.sub_questions = 'At least one paragraph question is required.';
+      subQuestions.forEach((s, idx) => {
+        if (!s.question_text.trim()) newErrors[`para-${idx}`] = `Paragraph question ${idx + 1} text is required.`;
+        if (s.marks <= 0) newErrors[`para-mark-${idx}`] = `Paragraph question ${idx + 1} marks must be greater than 0.`;
+      });
+    }
+
+    // Conditional: required, min 2
+    if (slug === 'conditional') {
+      if (!subQuestions || subQuestions.length < 2) newErrors.sub_questions = 'Conditional questions require at least 2 sub-questions.';
+      subQuestions.forEach((s, idx) => {
+        if (!s.question_text.trim()) newErrors[`cond-${idx}`] = `Conditional question ${idx + 1} text is required.`;
+        if (s.marks <= 0) newErrors[`cond-mark-${idx}`] = `Conditional question ${idx + 1} marks must be greater than 0.`;
+      });
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // ---------- Dynamic handlers ----------
+  // Choices
+  const updateChoice = (index: number, value: string) => setChoices((prev) => prev.map((c, i) => (i === index ? { ...c, option_text: value } : c)));
+  const toggleChoiceCorrect = (index: number) => setChoices((prev) => prev.map((c, i) => ({ ...c, is_correct: i === index })));
+  const addChoice = () => setChoices((prev) => [...prev, { id: undefined, option_text: '', is_correct: false, order: prev.length }]);
+  const removeChoice = (index: number) => setChoices((prev) => prev.filter((_, i) => i !== index).map((c, idx) => ({ ...c, order: idx })));
+
+  // Sub-questions
+  const addSubQuestion = () => setSubQuestions((prev) => [...prev, { id: undefined, question_text: '', correct_answer: null, marks: 0, sub_order: prev.length }]);
+  const updateSubQuestionText = (index: number, value: string) => setSubQuestions((prev) => prev.map((s, i) => (i === index ? { ...s, question_text: value } : s)));
+  const updateSubQuestionMarks = (index: number, value: number) => setSubQuestions((prev) => prev.map((s, i) => (i === index ? { ...s, marks: value } : s)));
+  const removeSubQuestion = (index: number) => setSubQuestions((prev) => prev.filter((_, i) => i !== index).map((s, idx) => ({ ...s, sub_order: idx })));
+
+  // ---------- Submit ----------
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    const slug = type.slug;
+
+    // Build options payload
+    let optionsPayload: ApiQuestionOption[] = [];
+    if (slug === 'mcq') {
+      optionsPayload = choices.map((c, idx) => ({
+        id: c.id ?? generateTempId(),
+        paper_question_id: editing?.id ?? generateTempId(),
+        option_text: c.option_text,
+        is_correct: !!c.is_correct,
+        order: idx,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+    }
+
+    if (slug === 'true-false') {
+      const correctIndex = choices.findIndex((c) => c.is_correct);
+      optionsPayload = [
+        {
+          id: choices[0]?.id ?? generateTempId(),
+          paper_question_id: editing?.id ?? generateTempId(),
+          option_text: 'True',
+          is_correct: correctIndex === 0,
+          order: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: choices[1]?.id ?? generateTempId(),
+          paper_question_id: editing?.id ?? generateTempId(),
+          option_text: 'False',
+          is_correct: correctIndex === 1,
+          order: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ];
+    }
+
+    // Build sub_questions payload (as ApiQuestion array)
+    const subQuestionsPayload: ApiQuestion[] = (subQuestions || []).map((s, idx) => ({
+      id: s.id ?? generateTempId(),
+      section_group_id: editing?.section_group_id ?? 0,
+      parent_question_id: editing?.id ?? null,
+      question_text: s.question_text ?? null,
+      paragraph_text: null,
+      correct_answer: s.correct_answer ?? null,
+      marks: s.marks ?? 0,
+      order: editing?.order ?? 0,
+      sub_order: idx,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      options: [],
+      sub_questions: [],
+    }));
+
+    // Parent marks rule: if parent has sub-questions (short/long/paragraph/conditional) then parent marks must be 0
+    let parentMarks = marks;
+    if ((slug === 'short-answer' || slug === 'long-answer' || slug === 'paragraph' || slug === 'conditional') && subQuestionsPayload.length > 0) {
+      parentMarks = 0;
+    }
+
+    // Fill-in-blanks correct answer
+    const correctAns = slug === 'fill-in-blanks' ? (fillAnswer || null) : null;
+
+    const payload: ApiQuestion = {
+      id: editing?.id ?? generateTempId(),
+      section_group_id: editing?.section_group_id ?? 0,
+      parent_question_id: editing?.parent_question_id ?? null,
+      question_text: (slug === 'paragraph') ? null : (questionText || null),
+      paragraph_text: (slug === 'paragraph') ? (paragraphText || null) : null,
+      correct_answer: correctAns,
+      marks: parentMarks,
+      order: order ?? 0,
+      sub_order: editing?.sub_order ?? 0,
+      created_at: editing?.created_at ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      options: optionsPayload,
+      sub_questions: subQuestionsPayload,
     };
 
+    onSubmit(payload, editing?.id ?? undefined);
+    reset();
+    onClose();
+  };
 
+  // ---------- Render ----------
+  return (
+    <Modal open={open} onClose={() => { onClose(); reset(); }} title={editing ? 'Edit Question' : 'Add Question'}>
+      <form onSubmit={handleSubmit} className="space-y-5 max-h-[70vh] overflow-auto pr-2">
+        {/* Question text (most types) */}
+        {(type.slug === 'mcq' || type.slug === 'true-false' || type.slug === 'fill-in-blanks' || type.slug === 'short-answer' || type.slug === 'long-answer') && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
+            <textarea
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+              className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter question text..."
+            />
+            {errors.question_text && <p className="text-red-500 text-sm mt-1">{errors.question_text}</p>}
+          </div>
+        )}
 
-    const validateForm = () => {
-        const newErrors: Record<string, string> = {};
+        {/* Marks for simple types */}
+        {(type.slug === 'mcq' || type.slug === 'true-false' || type.slug === 'fill-in-blanks') && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+            <input type="number" min={0} value={marks} onChange={(e) => setMarks(Number(e.target.value))} className="w-24 p-2 rounded border border-gray-300" />
+            {errors.marks && <p className="text-red-500 text-sm mt-1">{errors.marks}</p>}
+          </div>
+        )}
 
-        if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks') && !questionText.trim()) {
-            newErrors.questionText = 'Question text is required';
-        }
+        {/* MCQ */}
+        {type.slug === 'mcq' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Choices</label>
+            <div className="space-y-3">
+              {choices.map((c, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <div className="flex-1">
+                    <textarea value={c.option_text} onChange={(e) => updateChoice(i, e.target.value)} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Choice ${String.fromCharCode(65 + i)}`} />
+                    {errors[`choice-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`choice-${i}`]}</p>}
+                  </div>
 
-        if (type === 'short-answer' || type === 'long-answer') {
-            if (!showSubQuestions && !questionText.trim()) {
-                newErrors.questionText = 'Question text is required when no sub-questions are added';
-            }
+                  <label className="flex items-center gap-2 text-sm text-gray-700 mt-2">
+                    <input type="radio" checked={c.is_correct} onChange={() => toggleChoiceCorrect(i)} className="text-blue-600 focus:ring-blue-500" />
+                    Correct
+                  </label>
 
-            if (showSubQuestions) {
-                subQuestions.forEach((sq, index) => {
-                    if (!sq.trim()) {
-                        newErrors[`subQuestion-${index}`] = 'Sub-question text is required';
-                    }
-                });
-
-                subQuestionMarks.forEach((mark, index) => {
-                    if (mark <= 0) {
-                        newErrors[`subQuestionMark-${index}`] = 'Sub-question marks must be greater than 0';
-                    }
-                });
-            } else if (marks <= 0) {
-                newErrors.marks = 'Marks must be greater than 0';
-            }
-        }
-
-        if (type === 'paragraph') {
-            if (!paraText.trim()) {
-                newErrors.paraText = 'Paragraph text is required';
-            }
-
-            paraQuestions.forEach((pq, index) => {
-                if (!pq.trim()) {
-                    newErrors[`paraQuestion-${index}`] = 'Paragraph question text is required';
-                }
-            });
-
-            paraQuestionMarks.forEach((mark, index) => {
-                if (mark <= 0) {
-                    newErrors[`paraQuestionMark-${index}`] = 'Paragraph question marks must be greater than 0';
-                }
-            });
-        }
-
-        if (type === 'conditional') {
-            conditionalQuestions?.forEach((cq, index) => {
-                if (!cq.trim()) {
-                    newErrors[`conditionalQuestion-${index}`] = 'Conditional question text is required';
-                }
-            });
-
-            conditionalQuestionMarks.forEach((mark, index) => {
-                if (mark <= 0) {
-                    newErrors[`conditionalQuestionMark-${index}`] = 'Conditional question marks must be greater than 0';
-                }
-            });
-        }
-
-        if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks') && marks <= 0) {
-            newErrors.marks = 'Marks must be greater than 0';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!validateForm()) {
-            return;
-        }
-
-        const content: any = {};
-        if (type !== 'paragraph' && type !== 'conditional') content.questionText = questionText;
-        if (type === 'mcq') {
-            content.choices = choices;
-            content.correctAnswer = correctAnswer;
-        } else if (type === 'true-false') {
-            content.choices = ['True', 'False'];
-            content.correctAnswer = correctAnswer;
-        } else if (type === 'short-answer' || type === 'long-answer') {
-            content.sub_questions = subQuestions.filter(Boolean);
-        } else if (type === 'conditional') {
-            content.conditionalQuestions = conditionalQuestions?.filter(Boolean);
-        } else if (type === 'paragraph') {
-            content.paraText = paraText;
-            content.paraQuestions = paraQuestions.filter(Boolean);
-        }
-
-        let q: Question = { id: editing?.id || uid('q-'), type, content };
-        if (type === 'short-answer' || type === 'long-answer') {
-            if (showSubQuestions && subQuestions.length > 0) {
-                q.subQuestionMarks = subQuestionMarks.slice(0, subQuestions.length);
-            } else {
-                q.marks = marks;
-            }
-        } else if (type === 'paragraph') {
-            q.paraQuestionMarks = paraQuestionMarks.slice(0, paraQuestions.length);
-        } else if (type === 'conditional') {
-            q.conditionalQuestionMarks = conditionalQuestionMarks.slice(0, conditionalQuestions?.length);
-        } else {
-            q.marks = marks;
-        }
-
-        onSubmit(q, parseInt(editing?.id || '0'));
-        reset();
-        onClose();
-    };
-
-    const updateChoice = (i: number, v: string) => setChoices((s) => s.map((c, idx) => (idx === i ? v : c)));
-    const addChoice = () => setChoices((s) => [...s, '']);
-    const removeChoice = (i: number) => setChoices((s) => s.filter((_, idx) => idx !== i));
-
-    const updateSub = (i: number, v: string) => setSubQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
-    const updateSubMark = (i: number, v: number) => setSubQuestionMarks((marks) => {
-        const arr = [...marks];
-        arr[i] = v;
-        return arr;
-    });
-    const addSub = () => {
-        setSubQuestions((s) => [...s, '']);
-        setSubQuestionMarks((marks) => [...marks, 0]);
-        setShowSubQuestions(true);
-    };
-    const removeSub = (i: number) => {
-        setSubQuestions((s) => s.filter((_, idx) => idx !== i));
-        setSubQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
-        if (subQuestions.length === 1) {
-            setShowSubQuestions(false);
-        }
-    };
-
-    const updateParaQ = (i: number, v: string) => setParaQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
-    const updateParaMark = (i: number, v: number) => setParaQuestionMarks((marks) => {
-        const arr = [...marks];
-        arr[i] = v;
-        return arr;
-    });
-    const addParaQ = () => {
-        setParaQuestions((s) => [...s, '']);
-        setParaQuestionMarks((marks) => [...marks, 0]);
-    };
-    const removeParaQ = (i: number) => {
-        setParaQuestions((s) => s.filter((_, idx) => idx !== i));
-        setParaQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
-    };
-
-    const updateCond = (i: number, v: string) => setConditionalQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
-    const updateCondMark = (i: number, v: number) => setConditionalQuestionMarks((marks) => {
-        const arr = [...marks];
-        arr[i] = v;
-        return arr;
-    });
-    const addCond = () => {
-        setConditionalQuestions((s) => [...s, '']);
-        setConditionalQuestionMarks((marks) => [...marks, 0]);
-    };
-    const removeCond = (i: number) => {
-        setConditionalQuestions((s) => s.filter((_, idx) => idx !== i));
-        setConditionalQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
-    };
-
-    return (
-        <Modal open={open} onClose={() => { onClose(); reset(); }} title={editing ? 'Edit Question' : 'Add Question'}>
-            <form onSubmit={handleSubmit} className="space-y-5 max-h-[70vh] overflow-auto pr-2">
-                {(type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks' || type === 'short-answer' || type === 'long-answer') && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
-                        <textarea onChange={(e) => { setQuestionText(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Section Instructions...">{questionText}</textarea>
-
-                        {errors.questionText && <p className="text-red-500 text-sm mt-1">{errors.questionText}</p>}
-                        {(type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks') && (
-                            <div className="mt-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={marks}
-                                    onChange={e => setMarks(Number(e.target.value))}
-                                    className="w-24 p-2 rounded border border-gray-300"
-                                />
-                                {errors.marks && <p className="text-red-500 text-sm mt-1">{errors.marks}</p>}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {type === 'mcq' && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Choices</label>
-                        <div className="space-y-3">
-                            {choices.map((c, i) => (
-                                <div key={i} className="flex gap-3 items-start">
-                                    <div className="flex-1">
-                                        <textarea onChange={(e) => { updateChoice(i, e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Choice ${String.fromCharCode(65 + i)}`}>{c}</textarea>
-                                    </div>
-                                    <label className="flex items-center gap-2 text-sm text-gray-700 mt-2">
-                                        <input
-                                            type="radio"
-                                            checked={correctAnswer === i}
-                                            onChange={() => setCorrectAnswer(i)}
-                                            className="text-blue-600 focus:ring-blue-500"
-                                        />
-                                        Correct
-                                    </label>
-                                    {choices.length > 2 && (
-                                        <button type="button" onClick={() => removeChoice(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
-                                            <Icon.Delete />
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                            <button type="button" onClick={addChoice} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">
-                                <Icon.Add /> Add Choice
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {type === 'true-false' && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
-                        <div className="flex gap-6">
-                            <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-300 hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" checked={correctAnswer === 0} onChange={() => setCorrectAnswer(0)} className="text-blue-600 focus:ring-blue-500" />
-                                <span className="text-gray-700">True</span>
-                            </label>
-                            <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-300 hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" checked={correctAnswer === 1} onChange={() => setCorrectAnswer(1)} className="text-blue-600 focus:ring-blue-500" />
-                                <span className="text-gray-700">False</span>
-                            </label>
-                        </div>
-                    </div>
-                )}
-
-                {(type === 'short-answer' || type === 'long-answer') && (
-                    <div>
-                        {!showSubQuestions && (
-                            <div className="flex flex-col items-start mb-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={marks}
-                                    onChange={e => setMarks(Number(e.target.value))}
-                                    className="w-24 p-2 rounded border border-gray-300"
-                                />
-                                {errors.marks && <p className="text-red-500 text-sm mt-1">{errors.marks}</p>}
-                            </div>
-                        )}
-
-                        <div className="flex justify-between items-center mb-2">
-                            <label className="block text-sm font-medium text-gray-700">Sub Questions (optional)</label>
-                            <button
-                                type="button"
-                                onClick={addSub}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors text-sm"
-                            >
-                                <Icon.Add /> Add Sub-question
-                            </button>
-                        </div>
-
-                        {showSubQuestions && (
-                            <div className="space-y-3">
-                                {subQuestions.map((s, i) => (
-                                    <div key={i} className="flex gap-3 items-start">
-                                        <div className="flex-1">
-                                            <textarea onChange={(e) => { updateSub(i, e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Sub-question ${i + 1}`}>{s}</textarea>
-
-                                            {errors[`subQuestion-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`subQuestion-${i}`]}</p>}
-                                        </div>
-                                        <div className="flex flex-col items-center ml-2">
-                                            <label className="block text-xs text-gray-700">Marks</label>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={subQuestionMarks[i] ?? 0}
-                                                onChange={e => updateSubMark(i, Number(e.target.value))}
-                                                className="w-16 p-1 rounded border border-gray-300"
-                                            />
-                                            {errors[`subQuestionMark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`subQuestionMark-${i}`]}</p>}
-                                        </div>
-                                        {subQuestions.length > 1 && (
-                                            <button type="button" onClick={() => removeSub(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
-                                                <Icon.Delete />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {type === 'conditional' && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Conditional Questions</label>
-                        <div className="space-y-3">
-                            {conditionalQuestions?.map((c, i) => (
-                                <div key={i} className="flex gap-3 items-start">
-                                    <div className="flex-1">
-                                        <textarea onChange={(e) => { updateCond(i, e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Conditional question ${i + 1}`}>{c}</textarea>
-
-                                        {errors[`conditionalQuestion-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`conditionalQuestion-${i}`]}</p>}
-                                    </div>
-                                    <div className="flex flex-col items-center ml-2">
-                                        <label className="block text-xs text-gray-700">Marks</label>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            value={conditionalQuestionMarks[i] ?? 0}
-                                            onChange={e => updateCondMark(i, Number(e.target.value))}
-                                            className="w-16 p-1 rounded border border-gray-300"
-                                        />
-                                        {errors[`conditionalQuestionMark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`conditionalQuestionMark-${i}`]}</p>}
-                                    </div>
-                                    {conditionalQuestions?.length > 1 && (
-                                        <button type="button" onClick={() => removeCond(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
-                                            <Icon.Delete />
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                            <button type="button" onClick={addCond} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">
-                                <Icon.Add /> Add Conditional Question
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {type === 'paragraph' && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Paragraph Text</label>
-                            <textarea onChange={(e) => { setParaText(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter the paragraph text...">{paraText}</textarea>
-
-                            {errors.paraText && <p className="text-red-500 text-sm mt-1">{errors.paraText}</p>}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Questions based on the paragraph</label>
-                            <div className="space-y-3">
-                                {paraQuestions.map((pq, i) => (
-                                    <div key={i} className="flex gap-3 items-start">
-                                        <div className="flex-1">
-
-                                            <textarea onChange={(e) => { updateParaQ(i, e.target.value) }} placeholder={`Question ${i + 1}`} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" >{pq}</textarea>
-                                            {errors[`paraQuestion-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`paraQuestion-${i}`]}</p>}
-                                        </div>
-
-
-                                        <div className="flex flex-col items-center ml-2">
-                                            <label className="block text-xs text-gray-700">Marks</label>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={paraQuestionMarks[i] ?? 0}
-                                                onChange={e => updateParaMark(i, Number(e.target.value))}
-                                                className="w-16 p-1 rounded border border-gray-300"
-                                            />
-                                            {errors[`paraQuestionMark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`paraQuestionMark-${i}`]}</p>}
-                                        </div>
-                                        {paraQuestions.length > 1 && (
-                                            <button type="button" onClick={() => removeParaQ(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
-                                                <Icon.Delete />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                                <button type="button" onClick={addParaQ} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">
-                                    <Icon.Add /> Add Question
-                                </button>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                    <button type="button" onClick={() => { onClose(); reset(); }} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors">Cancel</button>
-                    <button type="submit" className="px-5 py-2.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium transition-colors">{editing ? 'Save Changes' : 'Add Question'}</button>
+                  {choices.length > 2 && (
+                    <button type="button" onClick={() => removeChoice(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
+                      <Icon.Delete />
+                    </button>
+                  )}
                 </div>
-            </form>
-        </Modal>
-    );
+              ))}
+
+              <div>
+                {errors.choices && <p className="text-red-500 text-sm mb-2">{errors.choices}</p>}
+                {errors.choices_correct && <p className="text-red-500 text-sm mb-2">{errors.choices_correct}</p>}
+                <button type="button" onClick={addChoice} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">
+                  <Icon.Add /> Add Choice
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* True/False */}
+        {type.slug === 'true-false' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-300 hover:bg-gray-50 cursor-pointer">
+                <input type="radio" checked={choices[0]?.is_correct} onChange={() => toggleChoiceCorrect(0)} className="text-blue-600 focus:ring-blue-500" />
+                <span className="text-gray-700">True</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-300 hover:bg-gray-50 cursor-pointer">
+                <input type="radio" checked={choices[1]?.is_correct} onChange={() => toggleChoiceCorrect(1)} className="text-blue-600 focus:ring-blue-500" />
+                <span className="text-gray-700">False</span>
+              </label>
+            </div>
+            {errors.choices_correct && <p className="text-red-500 text-sm mt-1">{errors.choices_correct}</p>}
+            {errors.marks && <p className="text-red-500 text-sm mt-1">{errors.marks}</p>}
+          </div>
+        )}
+
+        {/* Fill in the blanks */}
+        {type.slug === 'fill-in-blanks' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Correct Answer</label>
+            <input value={fillAnswer} onChange={(e) => setFillAnswer(e.target.value)} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter correct answer..." />
+            {errors.correct_answer && <p className="text-red-500 text-sm mt-1">{errors.correct_answer}</p>}
+          </div>
+        )}
+
+        {/* Short / Long answer (sub-questions optional) */}
+        {(type.slug === 'short-answer' || type.slug === 'long-answer') && (
+          <div>
+            {!showSubQuestions && (
+              <div className="flex flex-col items-start mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+                <input type="number" min={0} value={marks} onChange={(e) => setMarks(Number(e.target.value))} className="w-24 p-2 rounded border border-gray-300" />
+                {errors.marks && <p className="text-red-500 text-sm mt-1">{errors.marks}</p>}
+              </div>
+            )}
+
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">Sub Questions (optional)</label>
+              <button
+                type="button"
+                onClick={() => { addSubQuestion(); setShowSubQuestions(true); }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors text-sm"
+              >
+                <Icon.Add /> Add Sub-question
+              </button>
+            </div>
+
+            {showSubQuestions && (
+              <div className="space-y-3">
+                {subQuestions.map((s, i) => (
+                  <div key={i} className="flex gap-3 items-start">
+                    <div className="flex-1">
+                      <textarea value={s.question_text} onChange={(e) => updateSubQuestionText(i, e.target.value)} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Sub-question ${i + 1}`} />
+                      {errors[`sub-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`sub-${i}`]}</p>}
+                    </div>
+                    <div className="flex flex-col items-center ml-2">
+                      <label className="block text-xs text-gray-700">Marks</label>
+                      <input type="number" min={0} value={s.marks} onChange={(e) => updateSubQuestionMarks(i, Number(e.target.value))} className="w-16 p-1 rounded border border-gray-300" />
+                      {errors[`sub-mark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`sub-mark-${i}`]}</p>}
+                    </div>
+                    {subQuestions.length > 1 && (
+                      <button type="button" onClick={() => removeSubQuestion(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
+                        <Icon.Delete />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {errors.sub_questions && <p className="text-red-500 text-sm mt-1">{errors.sub_questions}</p>}
+          </div>
+        )}
+
+        {/* Conditional (min 2 sub-questions) */}
+        {type.slug === 'conditional' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Conditional Questions (minimum 2)</label>
+            <div className="space-y-3">
+              {subQuestions.map((s, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <div className="flex-1">
+                    <textarea value={s.question_text} onChange={(e) => updateSubQuestionText(i, e.target.value)} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Conditional question ${i + 1}`} />
+                    {errors[`cond-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`cond-${i}`]}</p>}
+                  </div>
+                  <div className="flex flex-col items-center ml-2">
+                    <label className="block text-xs text-gray-700">Marks</label>
+                    <input type="number" min={0} value={s.marks} onChange={(e) => updateSubQuestionMarks(i, Number(e.target.value))} className="w-16 p-1 rounded border border-gray-300" />
+                    {errors[`cond-mark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`cond-mark-${i}`]}</p>}
+                  </div>
+                  {subQuestions.length > 1 && (
+                    <button type="button" onClick={() => removeSubQuestion(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
+                      <Icon.Delete />
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              <div>
+                <button type="button" onClick={addSubQuestion} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">
+                  <Icon.Add /> Add Conditional Question
+                </button>
+              </div>
+            </div>
+            {errors.sub_questions && <p className="text-red-500 text-sm mt-1">{errors.sub_questions}</p>}
+          </div>
+        )}
+
+        {/* Paragraph */}
+        {type.slug === 'paragraph' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Paragraph Text</label>
+              <textarea value={paragraphText} onChange={(e) => setParagraphText(e.target.value)} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter the paragraph text..." />
+              {errors.paragraph_text && <p className="text-red-500 text-sm mt-1">{errors.paragraph_text}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Questions based on the paragraph</label>
+              <div className="space-y-3">
+                {subQuestions.map((s, i) => (
+                  <div key={i} className="flex gap-3 items-start">
+                    <div className="flex-1">
+                      <textarea value={s.question_text} onChange={(e) => updateSubQuestionText(i, e.target.value)} placeholder={`Question ${i + 1}`} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                      {errors[`para-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`para-${i}`]}</p>}
+                    </div>
+
+                    <div className="flex flex-col items-center ml-2">
+                      <label className="block text-xs text-gray-700">Marks</label>
+                      <input type="number" min={0} value={s.marks} onChange={(e) => updateSubQuestionMarks(i, Number(e.target.value))} className="w-16 p-1 rounded border border-gray-300" />
+                      {errors[`para-mark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`para-mark-${i}`]}</p>}
+                    </div>
+                    {subQuestions.length > 1 && (
+                      <button type="button" onClick={() => removeSubQuestion(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
+                        <Icon.Delete />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                <div>
+                  <button type="button" onClick={addSubQuestion} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">
+                    <Icon.Add /> Add Question
+                  </button>
+                </div>
+              </div>
+            </div>
+            {errors.sub_questions && <p className="text-red-500 text-sm mt-1">{errors.sub_questions}</p>}
+          </>
+        )}
+
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <button type="button" onClick={() => { onClose(); reset(); }} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors">Cancel</button>
+          <button type="submit" className="px-5 py-2.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium transition-colors">{editing ? 'Save Changes' : 'Add Question'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
 };
+
+// const QuestionForm: React.FC<{
+//     open: boolean;
+//     onClose: () => void;
+//     onSubmit: (question: ApiQuestion, editingId?: number) => void;
+//     type: ApiQuestionType;
+//     editing?: ApiQuestion| null;
+// }> = ({ open, onClose, onSubmit, type, editing }) => {
+    
+//     const [questionText, setQuestionText] = useState(editing?.content?.questionText || '');
+//     const [choices, setChoices] = useState<string[]>(editing?.content?.choices || ['', '']);
+//     const [correctAnswer, setCorrectAnswer] = useState<number>(editing?.content?.correctAnswer ?? 0);
+//     const [subQuestions, setSubQuestions] = useState<string[]>(editing?.content?.sub_questions || []);
+//     const [subQuestionMarks, setSubQuestionMarks] = useState<number[]>(editing?.subQuestionMarks || []);
+//     const [marks, setMarks] = useState<number>(editing?.marks ?? 0);
+//     const [paraText, setParaText] = useState(editing?.content?.paraText || '');
+//     const [paraQuestions, setParaQuestions] = useState<string[]>(editing?.content?.paraQuestions || []);
+//     const [paraQuestionMarks, setParaQuestionMarks] = useState<number[]>(editing?.paraQuestionMarks || []);
+//     const [conditionalQuestions, setConditionalQuestions] = useState<string[]>(editing?.content?.conditionalQuestions || []);
+//     const [conditionalQuestionMarks, setConditionalQuestionMarks] = useState<number[]>(editing?.conditionalQuestionMarks || []);
+//     const [showSubQuestions, setShowSubQuestions] = useState(false);
+//     const [errors, setErrors] = useState<Record<string, string>>({});
+//     const [activeField, setActiveField] = useState<string | null>(null);
+
+//     useEffect(() => {
+//         setQuestionText(editing?.content?.questionText || '');
+//         setChoices(editing?.content?.choices || ['', '']);
+//         setCorrectAnswer(editing?.content?.correctAnswer ?? 0);
+//         setSubQuestions(editing?.content?.sub_questions || []);
+//         setSubQuestionMarks(editing?.subQuestionMarks || []);
+//         setMarks(editing?.marks ?? 0);
+//         setParaText(editing?.content?.paraText || '');
+//         setParaQuestions(editing?.content?.paraQuestions || []);
+//         setParaQuestionMarks(editing?.paraQuestionMarks || []);
+//         setConditionalQuestions(editing?.content?.conditionalQuestions || []);
+//         setConditionalQuestionMarks(editing?.conditionalQuestionMarks || []);
+//         setShowSubQuestions((editing?.content?.sub_questions?.length || 0) > 0);
+//         setErrors({});
+//     }, [editing, open]);
+
+//     const reset = () => {
+//         setQuestionText('');
+//         setChoices(['', '']);
+//         setCorrectAnswer(0);
+//         setSubQuestions([]);
+//         setSubQuestionMarks([]);
+//         setMarks(0);
+//         setParaText('');
+//         setParaQuestions([]);
+//         setParaQuestionMarks([]);
+//         setConditionalQuestions([]);
+//         setConditionalQuestionMarks([]);
+//         setShowSubQuestions(false);
+//         setErrors({});
+//     };
+
+
+
+//     const validateForm = () => {
+//         const newErrors: Record<string, string> = {};
+
+//         if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks') && !questionText.trim()) {
+//             newErrors.questionText = 'Question text is required';
+//         }
+
+//         if (type === 'short-answer' || type === 'long-answer') {
+//             if (!showSubQuestions && !questionText.trim()) {
+//                 newErrors.questionText = 'Question text is required when no sub-questions are added';
+//             }
+
+//             if (showSubQuestions) {
+//                 subQuestions.forEach((sq, index) => {
+//                     if (!sq.trim()) {
+//                         newErrors[`subQuestion-${index}`] = 'Sub-question text is required';
+//                     }
+//                 });
+
+//                 subQuestionMarks.forEach((mark, index) => {
+//                     if (mark <= 0) {
+//                         newErrors[`subQuestionMark-${index}`] = 'Sub-question marks must be greater than 0';
+//                     }
+//                 });
+//             } else if (marks <= 0) {
+//                 newErrors.marks = 'Marks must be greater than 0';
+//             }
+//         }
+
+//         if (type === 'paragraph') {
+//             if (!paraText.trim()) {
+//                 newErrors.paraText = 'Paragraph text is required';
+//             }
+
+//             paraQuestions.forEach((pq, index) => {
+//                 if (!pq.trim()) {
+//                     newErrors[`paraQuestion-${index}`] = 'Paragraph question text is required';
+//                 }
+//             });
+
+//             paraQuestionMarks.forEach((mark, index) => {
+//                 if (mark <= 0) {
+//                     newErrors[`paraQuestionMark-${index}`] = 'Paragraph question marks must be greater than 0';
+//                 }
+//             });
+//         }
+
+//         if (type === 'conditional') {
+//             conditionalQuestions?.forEach((cq, index) => {
+//                 if (!cq.trim()) {
+//                     newErrors[`conditionalQuestion-${index}`] = 'Conditional question text is required';
+//                 }
+//             });
+
+//             conditionalQuestionMarks.forEach((mark, index) => {
+//                 if (mark <= 0) {
+//                     newErrors[`conditionalQuestionMark-${index}`] = 'Conditional question marks must be greater than 0';
+//                 }
+//             });
+//         }
+
+//         if ((type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks') && marks <= 0) {
+//             newErrors.marks = 'Marks must be greater than 0';
+//         }
+
+//         setErrors(newErrors);
+//         return Object.keys(newErrors).length === 0;
+//     };
+
+//     const handleSubmit = (e: React.FormEvent) => {
+//         e.preventDefault();
+
+//         if (!validateForm()) {
+//             return;
+//         }
+
+//         const content: any = {};
+//         if (type !== 'paragraph' && type !== 'conditional') content.questionText = questionText;
+//         if (type === 'mcq') {
+//             content.choices = choices;
+//             content.correctAnswer = correctAnswer;
+//         } else if (type === 'true-false') {
+//             content.choices = ['True', 'False'];
+//             content.correctAnswer = correctAnswer;
+//         } else if (type === 'short-answer' || type === 'long-answer') {
+//             content.sub_questions = subQuestions.filter(Boolean);
+//         } else if (type === 'conditional') {
+//             content.conditionalQuestions = conditionalQuestions?.filter(Boolean);
+//         } else if (type === 'paragraph') {
+//             content.paraText = paraText;
+//             content.paraQuestions = paraQuestions.filter(Boolean);
+//         }
+
+//         let q: Question = { id: editing?.id || uid('q-'), type, content };
+//         if (type === 'short-answer' || type === 'long-answer') {
+//             if (showSubQuestions && subQuestions.length > 0) {
+//                 q.subQuestionMarks = subQuestionMarks.slice(0, subQuestions.length);
+//             } else {
+//                 q.marks = marks;
+//             }
+//         } else if (type === 'paragraph') {
+//             q.paraQuestionMarks = paraQuestionMarks.slice(0, paraQuestions.length);
+//         } else if (type === 'conditional') {
+//             q.conditionalQuestionMarks = conditionalQuestionMarks.slice(0, conditionalQuestions?.length);
+//         } else {
+//             q.marks = marks;
+//         }
+
+//         onSubmit(q, parseInt(editing?.id || '0'));
+//         reset();
+//         onClose();
+//     };
+
+//     const updateChoice = (i: number, v: string) => setChoices((s) => s.map((c, idx) => (idx === i ? v : c)));
+//     const addChoice = () => setChoices((s) => [...s, '']);
+//     const removeChoice = (i: number) => setChoices((s) => s.filter((_, idx) => idx !== i));
+
+//     const updateSub = (i: number, v: string) => setSubQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
+//     const updateSubMark = (i: number, v: number) => setSubQuestionMarks((marks) => {
+//         const arr = [...marks];
+//         arr[i] = v;
+//         return arr;
+//     });
+//     const addSub = () => {
+//         setSubQuestions((s) => [...s, '']);
+//         setSubQuestionMarks((marks) => [...marks, 0]);
+//         setShowSubQuestions(true);
+//     };
+//     const removeSub = (i: number) => {
+//         setSubQuestions((s) => s.filter((_, idx) => idx !== i));
+//         setSubQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
+//         if (subQuestions.length === 1) {
+//             setShowSubQuestions(false);
+//         }
+//     };
+
+//     const updateParaQ = (i: number, v: string) => setParaQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
+//     const updateParaMark = (i: number, v: number) => setParaQuestionMarks((marks) => {
+//         const arr = [...marks];
+//         arr[i] = v;
+//         return arr;
+//     });
+//     const addParaQ = () => {
+//         setParaQuestions((s) => [...s, '']);
+//         setParaQuestionMarks((marks) => [...marks, 0]);
+//     };
+//     const removeParaQ = (i: number) => {
+//         setParaQuestions((s) => s.filter((_, idx) => idx !== i));
+//         setParaQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
+//     };
+
+//     const updateCond = (i: number, v: string) => setConditionalQuestions((s) => s.map((x, idx) => (idx === i ? v : x)));
+//     const updateCondMark = (i: number, v: number) => setConditionalQuestionMarks((marks) => {
+//         const arr = [...marks];
+//         arr[i] = v;
+//         return arr;
+//     });
+//     const addCond = () => {
+//         setConditionalQuestions((s) => [...s, '']);
+//         setConditionalQuestionMarks((marks) => [...marks, 0]);
+//     };
+//     const removeCond = (i: number) => {
+//         setConditionalQuestions((s) => s.filter((_, idx) => idx !== i));
+//         setConditionalQuestionMarks((marks) => marks.filter((_, idx) => idx !== i));
+//     };
+
+//     return (
+//         <Modal open={open} onClose={() => { onClose(); reset(); }} title={editing ? 'Edit Question' : 'Add Question'}>
+//             <form onSubmit={handleSubmit} className="space-y-5 max-h-[70vh] overflow-auto pr-2">
+//                 {(type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks' || type === 'short-answer' || type === 'long-answer') && (
+//                     <div>
+//                         <label className="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
+//                         <textarea onChange={(e) => { setQuestionText(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Section Instructions..." value={questionText} />
+
+//                         {errors.questionText && <p className="text-red-500 text-sm mt-1">{errors.questionText}</p>}
+//                         {(type === 'mcq' || type === 'true-false' || type === 'fill-in-blanks') && (
+//                             <div className="mt-2">
+//                                 <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+//                                 <input
+//                                     type="number"
+//                                     min={0}
+//                                     value={marks}
+//                                     onChange={e => setMarks(Number(e.target.value))}
+//                                     className="w-24 p-2 rounded border border-gray-300"
+//                                 />
+//                                 {errors.marks && <p className="text-red-500 text-sm mt-1">{errors.marks}</p>}
+//                             </div>
+//                         )}
+//                     </div>
+//                 )}
+
+//                 {type === 'mcq' && (
+//                     <div>
+//                         <label className="block text-sm font-medium text-gray-700 mb-2">Choices</label>
+//                         <div className="space-y-3">
+//                             {choices.map((c, i) => (
+//                                 <div key={i} className="flex gap-3 items-start">
+//                                     <div className="flex-1">
+//                                         <textarea onChange={(e) => { updateChoice(i, e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Choice ${String.fromCharCode(65 + i)}`}  value={c}/>
+//                                     </div>
+//                                     <label className="flex items-center gap-2 text-sm text-gray-700 mt-2">
+//                                         <input
+//                                             type="radio"
+//                                             checked={correctAnswer === i}
+//                                             onChange={() => setCorrectAnswer(i)}
+//                                             className="text-blue-600 focus:ring-blue-500"
+//                                         />
+//                                         Correct
+//                                     </label>
+//                                     {choices.length > 2 && (
+//                                         <button type="button" onClick={() => removeChoice(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
+//                                             <Icon.Delete />
+//                                         </button>
+//                                     )}
+//                                 </div>
+//                             ))}
+//                             <button type="button" onClick={addChoice} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">
+//                                 <Icon.Add /> Add Choice
+//                             </button>
+//                         </div>
+//                     </div>
+//                 )}
+
+//                 {type === 'true-false' && (
+//                     <div>
+//                         <label className="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
+//                         <div className="flex gap-6">
+//                             <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-300 hover:bg-gray-50 cursor-pointer">
+//                                 <input type="radio" checked={correctAnswer === 0} onChange={() => setCorrectAnswer(0)} className="text-blue-600 focus:ring-blue-500" />
+//                                 <span className="text-gray-700">True</span>
+//                             </label>
+//                             <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-300 hover:bg-gray-50 cursor-pointer">
+//                                 <input type="radio" checked={correctAnswer === 1} onChange={() => setCorrectAnswer(1)} className="text-blue-600 focus:ring-blue-500" />
+//                                 <span className="text-gray-700">False</span>
+//                             </label>
+//                         </div>
+//                     </div>
+//                 )}
+
+//                 {(type === 'short-answer' || type === 'long-answer') && (
+//                     <div>
+//                         {!showSubQuestions && (
+//                             <div className="flex flex-col items-start mb-2">
+//                                 <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+//                                 <input
+//                                     type="number"
+//                                     min={0}
+//                                     value={marks}
+//                                     onChange={e => setMarks(Number(e.target.value))}
+//                                     className="w-24 p-2 rounded border border-gray-300"
+//                                 />
+//                                 {errors.marks && <p className="text-red-500 text-sm mt-1">{errors.marks}</p>}
+//                             </div>
+//                         )}
+
+//                         <div className="flex justify-between items-center mb-2">
+//                             <label className="block text-sm font-medium text-gray-700">Sub Questions (optional)</label>
+//                             <button
+//                                 type="button"
+//                                 onClick={addSub}
+//                                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors text-sm"
+//                             >
+//                                 <Icon.Add /> Add Sub-question
+//                             </button>
+//                         </div>
+
+//                         {showSubQuestions && (
+//                             <div className="space-y-3">
+//                                 {subQuestions.map((s, i) => (
+//                                     <div key={i} className="flex gap-3 items-start">
+//                                         <div className="flex-1">
+//                                             <textarea onChange={(e) => { updateSub(i, e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Sub-question ${i + 1}`} value={s}/>
+
+//                                             {errors[`subQuestion-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`subQuestion-${i}`]}</p>}
+//                                         </div>
+//                                         <div className="flex flex-col items-center ml-2">
+//                                             <label className="block text-xs text-gray-700">Marks</label>
+//                                             <input
+//                                                 type="number"
+//                                                 min={0}
+//                                                 value={subQuestionMarks[i] ?? 0}
+//                                                 onChange={e => updateSubMark(i, Number(e.target.value))}
+//                                                 className="w-16 p-1 rounded border border-gray-300"
+//                                             />
+//                                             {errors[`subQuestionMark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`subQuestionMark-${i}`]}</p>}
+//                                         </div>
+//                                         {subQuestions.length > 1 && (
+//                                             <button type="button" onClick={() => removeSub(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
+//                                                 <Icon.Delete />
+//                                             </button>
+//                                         )}
+//                                     </div>
+//                                 ))}
+//                             </div>
+//                         )}
+//                     </div>
+//                 )}
+
+//                 {type === 'conditional' && (
+//                     <div>
+//                         <label className="block text-sm font-medium text-gray-700 mb-2">Conditional Questions</label>
+//                         <div className="space-y-3">
+//                             {conditionalQuestions?.map((c, i) => (
+//                                 <div key={i} className="flex gap-3 items-start">
+//                                     <div className="flex-1">
+//                                         <textarea onChange={(e) => { updateCond(i, e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder={`Conditional question ${i + 1}`} value={c} />
+
+//                                         {errors[`conditionalQuestion-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`conditionalQuestion-${i}`]}</p>}
+//                                     </div>
+//                                     <div className="flex flex-col items-center ml-2">
+//                                         <label className="block text-xs text-gray-700">Marks</label>
+//                                         <input
+//                                             type="number"
+//                                             min={0}
+//                                             value={conditionalQuestionMarks[i] ?? 0}
+//                                             onChange={e => updateCondMark(i, Number(e.target.value))}
+//                                             className="w-16 p-1 rounded border border-gray-300"
+//                                         />
+//                                         {errors[`conditionalQuestionMark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`conditionalQuestionMark-${i}`]}</p>}
+//                                     </div>
+//                                     {conditionalQuestions?.length > 1 && (
+//                                         <button type="button" onClick={() => removeCond(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
+//                                             <Icon.Delete />
+//                                         </button>
+//                                     )}
+//                                 </div>
+//                             ))}
+//                             <button type="button" onClick={addCond} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">
+//                                 <Icon.Add /> Add Conditional Question
+//                             </button>
+//                         </div>
+//                     </div>
+//                 )}
+
+//                 {type === 'paragraph' && (
+//                     <>
+//                         <div>
+//                             <label className="block text-sm font-medium text-gray-700 mb-1">Paragraph Text</label>
+//                             <textarea onChange={(e) => { setParaText(e.target.value) }} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter the paragraph text...">{paraText}</textarea>
+
+//                             {errors.paraText && <p className="text-red-500 text-sm mt-1">{errors.paraText}</p>}
+//                         </div>
+//                         <div>
+//                             <label className="block text-sm font-medium text-gray-700 mb-2">Questions based on the paragraph</label>
+//                             <div className="space-y-3">
+//                                 {paraQuestions.map((pq, i) => (
+//                                     <div key={i} className="flex gap-3 items-start">
+//                                         <div className="flex-1">
+
+//                                             <textarea onChange={(e) => { updateParaQ(i, e.target.value) }} placeholder={`Question ${i + 1}`} className="my-1 w-full p-3 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" value={pq}/>
+//                                             {errors[`paraQuestion-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`paraQuestion-${i}`]}</p>}
+//                                         </div>
+
+
+//                                         <div className="flex flex-col items-center ml-2">
+//                                             <label className="block text-xs text-gray-700">Marks</label>
+//                                             <input
+//                                                 type="number"
+//                                                 min={0}
+//                                                 value={paraQuestionMarks[i] ?? 0}
+//                                                 onChange={e => updateParaMark(i, Number(e.target.value))}
+//                                                 className="w-16 p-1 rounded border border-gray-300"
+//                                             />
+//                                             {errors[`paraQuestionMark-${i}`] && <p className="text-red-500 text-sm mt-1">{errors[`paraQuestionMark-${i}`]}</p>}
+//                                         </div>
+//                                         {paraQuestions.length > 1 && (
+//                                             <button type="button" onClick={() => removeParaQ(i)} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors mt-2">
+//                                                 <Icon.Delete />
+//                                             </button>
+//                                         )}
+//                                     </div>
+//                                 ))}
+//                                 <button type="button" onClick={addParaQ} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors">
+//                                     <Icon.Add /> Add Question
+//                                 </button>
+//                             </div>
+//                         </div>
+//                     </>
+//                 )}
+
+//                 <div className="flex justify-end gap-3 pt-4 border-t">
+//                     <button type="button" onClick={() => { onClose(); reset(); }} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors">Cancel</button>
+//                     <button type="submit" className="px-5 py-2.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium transition-colors">{editing ? 'Save Changes' : 'Add Question'}</button>
+//                 </div>
+//             </form>
+//         </Modal>
+//     );
+// };
 
 // ---------- Question Display Components ----------
 const MCQQuestion: React.FC<{ question: ApiQuestion; questionNumber: string, numberingStyle?: 'numeric' | 'roman' | 'alphabetic' }> = ({ question, questionNumber, numberingStyle }) => {
@@ -1159,29 +1579,17 @@ const PaperView: React.FC<{
                             return (
                                 <div key={section.id} className="mb-8">
                                     <h2 className="text-xl font-bold mb-2 text-gray-800">
-                                        <span
-                                            dangerouslySetInnerHTML={{
-                                                __html: renderMathContent(section.title),
-                                            }}
-                                        />
+                                        <span>{section.title}</span>
                                     </h2>
                                     {section.instructions && (
                                         <p
-                                            className="text-gray-600 mb-4 italic"
-                                            dangerouslySetInnerHTML={{
-                                                __html: renderMathContent(section.instructions),
-                                            }}
-                                        />
+                                            className="text-gray-600 mb-4 italic">{section.instructions}</p>
                                     )}
                                     {section?.section_groups?.map((group: ApiSectionGroup) => (
                                         <div key={group.id} className="mb-6 ml-4">
                                             {group.instructions && (
                                                 <p
-                                                    className="text-gray-600 mb-3"
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: group.instructions,
-                                                    }}
-                                                />
+                                                    className="text-gray-600 mb-3">{group.instructions}</p>
                                             )}
                                             <div className="space-y-4 ml-4">
                                                 {group?.questions?.map((question: ApiQuestion, qIndex) => {
@@ -1262,10 +1670,10 @@ const PaperGeneratorAdvanced: React.FC = () => {
     const [currentSectionIdForGroup, setCurrentSectionIdForGroup] = useState<number | null>(null);
     const [editingGroup, setEditingGroup] = useState<ApiSectionGroup | null>(null);
     const [questionModalOpen, setQuestionModalOpen] = useState(false);
-    const [currentTypeForQuestion, setCurrentTypeForQuestion] = useState<string>('mcq');
+    const [currentTypeForQuestion, setCurrentTypeForQuestion] = useState<ApiQuestionType>({} as ApiQuestionType);
     const [currentSectionIdForQuestion, setCurrentSectionIdForQuestion] = useState<number | null>(null);
     const [currentGroupIdForQuestion, setCurrentGroupIdForQuestion] = useState<number | null>(null);
-    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+    const [editingQuestion, setEditingQuestion] = useState<ApiQuestion | null>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmPayload, setConfirmPayload] = useState<any>(null);
     const [search, setSearch] = useState('');
@@ -1574,15 +1982,13 @@ const PaperGeneratorAdvanced: React.FC = () => {
         setEditingGroup(null);
     };
 
-    const handleAddOrEditQuestion = async (question: Question, editingId?: number) => {
+
+    const handleAddOrEditQuestion = async (question: ApiQuestion, editingId?: number) => {
         if (!currentGroupIdForQuestion) return;
-
-        const questionData = convertLocalQuestionToApi(question, currentGroupIdForQuestion);
-
         if (editingId) {
-            await handleUpdateQuestion(currentGroupIdForQuestion, editingId, questionData);
+            await handleUpdateQuestion(currentGroupIdForQuestion, editingId, question);
         } else {
-            await handleCreateQuestion(currentGroupIdForQuestion, questionData);
+            await handleCreateQuestion(currentGroupIdForQuestion, question);
         }
         setQuestionModalOpen(false);
         setEditingQuestion(null);
@@ -1612,10 +2018,10 @@ const PaperGeneratorAdvanced: React.FC = () => {
         setGroupModalOpen(true);
     };
 
-    const startAddQuestion = (sectionId: number, groupId: number, type?: string) => {
+    const startAddQuestion = (sectionId: number, groupId: number, type:ApiQuestionType) => {
         setCurrentSectionIdForQuestion(sectionId);
         setCurrentGroupIdForQuestion(groupId);
-        setCurrentTypeForQuestion(type || 'mcq');
+        setCurrentTypeForQuestion(type);
         setEditingQuestion(null);
         setQuestionModalOpen(true);
     };
@@ -1631,13 +2037,11 @@ const PaperGeneratorAdvanced: React.FC = () => {
         setGroupModalOpen(true);
     };
 
-    const openEditQuestion = (sectionId: number, groupId: number, question: ApiQuestion,type:string) => {
-        // Api Question to Local Question 
-        const localQuestion = convertApiQuestionToLocal(question,type)
+    const openEditQuestion = (sectionId: number, groupId: number, question: ApiQuestion,type:ApiQuestionType) => {
         setCurrentSectionIdForQuestion(sectionId);
         setCurrentGroupIdForQuestion(groupId);
         setCurrentTypeForQuestion(type);
-        setEditingQuestion(localQuestion);
+        setEditingQuestion(question);
         setQuestionModalOpen(true);
     };
 
@@ -1892,7 +2296,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                                 <div className="flex justify-between items-center mb-4 pb-3 border-b">
                                                                     <div>
                                                                         <div className="text-md font-bold text-green-700">{getGroupTitle(g.question_type?.slug)}</div>
-                                                                        {g.instructions && <div className="text-gray-600 text-sm mt-1" dangerouslySetInnerHTML={{ __html: renderMathContent(g.instructions) }} />}
+                                                                        {g.instructions && <div className="text-gray-600 text-sm mt-1" >{g.instructions}</div>}
                                                                         <div className="text-gray-500 text-xs mt-2">Numbering: {g?.numbering_style}</div>
                                                                     </div>
                                                                     <div className="flex gap-2">
@@ -1902,7 +2306,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                                         <button onClick={() => askConfirm({ type: 'delete-group', payload: { sectionId: sec.id, groupId: g.id } })} className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 transition-colors" title="Delete Group">
                                                                             <Icon.Delete />
                                                                         </button>
-                                                                        <button onClick={() => startAddQuestion(sec.id, g.id, g?.question_type?.slug)} className="px-3 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium flex items-center gap-1 transition-colors">
+                                                                        <button onClick={() => startAddQuestion(sec.id, g.id, g?.question_type)} className="px-3 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium flex items-center gap-1 transition-colors">
                                                                             <Icon.Add /> Question
                                                                         </button>
                                                                     </div>
@@ -1923,7 +2327,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                                                                                             <QuestionDisplay question={q} type={g?.question_type} questionNumber={`${question_counter}`} numberingStyle={g.numbering_style} />
                                                                                         </div>
                                                                                         <div className="flex gap-2 ml-4">
-                                                                                            <button onClick={() => openEditQuestion(sec.id, g.id, q,g.question_type.slug)} className="p-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Question">
+                                                                                            <button onClick={() => openEditQuestion(sec.id, g.id, q,g.question_type)} className="p-1.5 rounded-md bg-blue-100 hover:bg-blue-200 text-blue-700 transition-colors" title="Edit Question">
                                                                                                 <Icon.Edit />
                                                                                             </button>
                                                                                             <button onClick={() => askConfirm({ type: 'delete-question', payload: { sectionId: sec.id, groupId: g.id, questionId: q.id } })} className="p-1.5 rounded-md bg-red-100 hover:bg-red-200 text-red-700 transition-colors" title="Delete Question">
