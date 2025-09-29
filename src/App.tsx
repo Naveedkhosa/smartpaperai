@@ -15,6 +15,8 @@ import Layout from "./components/Layout";
 import NotFound from "./pages/not-found";
 import CreatePaper from "./pages/CreatePaper";
 import PaperBuilder from "./pages/PaperBuilder";
+import TemplatesPage from './pages/TemplatesPage';
+import TemplateBuilder from './pages/TemplateBuilder';
 import GradePapers from "./pages/GradePapers";
 import PaperViewer from "./pages/PaperViewer";
 import Manage from "./pages/Manage";
@@ -195,6 +197,25 @@ function AppRoutes() {
     </ProtectedRoute>
   } 
 />
+
+{/* Templates Routes */}
+<Route 
+  path="/teacher/templates" 
+  element={
+    <ProtectedRoute>
+      <TemplatesPage />
+    </ProtectedRoute>
+  } 
+/>
+<Route 
+  path="/templates/builder" 
+  element={
+    <ProtectedRoute>
+      <TemplateBuilder />
+    </ProtectedRoute>
+  } 
+/>
+
 
 <Route 
         path="/teacher/paper-builder/:id" 

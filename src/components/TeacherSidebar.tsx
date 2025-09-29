@@ -42,15 +42,17 @@ export default function TeacherSidebar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMobileOpen]);
 
-  const menuItems = [
-    { path: "/teacher", label: "Overview", icon: Eye },
-    { path: "/teacher/create", label: "Create Paper", icon: FileText },
-    { path: "/teacher/grade", label: "Grade Papers", icon: CheckCircle },
-    { path: "/teacher/classes", label: "Classes", icon: Users },
-    { path: "/teacher/subjects", label: "Subjects", icon: BookOpen },
-     { path: "/teacher/study-materials", label: "Study Materials", icon: BookOpen },
-    { path: "/teacher/manage", label: "Manage", icon: Settings },
-  ];
+ const menuItems = [
+  { path: "/teacher", label: "Overview", icon: Eye },
+  { path: "/teacher/create", label: "Create Paper", icon: FileText },
+  { path: "/teacher/grade", label: "Grade Papers", icon: CheckCircle },
+  { path: "/teacher/classes", label: "Classes", icon: Users },
+  { path: "/teacher/subjects", label: "Subjects", icon: BookOpen },
+  { path: "/teacher/study-materials", label: "Study Materials", icon: BookOpen },
+  { path: "/teacher/templates", label: "Templates", icon: Presentation }, // 🔥 New Templates menu
+  { path: "/teacher/manage", label: "Manage", icon: Settings },
+];
+
 
   const handleLogout = () => {
     logout();
