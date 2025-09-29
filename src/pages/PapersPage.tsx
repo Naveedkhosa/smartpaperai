@@ -6,6 +6,8 @@ import {
 import GlassmorphismLayout from "@/components/GlassmorphismLayout";
 import TeacherSidebar from '@/components/TeacherSidebar';
 import TeacherHeader from '@/components/TeacherHeader';
+import { useNavigate } from "react-router-dom";
+
 
 interface Paper {
   id: string;
@@ -29,6 +31,8 @@ const PapersPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(9);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const navigate = useNavigate();
+
 
   useEffect(() => {
     const mockPapers: Paper[] = [
@@ -274,12 +278,13 @@ const PapersPage = () => {
               </div>
             </div>
             <button
-              onClick={() => alert('Create new paper')}
-              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap"
-            >
-              <Plus size={20} />
-              Create New Paper
-            </button>
+  onClick={() => navigate('/teacher/create')}
+  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap"
+>
+  <Plus size={20} />
+  Create New Paper
+</button>
+
           </div>
         </div>
 
@@ -501,7 +506,7 @@ const PapersPage = () => {
               </p>
               {!searchTerm && (
                 <button
-                  onClick={() => alert('Create new paper')}
+                 onClick={() => navigate('/teacher/create')}
                   className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 mx-auto mt-6"
                 >
                   <Plus size={20} />
