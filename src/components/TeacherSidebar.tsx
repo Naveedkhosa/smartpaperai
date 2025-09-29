@@ -45,6 +45,7 @@ export default function TeacherSidebar() {
  const menuItems = [
   { path: "/teacher", label: "Overview", icon: Eye },
   { path: "/teacher/create", label: "Create Paper", icon: FileText },
+   { path: "/teacher/papers", label: "Papers", icon: FileText },
   { path: "/teacher/grade", label: "Grade Papers", icon: CheckCircle },
   { path: "/teacher/classes", label: "Classes", icon: Users },
   { path: "/teacher/subjects", label: "Subjects", icon: BookOpen },
