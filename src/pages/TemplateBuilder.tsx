@@ -342,8 +342,10 @@ const QuestionGroupComponent = ({ group, groupIndex, onUpdate, onDelete }) => {
     );
 };
 
-// Mobile-Optimized Section Component
+// Mobile-Optimized Section Component - Updated with Collapsible Feature
 const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup, addSection }) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+    
     const sectionStats = useMemo(() => {
         const totalQuestions = section.groups.reduce((sum, group) => sum + group.questionsCount, 0);
         const totalMarks = section.groups.reduce((sum, group) => sum + (group.questionsCount * group.marksPerQuestion), 0);
@@ -352,26 +354,62 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup, addSec
 
     return (
         <Card className="mb-6 overflow-hidden">
-            {/* Mobile-First Section Header */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-gray-200">
-                <div className="space-y-4">
-                    {/* Section Number and Drag Handle */}
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white font-bold text-lg flex items-center justify-center shadow-md">
+            {/* Mobile-First Section Header - Now Collapsible */}
+            <div 
+                className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-gray-200 cursor-pointer hover:bg-blue-100/50 transition-colors touch-manipulation"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex items-center justify-between gap-3">
+                    {/* Left Side - Section Info */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white font-bold text-lg flex items-center justify-center shadow-md flex-shrink-0">
                             {index + 1}
                         </div>
                         <div className="p-2 text-gray-400 hover:text-gray-600 cursor-grab rounded-lg hover:bg-white/50 transition-colors touch-manipulation">
                             <GripVertical size={20} />
                         </div>
-                        <div className="flex-1">
-                            <Badge variant="default" className="text-xs">
-                                Section {index + 1}
-                            </Badge>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="default" className="text-xs">
+                                    Section {index + 1}
+                                </Badge>
+                                <span className="font-semibold text-gray-900 truncate">{section.title}</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-gray-600">
+                                <span>{section.groups.length} groups</span>
+                                <span>•</span>
+                                <span>{sectionStats.totalQuestions} questions</span>
+                                <span>•</span>
+                                <span className="font-medium text-gray-900">{sectionStats.totalMarks} marks</span>
+                            </div>
                         </div>
                     </div>
 
+                    {/* Right Side - Actions */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(section.id);
+                            }}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 min-h-[36px] w-9"
+                        >
+                            <Trash2 size={16} />
+                        </Button>
+                        <div className="text-gray-400 p-1">
+                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Expanded Content */}
+            {isExpanded && (
+                <div className="space-y-4">
                     {/* Section Form Fields */}
-                    <div className="space-y-4">
+                    <div className="p-4 space-y-4">
                         <div>
                             <Label className="flex items-center gap-2">
                                 <BookOpen size={16} className="text-blue-600" />
@@ -397,11 +435,8 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup, addSec
                                 rows={3}
                             />
                         </div>
-                    </div>
 
-                    {/* Mobile Actions and Stats */}
-                    <div className="space-y-3">
-                        {/* Action Buttons - Full Width on Mobile */}
+                        {/* Mobile Actions */}
                         <div className="flex gap-2">
                             <Button
                                 onClick={addSection}
@@ -411,97 +446,71 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup, addSec
                                 <Plus size={18} className="mr-2" />
                                 Add Section
                             </Button>
+                        </div>
+                    </div>
+
+                    {/* Question Groups Section */}
+                    <div className="p-4 border-t border-gray-200">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <Target size={18} className="text-indigo-600" />
+                                <Label className="text-lg mb-0 font-bold">Groups</Label>
+                                <Badge variant="default" className="text-xs">
+                                    {section.groups.length}
+                                </Badge>
+                            </div>
+
                             <Button
-                                onClick={() => onDelete(section.id)}
-                                variant="danger"
-                                className="shadow-md px-4"
+                                onClick={() => onAddGroup(section.id)}
+                                size="sm"
+                                className="shadow-md"
                             >
-                                <Trash2 size={16} />
+                                <Plus size={14} className="mr-1" />
+                                Add
                             </Button>
                         </div>
 
-                        {/* Stats - Mobile Grid */}
-                        <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
-                            <div className="text-xs text-gray-600 mb-2 font-semibold text-center">Section Summary</div>
-                            <div className="grid grid-cols-3 gap-3 text-center">
-                                <div>
-                                    <div className="font-bold text-blue-600 text-lg">{section.groups.length}</div>
-                                    <div className="text-xs text-gray-500">Groups</div>
+                        {section.groups.length === 0 ? (
+                            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-8 text-center border-2 border-dashed border-gray-300">
+                                <div className="p-4 bg-white rounded-2xl shadow-md w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                                    <Plus size={32} className="text-gray-400" />
                                 </div>
-                                <div>
-                                    <div className="font-bold text-green-600 text-lg">{sectionStats.totalQuestions}</div>
-                                    <div className="text-xs text-gray-500">Questions</div>
-                                </div>
-                                <div>
-                                    <div className="font-bold text-purple-600 text-lg">{sectionStats.totalMarks}</div>
-                                    <div className="text-xs text-gray-500">Marks</div>
-                                </div>
+                                <h4 className="font-bold text-gray-900 text-lg mb-2">No groups yet</h4>
+                                <p className="text-gray-600 mb-4 text-sm">
+                                    Add question groups to define different types of questions.
+                                </p>
+                                <Button
+                                    onClick={() => onAddGroup(section.id)}
+                                    className="shadow-lg"
+                                >
+                                    <Plus size={18} className="mr-2" />
+                                    Add First Group
+                                </Button>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {section.groups.map((group, groupIndex) => (
+                                    <QuestionGroupComponent
+                                        key={group.id}
+                                        group={group}
+                                        groupIndex={groupIndex}
+                                        onUpdate={(updatedGroup) => {
+                                            const updatedGroups = section.groups.map(g =>
+                                                g.id === group.id ? updatedGroup : g
+                                            );
+                                            onEdit({ ...section, groups: updatedGroups });
+                                        }}
+                                        onDelete={() => {
+                                            const updatedGroups = section.groups.filter(g => g.id !== group.id);
+                                            onEdit({ ...section, groups: updatedGroups });
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
-            </div>
-
-            {/* Question Groups Section */}
-            <div className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                        <Target size={18} className="text-indigo-600" />
-                        <Label className="text-lg mb-0 font-bold">Groups</Label>
-                        <Badge variant="default" className="text-xs">
-                            {section.groups.length}
-                        </Badge>
-                    </div>
-
-                    <Button
-                        onClick={() => onAddGroup(section.id)}
-                        size="sm"
-                        className="shadow-md"
-                    >
-                        <Plus size={14} className="mr-1" />
-                        Add
-                    </Button>
-                </div>
-
-                {section.groups.length === 0 ? (
-                    <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-8 text-center border-2 border-dashed border-gray-300">
-                        <div className="p-4 bg-white rounded-2xl shadow-md w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                            <Plus size={32} className="text-gray-400" />
-                        </div>
-                        <h4 className="font-bold text-gray-900 text-lg mb-2">No groups yet</h4>
-                        <p className="text-gray-600 mb-4 text-sm">
-                            Add question groups to define different types of questions.
-                        </p>
-                        <Button
-                            onClick={() => onAddGroup(section.id)}
-                            className="shadow-lg"
-                        >
-                            <Plus size={18} className="mr-2" />
-                            Add First Group
-                        </Button>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {section.groups.map((group, groupIndex) => (
-                            <QuestionGroupComponent
-                                key={group.id}
-                                group={group}
-                                groupIndex={groupIndex}
-                                onUpdate={(updatedGroup) => {
-                                    const updatedGroups = section.groups.map(g =>
-                                        g.id === group.id ? updatedGroup : g
-                                    );
-                                    onEdit({ ...section, groups: updatedGroups });
-                                }}
-                                onDelete={() => {
-                                    const updatedGroups = section.groups.filter(g => g.id !== group.id);
-                                    onEdit({ ...section, groups: updatedGroups });
-                                }}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
+            )}
         </Card>
     );
 };
