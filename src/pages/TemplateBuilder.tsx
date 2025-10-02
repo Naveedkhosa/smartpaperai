@@ -343,9 +343,9 @@ const QuestionGroupComponent = ({ group, groupIndex, onUpdate, onDelete }) => {
 };
 
 // Mobile-Optimized Section Component - Updated with Collapsible Feature
-const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup, addSection }) => {
+const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup }) => {
     const [isExpanded, setIsExpanded] = useState(true);
-    
+
     const sectionStats = useMemo(() => {
         const totalQuestions = section.groups.reduce((sum, group) => sum + group.questionsCount, 0);
         const totalMarks = section.groups.reduce((sum, group) => sum + (group.questionsCount * group.marksPerQuestion), 0);
@@ -355,7 +355,7 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup, addSec
     return (
         <Card className="mb-6 overflow-hidden">
             {/* Mobile-First Section Header - Now Collapsible */}
-            <div 
+            <div
                 className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-gray-200 cursor-pointer hover:bg-blue-100/50 transition-colors touch-manipulation"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
@@ -435,18 +435,6 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup, addSec
                                 rows={3}
                             />
                         </div>
-
-                        {/* Mobile Actions */}
-                        <div className="flex gap-2">
-                            <Button
-                                onClick={addSection}
-                                variant="success"
-                                className="w-full shadow-lg"
-                            >
-                                <Plus size={18} className="mr-2" />
-                                Add Section
-                            </Button>
-                        </div>
                     </div>
 
                     {/* Question Groups Section */}
@@ -525,6 +513,35 @@ const TemplateBuilder = () => {
         }
     ]);
 
+    const [templateDetails, setTemplateDetails] = useState({
+        name: '',
+        class: '',
+        subject: ''
+    });
+
+    const [availableSubjects, setAvailableSubjects] = useState([]);
+
+    const classOptions = [
+        'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+        'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
+        'Class 11', 'Class 12'
+    ];
+
+    const subjectOptions = {
+        'Class 1': ['English', 'Mathematics', 'Science', 'Social Studies'],
+        'Class 2': ['English', 'Mathematics', 'Science', 'Social Studies'],
+        'Class 3': ['English', 'Mathematics', 'Science', 'Social Studies'],
+        'Class 4': ['English', 'Mathematics', 'Science', 'Social Studies'],
+        'Class 5': ['English', 'Mathematics', 'Science', 'Social Studies'],
+        'Class 6': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
+        'Class 7': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
+        'Class 8': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
+        'Class 9': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
+        'Class 10': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
+        'Class 11': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English'],
+        'Class 12': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English']
+    };
+
     const totals = useMemo(() => {
         const totalQuestions = sections.reduce((total, sec) =>
             total + sec.groups.reduce((secTotal, group) => secTotal + group.questionsCount, 0), 0
@@ -540,6 +557,26 @@ const TemplateBuilder = () => {
 
         return { totalQuestions, totalMarks, totalGroups };
     }, [sections]);
+
+    const handleClassChange = (selectedClass) => {
+        setTemplateDetails(prev => ({
+            ...prev,
+            class: selectedClass,
+            subject: '' // Reset subject when class changes
+        }));
+
+        // Load subjects based on selected class
+        if (subjectOptions[selectedClass]) {
+            setAvailableSubjects(subjectOptions[selectedClass]);
+        } else {
+            setAvailableSubjects([]);
+        }
+    };
+
+    const handleBackClick = () => {
+        // Navigate to /teacher/templates
+        window.location.href = '/teacher/templates';
+    };
 
     const addSection = () => {
         const newSection = {
@@ -581,6 +618,7 @@ const TemplateBuilder = () => {
 
     const saveTemplate = () => {
         const templateData = {
+            templateDetails,
             sections,
             totals,
             createdAt: new Date().toISOString(),
@@ -598,50 +636,72 @@ const TemplateBuilder = () => {
                 <Card className="mb-6 overflow-hidden">
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4">
                         <div className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <Button variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20" size="sm">
+                            <div className="flex items-center justify-between gap-3">
+                                <Button
+                                    variant="outline"
+                                    className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                                    size="sm"
+                                    onClick={handleBackClick}
+                                >
                                     <ArrowLeft size={18} className="mr-2" />
                                     Back
                                 </Button>
+
+                                <Button
+                                    onClick={saveTemplate}
+                                    className="w-[fit-content] bg-white text-blue-600 hover:bg-blue-50 shadow-lg"
+                                >
+                                    <Save size={17} className="mr-2" />
+                                    Save Template
+                                </Button>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1">
                                     <h1 className="text-xl font-bold">Create Template</h1>
                                     <p className="text-blue-100 text-sm">Design your exam structure</p>
                                 </div>
+                                 <div className="flex  items-center gap-4 sm:flex-row flex-col gap-0">
+                                    <p className="text-blue-100 text-sm">Class : 10th</p> 
+                                    <p className="text-blue-100 text-sm">Subject : Mathematics</p>
+                                </div>
                             </div>
 
-                            <Button
-                                onClick={saveTemplate}
-                                className="w-full bg-white text-blue-600 hover:bg-blue-50 shadow-lg"
-                            >
-                                <Save size={18} className="mr-2" />
-                                Save Template
-                            </Button>
+
                         </div>
                     </div>
 
+
+
                     {/* Mobile Stats Grid */}
                     <div className="p-4 bg-white">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
-                                <div className="text-2xl font-bold text-blue-600 mb-1">{sections.length}</div>
-                                <div className="text-blue-700 font-semibold text-sm">Sections</div>
+                        <div className="grid grid-cols-4 gap-0">
+                            <div className="text-center p-1 bg-gradient-to-br from-blue-50 to-blue-100  border border-blue-200">
+                                <div className="text-sm font-bold text-blue-600 mb-1">{sections.length} Sections</div>
                             </div>
-                            <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
-                                <div className="text-2xl font-bold text-green-600 mb-1">{totals.totalGroups}</div>
-                                <div className="text-green-700 font-semibold text-sm">Groups</div>
+                            <div className="text-center p-1 bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
+                                <div className="text-sm font-bold text-green-600 mb-1">{totals.totalGroups} Groups</div>
                             </div>
-                            <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
-                                <div className="text-2xl font-bold text-purple-600 mb-1">{totals.totalQuestions}</div>
-                                <div className="text-purple-700 font-semibold text-sm">Questions</div>
+                            <div className="text-center p-1 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
+                                <div className="text-sm font-bold text-purple-600 mb-1">{totals.totalQuestions} Questions</div>
                             </div>
-                            <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200">
-                                <div className="text-2xl font-bold text-orange-600 mb-1">{totals.totalMarks}</div>
-                                <div className="text-orange-700 font-semibold text-sm">Marks</div>
+                            <div className="text-center p-1 bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200">
+                                <div className="text-sm font-bold text-orange-600 mb-1">{totals.totalMarks} Marks</div>
                             </div>
                         </div>
                     </div>
                 </Card>
 
+                {/* Add Section Button - Above Sections */}
+                <div className="mb-6">
+                    <Button
+                        onClick={addSection}
+                        variant="success"
+                        className="w-full shadow-lg"
+                    >
+                        <Plus size={18} className="mr-2" />
+                        Add Section
+                    </Button>
+                </div>
 
                 {/* Main Content */}
                 {sections.length === 0 ? (
@@ -673,7 +733,6 @@ const TemplateBuilder = () => {
                                 onEdit={updateSection}
                                 onDelete={deleteSection}
                                 onAddGroup={addQuestionGroup}
-                                addSection={addSection}
                             />
                         ))}
                     </div>
@@ -695,8 +754,6 @@ const TemplateBuilder = () => {
                                     <Save className="w-5 h-5 mr-2" />
                                     Save Template
                                 </Button>
-
-
                             </div>
                         </div>
                     </div>

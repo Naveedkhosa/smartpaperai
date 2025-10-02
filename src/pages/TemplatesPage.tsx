@@ -1,7 +1,7 @@
 // src/pages/TemplatesPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, FileText, MoreVertical, Edit, Trash2, Download, BookOpen, FileDigit } from 'lucide-react';
+import { Search, Plus, FileText, MoreVertical, Edit, Trash2, Download, BookOpen, FileDigit, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,11 +22,105 @@ interface Template {
   isPublic: boolean;
 }
 
+// Select Components (copied from TemplateBuilder for consistency)
+const Select = ({ children, value, onValueChange, placeholder = "Select...", disabled = false }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const selectedOption = React.Children.toArray(children).find(child =>
+    child.props.value === value
+  );
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base bg-white text-left min-h-[52px]
+                   focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 
+                   transition-all duration-300 flex items-center justify-between hover:border-gray-400 touch-manipulation
+                   ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''}`}
+        disabled={disabled}
+      >
+        <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
+          {selectedOption ? selectedOption.props.children : placeholder}
+        </span>
+        <svg 
+          className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-auto">
+          {React.Children.map(children, (child) =>
+            React.cloneElement(child, {
+              onClick: () => {
+                onValueChange(child.props.value);
+                setIsOpen(false);
+              }
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SelectItem = ({ children, value, onClick }) => (
+  <div
+    onClick={onClick}
+    className="px-4 py-3 text-base hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0 first:rounded-t-xl last:rounded-b-xl touch-manipulation min-h-[52px] flex items-center"
+  >
+    {children}
+  </div>
+);
+
+const Label = ({ children, className = "", ...props }) => (
+  <label className={`block text-sm font-bold text-gray-800 mb-2 ${className}`} {...props}>
+    {children}
+  </label>
+);
+
 const TemplatesPage = () => {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
+  
+  // New template form state
+  const [newTemplate, setNewTemplate] = useState({
+    name: '',
+    class: '',
+    subject: ''
+  });
+
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+
+  // Class and subject options
+  const classOptions = [
+    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+    'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
+    'Class 11', 'Class 12'
+  ];
+
+  const subjectOptions = {
+    'Class 1': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 2': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 3': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 4': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 5': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 6': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
+    'Class 7': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
+    'Class 8': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
+    'Class 9': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
+    'Class 10': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
+    'Class 11': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English'],
+    'Class 12': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English']
+  };
 
   // Mock data
   useEffect(() => {
@@ -88,8 +182,50 @@ const TemplatesPage = () => {
     template.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleClassChange = (selectedClass: string) => {
+    setNewTemplate(prev => ({
+      ...prev,
+      class: selectedClass,
+      subject: '' // Reset subject when class changes
+    }));
+    
+    // Load subjects based on selected class
+    if (subjectOptions[selectedClass]) {
+      setAvailableSubjects(subjectOptions[selectedClass]);
+    } else {
+      setAvailableSubjects([]);
+    }
+  };
+
   const handleCreateNew = () => {
-    navigate('/templates/builder');
+    setIsCreatePopupOpen(true);
+  };
+
+  const handleSaveNewTemplate = () => {
+    if (!newTemplate.name || !newTemplate.class || !newTemplate.subject) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    // Generate a new template ID
+    const newTemplateId = Date.now().toString();
+    
+    // Navigate to template builder with the new template details
+    navigate(`/templates/builder?edit=${newTemplateId}`, {
+      state: {
+        templateDetails: newTemplate
+      }
+    });
+  };
+
+  const handleClosePopup = () => {
+    setIsCreatePopupOpen(false);
+    setNewTemplate({
+      name: '',
+      class: '',
+      subject: ''
+    });
+    setAvailableSubjects([]);
   };
 
   const handleEditTemplate = (id: string) => {
@@ -164,6 +300,84 @@ const TemplatesPage = () => {
                 />
               </div>
             </div>
+
+            {/* Create Template Popup */}
+            {isCreatePopupOpen && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="glassmorphism-strong rounded-2xl p-6 w-full max-w-md">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-white">Create New Template</h2>
+                    <Button
+                      variant="ghost"
+                      onClick={handleClosePopup}
+                      className="text-slate-300 hover:text-white p-2"
+                    >
+                      <X size={20} />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-white">Template Name</Label>
+                      <Input
+                        value={newTemplate.name}
+                        onChange={(e) => setNewTemplate(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Enter template name"
+                        className="glass-input mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-white">Class</Label>
+                      <Select
+                        value={newTemplate.class}
+                        onValueChange={handleClassChange}
+                        placeholder="Select Class"
+                      >
+                        {classOptions.map((classOption) => (
+                          <SelectItem key={classOption} value={classOption}>
+                            {classOption}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-white">Subject</Label>
+                      <Select
+                        value={newTemplate.subject}
+                        onValueChange={(value) => setNewTemplate(prev => ({ ...prev, subject: value }))}
+                        placeholder={newTemplate.class ? "Select Subject" : "Select Class First"}
+                        disabled={!newTemplate.class}
+                      >
+                        {availableSubjects.map((subject) => (
+                          <SelectItem key={subject} value={subject}>
+                            {subject}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <Button
+                      variant="outline"
+                      onClick={handleClosePopup}
+                      className="flex-1 border-slate-400 text-slate-300 hover:bg-slate-800"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSaveNewTemplate}
+                      disabled={!newTemplate.name || !newTemplate.class || !newTemplate.subject}
+                      className="flex-1 emerald-gradient"
+                    >
+                      Create Template
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Templates Grid */}
             {filteredTemplates.length > 0 ? (
