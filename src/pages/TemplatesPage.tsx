@@ -1,6 +1,7 @@
 // src/pages/TemplatesPage.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+<<<<<<< HEAD
 import { Search, Plus, FileText, MoreVertical, Edit, Trash2, Download, BookOpen, FileDigit, X } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -21,6 +22,15 @@ interface Subject {
   id: string;
   name: string;
 }
+=======
+import { Search, Plus, FileText, Edit, Trash2, Download, BookOpen, FileDigit, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import GlassmorphismLayout from "@/components/GlassmorphismLayout";
+import TeacherSidebar from '@/components/TeacherSidebar';
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
 
 interface Template {
   id: string;
@@ -49,6 +59,7 @@ interface Template {
   }>;
 }
 
+<<<<<<< HEAD
 interface TemplatesResponse {
   status: boolean;
   data: {
@@ -66,6 +77,11 @@ interface TemplatesResponse {
 // Select Components
 const Select = ({ children, value, onValueChange, placeholder = "Select...", disabled = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+=======
+// ✅ Select Components (updated for single open dropdown)
+const Select = ({ id, children, value, onValueChange, placeholder = "Select...", disabled = false, openSelect, setOpenSelect }) => {
+  const isOpen = openSelect === id;
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
 
   const selectedOption = React.Children.toArray(children).find(child =>
     child.props.value === value
@@ -75,7 +91,7 @@ const Select = ({ children, value, onValueChange, placeholder = "Select...", dis
     <div className="relative">
       <button
         type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
+        onClick={() => !disabled && setOpenSelect(isOpen ? null : id)}
         className={`w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base bg-white text-left min-h-[52px]
                    focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 
                    transition-all duration-300 flex items-center justify-between hover:border-gray-400 touch-manipulation
@@ -100,7 +116,7 @@ const Select = ({ children, value, onValueChange, placeholder = "Select...", dis
             React.cloneElement(child, {
               onClick: () => {
                 onValueChange(child.props.value);
-                setIsOpen(false);
+                setOpenSelect(null);
               }
             })
           )}
@@ -133,6 +149,7 @@ const TemplatesPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
+<<<<<<< HEAD
   const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -143,6 +160,12 @@ const TemplatesPage = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
 
+=======
+
+  // ✅ Track which Select is open
+  const [openSelect, setOpenSelect] = useState<string | null>(null);
+  
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
   // New template form state
   const [newTemplate, setNewTemplate] = useState({
     name: '',
@@ -150,6 +173,7 @@ const TemplatesPage = () => {
     subject_id: ''
   });
 
+<<<<<<< HEAD
   // Edit template form state
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [editForm, setEditForm] = useState({
@@ -162,6 +186,63 @@ const TemplatesPage = () => {
   useEffect(() => {
     fetchClasses();
     fetchTemplates(1, '');
+=======
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
+
+  // Class and subject options
+  const classOptions = [
+    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+    'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
+    'Class 11', 'Class 12'
+  ];
+
+  const subjectOptions: Record<string, string[]> = {
+    'Class 1': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 2': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 3': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 4': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 5': ['English', 'Mathematics', 'Science', 'Social Studies'],
+    'Class 6': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
+    'Class 7': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
+    'Class 8': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
+    'Class 9': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
+    'Class 10': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
+    'Class 11': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English'],
+    'Class 12': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English']
+  };
+
+  // Mock data
+  useEffect(() => {
+    const mockTemplates: Template[] = [
+      {
+        id: '1',
+        title: 'Mathematics Final Exam Template',
+        description: 'Comprehensive math exam covering algebra, geometry, and calculus',
+        totalQuestions: 25,
+        totalMarks: 100,
+        sections: 4,
+        createdAt: '2024-01-15',
+        updatedAt: '2024-01-20',
+        isPublic: true
+      },
+      {
+        id: '2',
+        title: 'Science Quiz Template',
+        description: 'Quick assessment template for physics and chemistry concepts',
+        totalQuestions: 15,
+        totalMarks: 50,
+        sections: 2,
+        createdAt: '2024-01-10',
+        updatedAt: '2024-01-18',
+        isPublic: false
+      }
+    ];
+
+    setTimeout(() => {
+      setTemplates(mockTemplates);
+      setIsLoading(false);
+    }, 1000);
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
   }, []);
 
   // Fetch templates
@@ -268,6 +349,7 @@ const TemplatesPage = () => {
   const handleClassChange = async (classId: string) => {
     setNewTemplate(prev => ({
       ...prev,
+<<<<<<< HEAD
       class_id: classId,
       subject_id: '' // Reset subject when class changes
     }));
@@ -293,17 +375,22 @@ const TemplatesPage = () => {
     } else {
       setFilteredSubjects([]);
     }
+=======
+      class: selectedClass,
+      subject: ''
+    }));
+    setAvailableSubjects(subjectOptions[selectedClass] || []);
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
   };
 
-  const handleCreateNew = () => {
-    setIsCreatePopupOpen(true);
-  };
+  const handleCreateNew = () => setIsCreatePopupOpen(true);
 
   const handleSaveNewTemplate = async () => {
     if (!newTemplate.name || !newTemplate.class_id || !newTemplate.subject_id) {
       alert('Please fill in all fields');
       return;
     }
+<<<<<<< HEAD
 
     try {
       const response = await ApiService.request('/user/paper-templates', {
@@ -336,6 +423,11 @@ const TemplatesPage = () => {
       name: template.title,
       class_id: template.class_id,
       subject_id: template.subject_id
+=======
+    const newTemplateId = Date.now().toString();
+    navigate(`/templates/builder?edit=${newTemplateId}`, {
+      state: { templateDetails: newTemplate }
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
     });
     // Fetch subjects for the template's class
     fetchSubjects(template.class_id);
@@ -388,6 +480,7 @@ const TemplatesPage = () => {
 
   const handleClosePopup = () => {
     setIsCreatePopupOpen(false);
+<<<<<<< HEAD
     setNewTemplate({
       name: '',
       class_id: '',
@@ -430,28 +523,53 @@ const TemplatesPage = () => {
       }
     }
   };
+=======
+    setNewTemplate({ name: '', class: '', subject: '' });
+    setAvailableSubjects([]);
+  };
+
+  const handleEditTemplate = (id: string) => navigate(`/templates/builder?edit=${id}`);
+  const handleDeleteTemplate = (id: string) => setTemplates(prev => prev.filter(t => t.id !== id));
+  const handleDuplicateTemplate = (template: Template) => {
+    const newTemplate = {
+      ...template,
+      id: Date.now().toString(),
+      title: `${template.title} (Copy)`,
+      createdAt: new Date().toISOString().split('T')[0],
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+    setTemplates(prev => [...prev, newTemplate]);
+  };
+
+  if (isLoading) {
+    return (
+      <GlassmorphismLayout>
+        <div className="flex">
+          <TeacherSidebar />
+          <div className="flex-1 min-h-screen flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
+          </div>
+        </div>
+      </GlassmorphismLayout>
+    );
+  }
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
 
   return (
     <GlassmorphismLayout>
       <div className="flex">
         <TeacherSidebar />
-        <div className="flex-1 ml-0 lg:ml-0 min-h-screen p-0">
+        <div className="flex-1 min-h-screen p-0">
           <div className="container mx-auto p-4">
             {/* Header */}
             <div className="glassmorphism-strong rounded-2xl p-6 mb-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Exam Templates</h1>
-                  <p className="text-slate-200/90">
-                    Create and manage reusable exam templates for your classes
-                  </p>
+                  <p className="text-slate-200/90">Create and manage reusable exam templates</p>
                 </div>
-                <Button
-                  onClick={handleCreateNew}
-                  className="emerald-gradient"
-                >
-                  <Plus size={20} className="mr-2" />
-                  New Template
+                <Button onClick={handleCreateNew} className="emerald-gradient">
+                  <Plus size={20} className="mr-2" /> New Template
                 </Button>
               </div>
             </div>
@@ -481,11 +599,7 @@ const TemplatesPage = () => {
                 <div className="glassmorphism-strong rounded-2xl p-6 w-full max-w-md">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-white">Create New Template</h2>
-                    <Button
-                      variant="ghost"
-                      onClick={handleClosePopup}
-                      className="text-slate-300 hover:text-white p-2"
-                    >
+                    <Button variant="ghost" onClick={handleClosePopup} className="text-slate-300 hover:text-white p-2">
                       <X size={20} />
                     </Button>
                   </div>
@@ -504,9 +618,16 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Class</Label>
                       <Select
+<<<<<<< HEAD
                         value={newTemplate.class_id}
+=======
+                        id="class"
+                        value={newTemplate.class}
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
                         onValueChange={handleClassChange}
                         placeholder="Select Class"
+                        openSelect={openSelect}
+                        setOpenSelect={setOpenSelect}
                       >
                         {classes.map((classItem) => (
                           <SelectItem key={classItem.id} value={classItem.id}>
@@ -519,10 +640,20 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Subject</Label>
                       <Select
+<<<<<<< HEAD
                         value={newTemplate.subject_id}
                         onValueChange={(value) => setNewTemplate(prev => ({ ...prev, subject_id: value }))}
                         placeholder={newTemplate.class_id ? "Select Subject" : "Select Class First"}
                         disabled={!newTemplate.class_id}
+=======
+                        id="subject"
+                        value={newTemplate.subject}
+                        onValueChange={(value) => setNewTemplate(prev => ({ ...prev, subject: value }))}
+                        placeholder={newTemplate.class ? "Select Subject" : "Select Class First"}
+                        disabled={!newTemplate.class}
+                        openSelect={openSelect}
+                        setOpenSelect={setOpenSelect}
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
                       >
                         {filteredSubjects.map((subject) => (
                           <SelectItem key={subject.id} value={subject.id}>
@@ -534,11 +665,7 @@ const TemplatesPage = () => {
                   </div>
 
                   <div className="flex gap-3 mt-6">
-                    <Button
-                      variant="outline"
-                      onClick={handleClosePopup}
-                      className="flex-1 border-slate-400 text-slate-300 hover:bg-slate-800"
-                    >
+                    <Button variant="outline" onClick={handleClosePopup} className="flex-1 border-slate-400 text-slate-300 hover:bg-slate-800">
                       Cancel
                     </Button>
                     <Button
@@ -553,6 +680,7 @@ const TemplatesPage = () => {
               </div>
             )}
 
+<<<<<<< HEAD
             {/* Edit Template Popup */}
             {isEditPopupOpen && editingTemplate && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -628,6 +756,57 @@ const TemplatesPage = () => {
                     </Button>
                   </div>
                 </div>
+=======
+            {/* Templates Grid */}
+            {filteredTemplates.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+                {filteredTemplates.map((template) => (
+                  <Card key={template.id} className="relative group overflow-hidden rounded-xl border border-white/30 hover:border-emerald-400/40 transition-all bg-slate-900">
+                    <div className="h-32 w-full flex items-center justify-center relative bg-slate-800">
+                      <FileText className="text-6xl text-slate-400" />
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-sm font-bold p-2">
+                        <p className="line-clamp-1">{template.title}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 border-t border-white/20 bg-slate-800/50">
+                      <div className="flex items-center gap-2 text-slate-200 text-xs">
+                        <FileDigit size={16} /> <span>{template.totalQuestions} Qs</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-200 text-xs">
+                        <BookOpen size={16} /> <span>{template.totalMarks} Marks</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-200 text-xs">
+                        <span>{template.sections} Sections</span>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-slate-300 text-sm line-clamp-2 mb-3">{template.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400 text-xs">Updated {new Date(template.updatedAt).toLocaleDateString()}</span>
+                        {template.isPublic ? (
+                          <Badge variant="outline" className="text-green-400 border-green-400/30 text-xs">Public</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-slate-400 border-slate-400/30 text-xs">Private</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center">
+                      <p className="text-slate-200 text-sm line-clamp-3 mb-4">{template.description}</p>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEditTemplate(template.id)} className="p-2 rounded-full bg-blue-500 hover:bg-blue-400 text-white">
+                          <Edit size={16} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDuplicateTemplate(template)} className="p-2 rounded-full bg-yellow-500 hover:bg-yellow-400 text-white">
+                          <Download size={16} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteTemplate(template.id)} className="p-2 rounded-full bg-red-500 hover:bg-red-400 text-white">
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
               </div>
             )}
 
@@ -739,15 +918,18 @@ const TemplatesPage = () => {
               <div className="glassmorphism-strong rounded-xl p-12 text-center">
                 <FileText size={48} className="mx-auto text-slate-400 mb-4" />
                 <h3 className="text-xl text-white mb-2">No templates found</h3>
+<<<<<<< HEAD
                 <p className="text-slate-300/80 mb-6">
                   {searchTerm
                     ? 'Try adjusting your search terms'
                     : 'Get started by creating your first template'
                   }
                 </p>
+=======
+                <p className="text-slate-300/80 mb-6">{searchTerm ? 'Try adjusting your search terms' : 'Get started by creating your first template'}</p>
+>>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
                 <Button onClick={handleCreateNew} className="emerald-gradient">
-                  <Plus size={20} className="mr-2" />
-                  Create Template
+                  <Plus size={20} className="mr-2" /> Create Template
                 </Button>
               </div>
             )}
