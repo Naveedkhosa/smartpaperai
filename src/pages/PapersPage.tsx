@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, Plus, FileText, Edit, Trash2, Download, 
-  Eye, Calendar, BookOpen, FileDigit, Loader2, Copy
+import {
+  Search, Plus, FileText, Edit, Trash2, Download,
+  Eye, Calendar, BookOpen, FileDigit, Loader2, Copy,
+  Clock, Award, MoreVertical, Grid, List, Filter
 } from 'lucide-react';
 import GlassmorphismLayout from "@/components/GlassmorphismLayout";
 import TeacherSidebar from '@/components/TeacherSidebar';
@@ -9,6 +10,26 @@ import { useNavigate } from "react-router-dom";
 import { ApiService } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../hooks/use-toast";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+const API_BASE_URL = 'https://apis.babalrukn.com/api';
 
 interface Paper {
   id: string;
@@ -34,73 +55,197 @@ interface Paper {
   };
 }
 
+interface ClassItem {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+interface SubjectItem {
+  id: number;
+  name: string;
+  description?: string;
+  class_id: number;
+}
+
 const PapersPage = () => {
   const [papers, setPapers] = useState<Paper[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(9);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingPaper, setEditingPaper] = useState<Paper | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [formData, setFormData] = useState({
+    title: '',
+    duration: '',
+    classId: '',
+    subjectId: ''
+  });
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const papersApi = new ApiService('/papers');
+  const getToken = () => localStorage.getItem('smartpaper_token');
 
-  // Debug function to check token
   const checkToken = () => {
     const token = localStorage.getItem('smartpaper_token');
     const user = localStorage.getItem('smartpaper_user');
-    
+  
     console.log('🔑 Token from localStorage:', token);
     console.log('👤 User from localStorage:', user);
-    
+  
     if (!token) {
       console.error('❌ No token found in localStorage');
       return false;
     }
-    
+  
     return true;
   };
 
-  // Fetch papers from API
+  const fetchClasses = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/classes`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch classes');
+      }
+
+      const data = await response.json();
+      if (data.status && data.data && data.data.classes) {
+        setClasses(data.data.classes);
+      }
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch classes',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchSubjects = async (classId: string) => {
+    const token = getToken();
+    if (!token || !classId) {
+      setSubjects([]);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/classes/${classId}/subjects`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch subjects');
+      }
+
+      const data = await response.json();
+      setSubjects(data.data.class?.subjects || []);
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      setSubjects([]);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch subjects',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const fetchPapers = async () => {
     try {
       setIsLoading(true);
-      
-      // Check if token exists
+    
       if (!checkToken()) {
         console.log('Redirecting to login...');
         navigate('/login');
         return;
       }
-
       console.log('📡 Fetching papers from API...');
-      
+    
       const response = await papersApi.getAll();
-      
+    
       console.log('📦 API Response:', response);
-      
+    
       if (response.status && response.data && response.data.papers) {
         setPapers(response.data.papers);
         console.log(`✅ Loaded ${response.data.papers.length} papers`);
       } else {
         console.error('❌ Invalid API response format:', response);
-        // Fallback to mock data for development
         setPapers(getMockPapers());
       }
     } catch (error) {
       console.error('❌ Error fetching papers:', error);
-      // Fallback to mock data if API fails
       setPapers(getMockPapers());
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Delete paper
+  const handleUpdatePaper = async () => {
+    if (!editingPaper || !formData.title || !formData.duration || !formData.classId || !formData.subjectId) {
+      toast({
+        title: 'Error',
+        description: 'Please fill all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const payload = {
+        title: formData.title,
+        duration: parseInt(formData.duration),
+        class_id: parseInt(formData.classId),
+        subject_id: parseInt(formData.subjectId),
+      };
+
+      const response = await papersApi.update(editingPaper.id, payload);
+    
+      if (response.status) {
+        await fetchPapers();
+        setIsEditDialogOpen(false);
+        setEditingPaper(null);
+        toast({
+          title: 'Success',
+          description: 'Paper updated successfully',
+        });
+      } else {
+        throw new Error('Failed to update paper');
+      }
+    } catch (error) {
+      console.error('❌ Error updating paper:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update paper',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDeletePaper = async (id: string) => {
     try {
       setDeletingId(id);
-      
+    
       const response = await papersApi.delete(id);
-      
+    
       if (response.status) {
         setPapers(prev => prev.filter(p => p.id !== id));
         console.log('✅ Paper deleted successfully');
@@ -109,14 +254,35 @@ const PapersPage = () => {
       }
     } catch (error) {
       console.error('❌ Error deleting paper:', error);
-      // Fallback: remove from local state even if API fails
       setPapers(prev => prev.filter(p => p.id !== id));
     } finally {
       setDeletingId(null);
+      setActiveDropdown(null);
     }
   };
 
-  // Mock data fallback
+  const openEditDialog = (paper: Paper) => {
+    setEditingPaper(paper);
+    setFormData({
+      title: paper.title,
+      duration: paper.duration.toString(),
+      classId: paper.class_id.toString(),
+      subjectId: paper.subject_id.toString(),
+    });
+    fetchSubjects(paper.class_id.toString());
+    setIsEditDialogOpen(true);
+    setActiveDropdown(null);
+  };
+
+  const handleClassChange = (value: string) => {
+    setFormData(prev => ({ ...prev, classId: value, subjectId: '' }));
+    if (value) {
+      fetchSubjects(value);
+    } else {
+      setSubjects([]);
+    }
+  };
+
   const getMockPapers = (): Paper[] => [
     {
       id: '1',
@@ -180,11 +346,12 @@ const PapersPage = () => {
       updated_at: new Date().toISOString()
     };
     setPapers(prev => [...prev, newPaper]);
+    setActiveDropdown(null);
   };
 
   const getTotalQuestions = (paper: Paper) => {
     if (!paper.sections || paper.sections.length === 0) return 0;
-    
+  
     let totalQuestions = 0;
     paper.sections.forEach(section => {
       if (section.section_groups) {
@@ -200,28 +367,29 @@ const PapersPage = () => {
 
   const getSubjectColor = (subjectName: string) => {
     const colors: { [key: string]: string } = {
-      'Mathematics': 'from-blue-500 to-indigo-600',
-      'Science': 'from-green-500 to-emerald-600',
-      'English': 'from-purple-500 to-pink-600',
-      'History': 'from-amber-500 to-orange-600',
-      'Computer Science': 'from-cyan-500 to-blue-600',
-      'Physics': 'from-violet-500 to-purple-600',
-      'Chemistry': 'from-rose-500 to-red-600',
-      'Biology': 'from-teal-500 to-green-600',
-      'Geography': 'from-orange-500 to-amber-600'
+      'Mathematics': 'bg-blue-500',
+      'Science': 'bg-green-500',
+      'English': 'bg-purple-500',
+      'History': 'bg-amber-500',
+      'Computer Science': 'bg-cyan-500',
+      'Physics': 'bg-violet-500',
+      'Chemistry': 'bg-rose-500',
+      'Biology': 'bg-teal-500',
+      'Geography': 'bg-orange-500'
     };
-    return colors[subjectName] || 'from-slate-500 to-slate-600';
+    return colors[subjectName] || 'bg-slate-500';
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      month: 'short', 
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
   };
 
   useEffect(() => {
+    fetchClasses();
     fetchPapers();
   }, []);
 
@@ -236,68 +404,40 @@ const PapersPage = () => {
   const currentPapers = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
 
-  // Enhanced Loading Animation Component
   const LoadingAnimation = () => (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 md:p-6 lg:p-8">
+    <div className="flex-1 min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header Skeleton */}
-        <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 md:p-8 mb-6 border border-white/10">
+        <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-8 mb-6">
           <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-white/10 rounded-lg w-1/3"></div>
-            <div className="h-4 bg-white/10 rounded-lg w-1/2"></div>
-            <div className="flex gap-4 mt-4">
-              <div className="h-4 bg-white/10 rounded-lg w-24"></div>
-              <div className="h-4 bg-white/10 rounded-lg w-24"></div>
-            </div>
+            <div className="h-8 bg-white/10 rounded w-1/3"></div>
+            <div className="h-4 bg-white/10 rounded w-1/2"></div>
           </div>
         </div>
-
-        {/* Search Skeleton */}
-        <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-4 mb-6 border border-white/10">
-          <div className="h-12 bg-white/10 rounded-xl animate-pulse"></div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
+              <div className="animate-pulse space-y-3">
+                <div className="h-4 bg-white/10 rounded w-2/3"></div>
+                <div className="h-8 bg-white/10 rounded w-1/2"></div>
+              </div>
+            </div>
+          ))}
         </div>
-
-        {/* Papers Grid Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, index) => (
-            <div key={index} className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden">
               <div className="animate-pulse">
-                {/* Header Gradient */}
-                <div className="h-32 bg-gradient-to-br from-slate-600 to-slate-700 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-black/20"></div>
-                </div>
-                
-                {/* Content */}
-                <div className="p-5 space-y-4">
-                  {/* Title */}
+                <div className="h-2 bg-gradient-to-r from-slate-600 to-slate-700"></div>
+                <div className="p-6 space-y-4">
                   <div className="h-6 bg-white/10 rounded w-3/4"></div>
-                  
-                  {/* Description */}
                   <div className="space-y-2">
-                    <div className="h-4 bg-white/10 rounded w-full"></div>
+                    <div className="h-4 bg-white/10 rounded"></div>
                     <div className="h-4 bg-white/10 rounded w-2/3"></div>
                   </div>
-
-                  {/* Stats */}
-                  <div className="flex items-center justify-between py-3 px-4 bg-white/5 rounded-xl border border-white/5">
-                    <div className="h-4 bg-white/10 rounded w-16"></div>
-                    <div className="w-px h-6 bg-white/10"></div>
-                    <div className="h-4 bg-white/10 rounded w-16"></div>
-                    <div className="w-px h-6 bg-white/10"></div>
-                    <div className="h-4 bg-white/10 rounded w-16"></div>
-                  </div>
-
-                  {/* Meta Info */}
-                  <div className="flex items-center justify-between">
-                    <div className="h-6 bg-white/10 rounded w-20"></div>
-                    <div className="h-6 bg-white/10 rounded w-16"></div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="grid grid-cols-3 gap-2 pt-2">
-                    <div className="h-10 bg-white/10 rounded-lg"></div>
-                    <div className="h-10 bg-white/10 rounded-lg"></div>
-                    <div className="h-10 bg-white/10 rounded-lg"></div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="h-12 bg-white/10 rounded"></div>
+                    <div className="h-12 bg-white/10 rounded"></div>
+                    <div className="h-12 bg-white/10 rounded"></div>
                   </div>
                 </div>
               </div>
@@ -320,219 +460,368 @@ const PapersPage = () => {
   }
 
   return (
-  <GlassmorphismLayout>
-            <div className="flex">
-                <TeacherSidebar />
-                <div className="flex-1 ml-0 lg:ml-0 min-h-screen p-0">
-                    <div className="container mx-auto">
+    <GlassmorphismLayout>
+      <div className="flex">
+        <TeacherSidebar />
+        <div className="flex-1 min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+          <div className="max-w-7xl mx-auto p-6">
             {/* Header */}
-            <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-6 md:p-8 mb-6 border border-white/10 shadow-2xl">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div className="space-y-2">
-                  <h1 className="text-3xl md:text-4xl font-bold text-white">
-                    Exam Papers
-                  </h1>
-                  <p className="text-slate-300 text-base md:text-lg">
-                    Create, manage, and organize your examination papers
-                  </p>
-                  <div className="flex items-center gap-4 text-sm text-slate-400 pt-2">
-                    <span className="flex items-center gap-2">
-                      <FileText size={16} />
-                      {papers.length} Total Papers
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <BookOpen size={16} />
-                      {papers.length} Active
-                    </span>
-                  </div>
+            <div className="mb-8">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-3xl font-bold text-white mb-2">Exam Papers</h1>
+                  <p className="text-slate-300">Manage and organize your examination papers</p>
                 </div>
                 <button
                   onClick={() => navigate('/teacher/create')}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap"
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
                 >
                   <Plus size={20} />
                   Create New Paper
                 </button>
               </div>
-            </div>
 
-            {/* Search */}
-            <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-4 mb-6 border border-white/10">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search papers by title, subject, or class..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                />
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-300 mb-1">Total Papers</p>
+                      <p className="text-2xl font-bold text-white">{papers.length}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                      <FileText className="text-blue-400" size={24} />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-300 mb-1">Active Papers</p>
+                      <p className="text-2xl font-bold text-white">{papers.length}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                      <BookOpen className="text-green-400" size={24} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-300 mb-1">Total Questions</p>
+                      <p className="text-2xl font-bold text-white">
+                        {papers.reduce((sum, p) => sum + getTotalQuestions(p), 0)}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                      <FileDigit className="text-purple-400" size={24} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-300 mb-1">Total Marks</p>
+                      <p className="text-2xl font-bold text-white">
+                        {papers.reduce((sum, p) => sum + p.total_marks, 0)}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                      <Award className="text-amber-400" size={24} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search and View Toggle */}
+              <div className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+                    <input
+                      type="text"
+                      placeholder="Search by paper title, subject, or class..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div className="flex bg-white/10 rounded-lg p-1">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded transition-all ${viewMode === 'grid' ? 'bg-white/20 shadow-sm' : ''}`}
+                    >
+                      <Grid size={18} className={viewMode === 'grid' ? 'text-emerald-400' : 'text-slate-400'} />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded transition-all ${viewMode === 'list' ? 'bg-white/20 shadow-sm' : ''}`}
+                    >
+                      <List size={18} className={viewMode === 'list' ? 'text-emerald-400' : 'text-slate-400'} />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Papers Grid */}
+            {/* Papers Display */}
             {currentPapers.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6' : 'space-y-4 mb-6'}>
                   {currentPapers.map((paper) => (
-                    <div
-                      key={paper.id}
-                      className="group bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 overflow-hidden hover:border-white/20 transition-all duration-300 hover:shadow-2xl hover:transform hover:scale-[1.02]"
-                    >
-                      {/* Header with Gradient */}
-                      <div className={`h-32 bg-gradient-to-br ${getSubjectColor(paper.subject?.name || 'Default')} relative overflow-hidden`}>
-                        <div className="absolute inset-0 bg-black/20"></div>
-                        <div className="relative h-full flex items-center justify-center">
-                          <FileText size={48} className="text-white/90" />
-                        </div>
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                          <h3 className="text-white font-semibold text-lg line-clamp-1">
-                            {paper.title}
-                          </h3>
+                    viewMode === 'grid' ? (
+                      <div key={paper.id} className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 hover:border-white/20 transition-all overflow-hidden group">
+                        <div className={`h-2 ${getSubjectColor(paper.subject?.name || 'Default')}`}></div>
+                        
+                        <div className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-white line-clamp-2 flex-1 pr-2">
+                              {paper.title}
+                            </h3>
+                            <div className="relative">
+                              <button
+                                onClick={() => setActiveDropdown(activeDropdown === paper.id ? null : paper.id)}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                              >
+                                <MoreVertical size={18} className="text-slate-300" />
+                              </button>
+                              
+                              {activeDropdown === paper.id && (
+                                <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl border border-white/20 z-10">
+                                  <button
+                                    onClick={() => navigate(`/teacher/papers/${paper.id}`)}
+                                    className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2 first:rounded-t-lg"
+                                  >
+                                    <Eye size={16} className="text-blue-400" />
+                                    Preview
+                                  </button>
+                                  <button
+                                    onClick={() => navigate(`/teacher/paper-builder/${paper.id}`)}
+                                    className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2"
+                                  >
+                                    <Edit size={16} className="text-green-400" />
+                                    Edit Builder
+                                  </button>
+                                  <button
+                                    onClick={() => openEditDialog(paper)}
+                                    className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2"
+                                  >
+                                    <Edit size={16} className="text-amber-400" />
+                                    Edit Details
+                                  </button>
+                                  <button
+                                    onClick={() => alert(`Downloading: ${paper.title}`)}
+                                    className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2"
+                                  >
+                                    <Download size={16} className="text-purple-400" />
+                                    Download
+                                  </button>
+                                  <button
+                                    onClick={() => handleDuplicatePaper(paper)}
+                                    className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2"
+                                  >
+                                    <Copy size={16} className="text-cyan-400" />
+                                    Duplicate
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePaper(paper.id)}
+                                    disabled={deletingId === paper.id}
+                                    className="w-full px-4 py-2 text-left text-sm text-red-300 hover:bg-red-500/10 flex items-center gap-2 last:rounded-b-lg disabled:opacity-50"
+                                  >
+                                    {deletingId === paper.id ? (
+                                      <Loader2 size={16} className="animate-spin" />
+                                    ) : (
+                                      <Trash2 size={16} />
+                                    )}
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-3 mb-4">
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium text-white ${getSubjectColor(paper.subject?.name || 'Default')}`}>
+                                {paper.subject?.name}
+                              </span>
+                              <span className="px-3 py-1 bg-white/10 rounded-full text-xs font-medium text-slate-300">
+                                {paper.student_class?.name}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-4 mb-4 pb-4 border-b border-white/10">
+                            <div className="text-center">
+                              <p className="text-xs text-slate-400 mb-1">Duration</p>
+                              <p className="text-sm font-semibold text-white flex items-center justify-center gap-1">
+                                <Clock size={14} />
+                                {paper.duration}m
+                              </p>
+                            </div>
+                            <div className="text-center border-x border-white/10">
+                              <p className="text-xs text-slate-400 mb-1">Questions</p>
+                              <p className="text-sm font-semibold text-white">{getTotalQuestions(paper)}</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs text-slate-400 mb-1">Marks</p>
+                              <p className="text-sm font-semibold text-white">{paper.total_marks}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs text-slate-400 mb-4">
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} />
+                              {formatDate(paper.updated_at)}
+                            </span>
+                            <span className="px-2 py-1 bg-emerald-500/20 text-emerald-300 rounded-full font-medium">
+                              Active
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => navigate(`/teacher/papers/${paper.id}`)}
+                              className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Eye size={16} />
+                              View
+                            </button>
+                            <button
+                              onClick={() => navigate(`/teacher/paper-builder/${paper.id}`)}
+                              className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Edit size={16} />
+                              Edit
+                            </button>
+                          </div>
                         </div>
                       </div>
-
-                      {/* Content */}
-                      <div className="p-5 space-y-4">
-                        {/* Description */}
-                        <p className="text-slate-300 text-sm leading-relaxed line-clamp-2 min-h-[2.5rem]">
-                          {paper.data_source === 'personal' ? 'Manually created paper' : 'Uploaded paper'} • {paper.duration} minutes
-                        </p>
-
-                        {/* Stats */}
-                        <div className="flex items-center justify-between py-3 px-4 bg-white/5 rounded-xl border border-white/5">
-                          <div className="flex items-center gap-2 text-slate-300">
-                            <FileDigit size={16} className="text-emerald-400" />
-                            <span className="text-sm font-medium">{getTotalQuestions(paper)} Qs</span>
-                          </div>
-                          <div className="w-px h-6 bg-white/10"></div>
-                          <div className="flex items-center gap-2 text-slate-300">
-                            <BookOpen size={16} className="text-blue-400" />
-                            <span className="text-sm font-medium">{paper.total_marks} Marks</span>
-                          </div>
-                          <div className="w-px h-6 bg-white/10"></div>
-                          <div className="text-slate-300 text-sm font-medium">
-                            {paper.sections?.length || 0} Sections
-                          </div>
-                        </div>
-
-                        {/* Meta Info */}
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-3">
-                            <span className="px-3 py-1 bg-white/10 rounded-full text-slate-300">
-                              {paper.subject?.name || 'Unknown Subject'}
-                            </span>
-                            <span className="text-slate-400">
-                              {paper.student_class?.name || 'Unknown Class'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                          <span className="text-slate-400 text-xs flex items-center gap-1">
-                            <Calendar size={12} />
-                            {formatDate(paper.updated_at)}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            paper.created_by === 'manual' 
-                              ? 'bg-emerald-500/20 text-emerald-300' 
-                              : 'bg-slate-500/20 text-slate-300'
-                          }`}>
-                            {paper.created_by === 'manual' ? 'Manual' : 'Uploaded'}
-                          </span>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="grid grid-cols-3 gap-2 pt-2">
-                          <button
-                            onClick={() => navigate(`/teacher/papers/${paper.id}`)}
-                            className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg transition-all text-sm"
-                            title="Preview"
-                          >
-                            <Eye size={16} />
-                            <span className="hidden sm:inline">View</span>
-                          </button>
-                          
-                          <button
-                            onClick={() => navigate(`/teacher/paper-builder/${paper.id}`)}
-                            className="flex items-center justify-center gap-2 px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-lg transition-all text-sm"
-                            title="Edit"
-                          >
-                            <Edit size={16} />
-                            <span className="hidden sm:inline">Builder</span>
-                          </button>
-                          
-                          <div className="relative group/more">
-                            <button
-                              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-500/20 hover:bg-slate-500/30 text-slate-300 rounded-lg transition-all text-sm"
-                            >
-                              <span>More</span>
-                            </button>
+                    ) : (
+                      <div key={paper.id} className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 hover:border-white/20 transition-all p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className={`w-12 h-12 ${getSubjectColor(paper.subject?.name || 'Default')} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                              <FileText className="text-white" size={24} />
+                            </div>
                             
-                            {/* Dropdown */}
-                            <div className="absolute bottom-full right-0 mb-2 w-48 bg-slate-800 border border-white/20 rounded-xl shadow-2xl opacity-0 invisible group-hover/more:opacity-100 group-hover/more:visible transition-all z-10">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg font-semibold text-white mb-1 truncate">{paper.title}</h3>
+                              <div className="flex items-center gap-3 text-sm text-slate-300 flex-wrap">
+                                <span className="flex items-center gap-1 font-medium">{paper.subject?.name}</span>
+                                <span>•</span>
+                                <span>{paper.student_class?.name}</span>
+                                <span>•</span>
+                                <span className="flex items-center gap-1">
+                                  <Clock size={14} />
+                                  {paper.duration} min
+                                </span>
+                                <span>•</span>
+                                <span>{getTotalQuestions(paper)} Questions</span>
+                                <span>•</span>
+                                <span>{paper.total_marks} Marks</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400">{formatDate(paper.updated_at)}</span>
+                            <button
+                              onClick={() => navigate(`/teacher/papers/${paper.id}`)}
+                              className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => navigate(`/teacher/paper-builder/${paper.id}`)}
+                              className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <div className="relative">
                               <button
-                                onClick={() => alert(`Downloading: ${paper.title}`)}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-300 hover:bg-white/10 transition-colors first:rounded-t-xl"
+                                onClick={() => setActiveDropdown(activeDropdown === paper.id ? null : paper.id)}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                               >
-                                <Download size={16} className="text-purple-400" />
-                                <span className="text-sm">Download</span>
+                                <MoreVertical size={18} className="text-slate-300" />
                               </button>
-                              <button
-                                onClick={() => handleDuplicatePaper(paper)}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-300 hover:bg-white/10 transition-colors"
-                              >
-                                <Copy size={16} className="text-amber-400" />
-                                <span className="text-sm">Duplicate</span>
-                              </button>
-                              <button
-                                onClick={() => handleDeletePaper(paper.id)}
-                                disabled={deletingId === paper.id}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-300 hover:bg-red-500/10 transition-colors last:rounded-b-xl disabled:opacity-50"
-                              >
-                                {deletingId === paper.id ? (
-                                  <Loader2 size={16} className="animate-spin" />
-                                ) : (
-                                  <Trash2 size={16} />
-                                )}
-                                <span className="text-sm">Delete</span>
-                              </button>
+                              
+                              {activeDropdown === paper.id && (
+                                <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl border border-white/20 z-10">
+                                  <button
+                                    onClick={() => openEditDialog(paper)}
+                                    className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2 first:rounded-t-lg"
+                                  >
+                                    <Edit size={16} className="text-amber-400" />
+                                    Edit Details
+                                  </button>
+                                  <button
+                                    onClick={() => alert(`Downloading: ${paper.title}`)}
+                                    className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2"
+                                  >
+                                    <Download size={16} className="text-purple-400" />
+                                    Download
+                                  </button>
+                                  <button
+                                    onClick={() => handleDuplicatePaper(paper)}
+                                    className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2"
+                                  >
+                                    <Copy size={16} className="text-cyan-400" />
+                                    Duplicate
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePaper(paper.id)}
+                                    disabled={deletingId === paper.id}
+                                    className="w-full px-4 py-2 text-left text-sm text-red-300 hover:bg-red-500/10 flex items-center gap-2 last:rounded-b-lg disabled:opacity-50"
+                                  >
+                                    {deletingId === paper.id ? (
+                                      <Loader2 size={16} className="animate-spin" />
+                                    ) : (
+                                      <Trash2 size={16} />
+                                    )}
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    )
                   ))}
                 </div>
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-4 border border-white/10">
+                  <div className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                       <div className="text-slate-300 text-sm">
                         Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPapers.length)} of {filteredPapers.length} papers
                       </div>
-                      
+                    
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                           disabled={currentPage === 1}
-                          className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg border border-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg border border-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                         >
                           Previous
                         </button>
-                        
+                      
                         <div className="flex items-center gap-1">
                           {[...Array(totalPages)].map((_, index) => (
                             <button
                               key={index + 1}
                               onClick={() => setCurrentPage(index + 1)}
-                              className={`w-10 h-10 rounded-lg transition-all ${
+                              className={`w-10 h-10 rounded-lg transition-all text-sm font-medium ${
                                 currentPage === index + 1
-                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white'
+                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm'
                                   : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10'
                               }`}
                             >
@@ -540,11 +829,11 @@ const PapersPage = () => {
                             </button>
                           ))}
                         </div>
-                        
+                      
                         <button
                           onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                           disabled={currentPage === totalPages}
-                          className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg border border-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg border border-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                         >
                           Next
                         </button>
@@ -554,24 +843,24 @@ const PapersPage = () => {
                 )}
               </>
             ) : (
-              <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-12 md:p-16 text-center border border-white/10">
+              <div className="bg-white/5 backdrop-blur-lg rounded-xl p-12 text-center border border-white/10">
                 <div className="max-w-md mx-auto space-y-4">
-                  <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto">
-                    <FileText size={40} className="text-slate-400" />
+                  <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto">
+                    <FileText size={32} className="text-slate-400" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white">
+                  <h3 className="text-xl font-semibold text-white">
                     {searchTerm ? 'No papers found' : 'No papers yet'}
                   </h3>
-                  <p className="text-slate-400 text-lg">
-                    {searchTerm 
-                      ? 'Try adjusting your search terms to find what you\'re looking for' 
+                  <p className="text-slate-300">
+                    {searchTerm
+                      ? 'Try adjusting your search terms to find what you are looking for'
                       : 'Get started by creating your first examination paper'
                     }
                   </p>
                   {!searchTerm && (
                     <button
                       onClick={() => navigate('/teacher/create')}
-                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 mx-auto mt-6"
+                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transition-all inline-flex items-center gap-2 mt-4"
                     >
                       <Plus size={20} />
                       Create Your First Paper
@@ -580,6 +869,89 @@ const PapersPage = () => {
                 </div>
               </div>
             )}
+
+            {/* Edit Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="bg-slate-800 border-white/20 text-white max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Edit Paper</DialogTitle>
+                  <DialogDescription className="text-slate-300">
+                    Update the basic details of your paper
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="title" className="text-slate-300">Paper Title *</Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="bg-white/5 border-white/10 text-white focus:border-emerald-500 focus:ring-emerald-500"
+                      placeholder="Enter paper title"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="duration" className="text-slate-300">Duration (minutes) *</Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      value={formData.duration}
+                      onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                      className="bg-white/5 border-white/10 text-white focus:border-emerald-500 focus:ring-emerald-500"
+                      placeholder="Enter duration"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="class" className="text-slate-300">Class *</Label>
+                    <Select value={formData.classId} onValueChange={handleClassChange}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-emerald-500 focus:ring-emerald-500">
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/20 text-white">
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id.toString()}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="subject" className="text-slate-300">Subject *</Label>
+                    <Select value={formData.subjectId} onValueChange={(v) => setFormData({ ...formData, subjectId: v })} disabled={!formData.classId}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white focus:border-emerald-500 focus:ring-emerald-500">
+                        <SelectValue placeholder="Select subject" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/20 text-white">
+                        {subjects.map((sub) => (
+                          <SelectItem key={sub.id} value={sub.id.toString()}>
+                            {sub.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setEditingPaper(null);
+                    }}
+                    className="border-white/20 text-slate-300 hover:bg-white/10"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleUpdatePaper} 
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
+                  >
+                    Save Changes
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
