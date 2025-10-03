@@ -64,10 +64,21 @@ interface TemplatesResponse {
 }
 
 // Select Components
-const Select = ({ children, value, onValueChange, placeholder = "Select...", disabled = false }) => {
-  const [isOpen, setIsOpen] = useState(false);
+interface SelectProps {
+  children: React.ReactNode;
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  openSelect?: string | null;
+  setOpenSelect?: (id: string | null) => void;
+  id?: string;
+}
 
-  const selectedOption = React.Children.toArray(children).find(child =>
+const Select = ({ children, value, onValueChange, placeholder = "Select...", disabled = false, openSelect, setOpenSelect, id }: SelectProps) => {
+  const isOpen = openSelect === id;
+
+  const selectedOption = React.Children.toArray(children).find((child: any) =>
     child.props.value === value
   );
 
@@ -75,7 +86,7 @@ const Select = ({ children, value, onValueChange, placeholder = "Select...", dis
     <div className="relative">
       <button
         type="button"
-        onClick={() => !disabled && setOpenSelect(isOpen ? null : id)}
+        onClick={() => !disabled && setOpenSelect && setOpenSelect(isOpen ? null : id || null)}
         className={`w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base bg-white text-left min-h-[52px]
                    focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 
                    transition-all duration-300 flex items-center justify-between hover:border-gray-400 touch-manipulation
@@ -83,7 +94,7 @@ const Select = ({ children, value, onValueChange, placeholder = "Select...", dis
         disabled={disabled}
       >
         <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
-          {selectedOption ? selectedOption.props.children : placeholder}
+          {selectedOption ? (selectedOption as any).props.children : placeholder}
         </span>
         <svg
           className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
@@ -96,11 +107,11 @@ const Select = ({ children, value, onValueChange, placeholder = "Select...", dis
       </button>
       {isOpen && (
         <div className="absolute z-50 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-auto">
-          {React.Children.map(children, (child) =>
+          {React.Children.map(children, (child: any) =>
             React.cloneElement(child, {
               onClick: () => {
                 onValueChange(child.props.value);
-                setOpenSelect(null);
+                setOpenSelect && setOpenSelect(null);
               }
             })
           )}
@@ -110,7 +121,13 @@ const Select = ({ children, value, onValueChange, placeholder = "Select...", dis
   );
 };
 
-const SelectItem = ({ children, value, onClick }) => (
+interface SelectItemProps {
+  children: React.ReactNode;
+  value: string;
+  onClick?: () => void;
+}
+
+const SelectItem = ({ children, value, onClick }: SelectItemProps) => (
   <div
     onClick={onClick}
     className="px-4 py-3 text-base hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0 first:rounded-t-xl last:rounded-b-xl touch-manipulation min-h-[52px] flex items-center"
@@ -119,7 +136,13 @@ const SelectItem = ({ children, value, onClick }) => (
   </div>
 );
 
-const Label = ({ children, className = "", ...props }) => (
+interface LabelProps {
+  children: React.ReactNode;
+  className?: string;
+  htmlFor?: string;
+}
+
+const Label = ({ children, className = "", ...props }: LabelProps) => (
   <label className={`block text-sm font-bold text-gray-800 mb-2 ${className}`} {...props}>
     {children}
   </label>
@@ -137,6 +160,7 @@ const TemplatesPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [openSelect, setOpenSelect] = useState<string | null>(null);
 
   // Class and subject data
   const [classes, setClasses] = useState<Class[]>([]);
@@ -392,6 +416,7 @@ const TemplatesPage = () => {
       subject_id: ''
     });
     setFilteredSubjects([]);
+    setOpenSelect(null);
   };
 
   const handleCloseEditPopup = () => {
@@ -403,6 +428,7 @@ const TemplatesPage = () => {
       subject_id: ''
     });
     setFilteredSubjects([]);
+    setOpenSelect(null);
   };
 
   const handleOpenBuilder = (id: string) => {
@@ -492,6 +518,7 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Class</Label>
                       <Select
+                        id="create-class-select"
                         value={newTemplate.class_id}
                         onValueChange={handleClassChange}
                         placeholder="Select Class"
@@ -509,10 +536,13 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Subject</Label>
                       <Select
+                        id="create-subject-select"
                         value={newTemplate.subject_id}
                         onValueChange={(value) => setNewTemplate(prev => ({ ...prev, subject_id: value }))}
                         placeholder={newTemplate.class_id ? "Select Subject" : "Select Class First"}
                         disabled={!newTemplate.class_id}
+                        openSelect={openSelect}
+                        setOpenSelect={setOpenSelect}
                       >
                         {filteredSubjects.map((subject) => (
                           <SelectItem key={subject.id} value={subject.id}>
@@ -568,9 +598,12 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Class</Label>
                       <Select
+                        id="edit-class-select"
                         value={editForm.class_id}
                         onValueChange={handleEditClassChange}
                         placeholder="Select Class"
+                        openSelect={openSelect}
+                        setOpenSelect={setOpenSelect}
                       >
                         {classes.map((classItem) => (
                           <SelectItem key={classItem.id} value={classItem.id}>
@@ -583,10 +616,13 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Subject</Label>
                       <Select
+                        id="edit-subject-select"
                         value={editForm.subject_id}
                         onValueChange={(value) => setEditForm(prev => ({ ...prev, subject_id: value }))}
                         placeholder={editForm.class_id ? "Select Subject" : "Select Class First"}
                         disabled={!editForm.class_id}
+                        openSelect={openSelect}
+                        setOpenSelect={setOpenSelect}
                       >
                         {filteredSubjects.map((subject) => (
                           <SelectItem key={subject.id} value={subject.id}>
