@@ -1,8 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Plus, Trash2, Save, ArrowLeft, GripVertical, BookOpen, Target,
     BarChart3, AlertCircle, Settings, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { ApiService } from "../lib/api";
+import { useAuth } from "../contexts/AuthContext";
 
 // Mobile-First UI Components
 const Button = ({ children, onClick, className = "", variant = "default", size = "default", disabled = false, ...props }) => (
@@ -148,6 +151,7 @@ interface QuestionGroup {
     numberingStyle: 'numeric' | 'alphabetic' | 'roman';
     questionsCount: number;
     marksPerQuestion: number;
+    optionsCount?: number;
 }
 
 // Mobile-Optimized Collapsible Question Group Component
@@ -325,6 +329,21 @@ const QuestionGroupComponent = ({ group, groupIndex, onUpdate, onDelete }) => {
                                     <SelectItem value="roman">I, II, III (Roman)</SelectItem>
                                 </Select>
                             </div>
+
+                            {/* Options Count for MCQ */}
+                            {group.type === 'mcq' && (
+                                <div>
+                                    <Label>Number of Options</Label>
+                                    <Input
+                                        type="number"
+                                        min="2"
+                                        max="10"
+                                        value={group.optionsCount || 4}
+                                        onChange={(e) => onUpdate({ ...group, optionsCount: parseInt(e.target.value) || 4 })}
+                                        placeholder="4"
+                                    />
+                                </div>
+                            )}
 
                             {/* Total Display */}
                             <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-200">
@@ -504,7 +523,12 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup }) => {
 };
 
 const TemplateBuilder = () => {
-    const [sections, setSections] = useState([
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const templateId = searchParams.get('edit');
+    const { token } = useAuth();
+    
+    const [sections, setSections] = useState<Section[]>([
         {
             id: '1',
             title: 'Section A',
@@ -519,27 +543,81 @@ const TemplateBuilder = () => {
         subject: ''
     });
 
-    const [availableSubjects, setAvailableSubjects] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [templateData, setTemplateData] = useState(null);
 
-    const classOptions = [
-        'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
-        'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
-        'Class 11', 'Class 12'
-    ];
+    // Fetch template data if editing
+    useEffect(() => {
+        if (templateId) {
+            fetchTemplateData();
+        }
+    }, [templateId]);
 
-    const subjectOptions = {
-        'Class 1': ['English', 'Mathematics', 'Science', 'Social Studies'],
-        'Class 2': ['English', 'Mathematics', 'Science', 'Social Studies'],
-        'Class 3': ['English', 'Mathematics', 'Science', 'Social Studies'],
-        'Class 4': ['English', 'Mathematics', 'Science', 'Social Studies'],
-        'Class 5': ['English', 'Mathematics', 'Science', 'Social Studies'],
-        'Class 6': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
-        'Class 7': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
-        'Class 8': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
-        'Class 9': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
-        'Class 10': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
-        'Class 11': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English'],
-        'Class 12': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English']
+    const fetchTemplateData = async () => {
+        try {
+            setIsLoading(true);
+            const response = await ApiService.request(`/user/paper-templates/${templateId}`, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (response.status && response.data.paper_template) {
+                const template = response.data.paper_template;
+                setTemplateData(template);
+                
+                // Convert API data to local state format
+                if (template.sections && template.sections.length > 0) {
+                    const convertedSections = template.sections.map((section: any, index: number) => ({
+                        id: section.id || `section-${index}`,
+                        title: section.title,
+                        instruction: section.instruction || '',
+                        groups: section.groups.map((group: any, groupIndex: number) => ({
+                            id: group.id || `group-${index}-${groupIndex}`,
+                            type: mapQuestionType(group.question_type_id), // You'll need to map this
+                            instruction: group.instruction || '',
+                            numberingStyle: group.numbering_style,
+                            questionsCount: group.questions_count,
+                            marksPerQuestion: group.marks_per_question,
+                            optionsCount: group.options_count || 4
+                        }))
+                    }));
+                    setSections(convertedSections);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching template:', error);
+            alert('Failed to load template data');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Helper function to map question type IDs to type strings
+    const mapQuestionType = (typeId: string): string => {
+        // You'll need to adjust this mapping based on your question type IDs
+        const typeMap: { [key: string]: string } = {
+            '1': 'mcq',
+            '2': 'true-false',
+            '3': 'short-answer',
+            '4': 'long-answer',
+            '5': 'fill-blanks',
+            '6': 'paragraph'
+        };
+        return typeMap[typeId] || 'mcq';
+    };
+
+    // Helper function to map type strings back to question type IDs
+    const mapTypeToId = (type: string): string => {
+        const typeMap: { [key: string]: string } = {
+            'mcq': '1',
+            'true-false': '2',
+            'short-answer': '3',
+            'long-answer': '4',
+            'fill-blanks': '5',
+            'paragraph': '6'
+        };
+        return typeMap[type] || '1';
     };
 
     const totals = useMemo(() => {
@@ -558,24 +636,8 @@ const TemplateBuilder = () => {
         return { totalQuestions, totalMarks, totalGroups };
     }, [sections]);
 
-    const handleClassChange = (selectedClass) => {
-        setTemplateDetails(prev => ({
-            ...prev,
-            class: selectedClass,
-            subject: '' // Reset subject when class changes
-        }));
-
-        // Load subjects based on selected class
-        if (subjectOptions[selectedClass]) {
-            setAvailableSubjects(subjectOptions[selectedClass]);
-        } else {
-            setAvailableSubjects([]);
-        }
-    };
-
     const handleBackClick = () => {
-        // Navigate to /teacher/templates
-        window.location.href = '/teacher/templates';
+        navigate('/teacher/templates');
     };
 
     const addSection = () => {
@@ -588,25 +650,26 @@ const TemplateBuilder = () => {
         setSections(prev => [...prev, newSection]);
     };
 
-    const deleteSection = (sectionId) => {
+    const deleteSection = (sectionId: string) => {
         if (sections.length <= 1) return;
         setSections(prev => prev.filter(sec => sec.id !== sectionId));
     };
 
-    const updateSection = (updatedSection) => {
+    const updateSection = (updatedSection: Section) => {
         setSections(prev => prev.map(sec =>
             sec.id === updatedSection.id ? updatedSection : sec
         ));
     };
 
-    const addQuestionGroup = (sectionId) => {
+    const addQuestionGroup = (sectionId: string) => {
         const group = {
             id: Date.now().toString(),
-            type: 'mcq',
+            type: 'mcq' as const,
             instruction: '',
-            numberingStyle: 'numeric',
+            numberingStyle: 'numeric' as const,
             questionsCount: 5,
-            marksPerQuestion: 2
+            marksPerQuestion: 2,
+            optionsCount: 4
         };
 
         setSections(prev => prev.map(sec =>
@@ -616,18 +679,75 @@ const TemplateBuilder = () => {
         ));
     };
 
-    const saveTemplate = () => {
-        const templateData = {
-            templateDetails,
-            sections,
-            totals,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
+    const saveTemplate = async () => {
+        if (!templateId) {
+            alert('No template ID found. Please create a template first.');
+            return;
+        }
 
-        console.log('Saving template:', templateData);
-        alert('Template saved successfully!');
+        if (sections.length === 0) {
+            alert('Please add at least one section to the template.');
+            return;
+        }
+
+        // Validate all sections have at least one group
+        for (const section of sections) {
+            if (section.groups.length === 0) {
+                alert(`Section "${section.title}" must have at least one question group.`);
+                return;
+            }
+        }
+
+        try {
+            setIsSaving(true);
+
+            // Prepare data for API
+            const sectionsData = sections.map((section, index) => ({
+                title: section.title,
+                instruction: section.instruction,
+                groups: section.groups.map((group, groupIndex) => ({
+                    question_type_id: mapTypeToId(group.type),
+                    instruction: group.instruction,
+                    numbering_style: group.numberingStyle,
+                    questions_count: group.questionsCount,
+                    marks_per_question: group.marksPerQuestion,
+                    options_count: group.type === 'mcq' ? (group.optionsCount || 4) : null,
+                    order: groupIndex
+                }))
+            }));
+
+            const response = await ApiService.request(`/user/paper-templates/${templateId}/sections`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    sections: sectionsData
+                }),
+            });
+
+            if (response.status) {
+                alert('Template saved successfully!');
+                fetchTemplateData();
+            } else {
+                throw new Error(response.message || 'Failed to save template');
+            }
+        } catch (error) {
+            console.error('Error saving template:', error);
+            alert(`Failed to save template: ${error?.message}`);
+        } finally {
+            setIsSaving(false);
+        }
     };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
@@ -642,6 +762,7 @@ const TemplateBuilder = () => {
                                     className="bg-white/10 border-white/30 text-white hover:bg-white/20"
                                     size="sm"
                                     onClick={handleBackClick}
+                                    disabled={isSaving}
                                 >
                                     <ArrowLeft size={18} className="mr-2" />
                                     Back
@@ -649,28 +770,38 @@ const TemplateBuilder = () => {
 
                                 <Button
                                     onClick={saveTemplate}
+                                    disabled={isSaving}
                                     className="w-[fit-content] bg-white text-blue-600 hover:bg-blue-50 shadow-lg"
                                 >
-                                    <Save size={17} className="mr-2" />
-                                    Save Template
+                                    {isSaving ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save size={17} className="mr-2" />
+                                            Save Template
+                                        </>
+                                    )}
                                 </Button>
                             </div>
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1">
-                                    <h1 className="text-xl font-bold">Create Template</h1>
+                                    <h1 className="text-xl font-bold">
+                                        {templateId ? 'Edit Template' : 'Create Template'}
+                                    </h1>
                                     <p className="text-blue-100 text-sm">Design your exam structure</p>
                                 </div>
-                                <div className="flex  items-center gap-4 sm:flex-row flex-col gap-0">
-                                    <p className="text-blue-100 text-sm">Class : 10th</p> <span className='hidden px-1 sm:block'> • </span> 
-                                    <p className="text-blue-100 text-sm">Subject : Mathematics</p>
-                                </div>
+                                {templateData && (
+                                    <div className="flex items-center gap-4 sm:flex-row flex-col gap-0">
+                                        <p className="text-blue-100 text-sm">Class: {templateData.class?.name}</p> 
+                                        <p className="text-blue-100 text-sm">Subject: {templateData.subject?.name}</p>
+                                    </div>
+                                )}
                             </div>
-
-
                         </div>
                     </div>
-
-
 
                     {/* Mobile Stats Grid */}
                     <div className="p-4 bg-white">
@@ -697,6 +828,7 @@ const TemplateBuilder = () => {
                         onClick={addSection}
                         variant="success"
                         className="w-full shadow-lg"
+                        disabled={isSaving}
                     >
                         <Plus size={18} className="mr-2" />
                         Add Section
@@ -717,6 +849,7 @@ const TemplateBuilder = () => {
                             <Button
                                 onClick={addSection}
                                 className="w-full shadow-lg"
+                                disabled={isSaving}
                             >
                                 <Plus size={18} className="mr-2" />
                                 Create First Section
@@ -750,9 +883,24 @@ const TemplateBuilder = () => {
                             </div>
 
                             <div className="flex items-center space-x-4">
-                                <Button onClick={saveTemplate} variant="primary" size="lg" className="min-w-[200px]">
-                                    <Save className="w-5 h-5 mr-2" />
-                                    Save Template
+                                <Button 
+                                    onClick={saveTemplate} 
+                                    variant="primary" 
+                                    size="lg" 
+                                    className="min-w-[200px]"
+                                    disabled={isSaving}
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="w-5 h-5 mr-2" />
+                                            Save Template
+                                        </>
+                                    )}
                                 </Button>
                             </div>
                         </div>
