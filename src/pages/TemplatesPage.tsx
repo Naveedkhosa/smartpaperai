@@ -1,28 +1,6 @@
 // src/pages/TemplatesPage.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-<<<<<<< HEAD
-import { Search, Plus, FileText, MoreVertical, Edit, Trash2, Download, BookOpen, FileDigit, X } from 'lucide-react';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
-import GlassmorphismLayout from "../components/GlassmorphismLayout";
-import TeacherSidebar from '../components/TeacherSidebar';
-import { ApiService } from "../lib/api";
-import { useAuth } from "../contexts/AuthContext";
-
-interface Class {
-  id: string;
-  name: string;
-}
-
-interface Subject {
-  id: string;
-  name: string;
-}
-=======
 import { Search, Plus, FileText, Edit, Trash2, Download, BookOpen, FileDigit, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -30,7 +8,6 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import GlassmorphismLayout from "@/components/GlassmorphismLayout";
 import TeacherSidebar from '@/components/TeacherSidebar';
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
 
 interface Template {
   id: string;
@@ -59,29 +36,9 @@ interface Template {
   }>;
 }
 
-<<<<<<< HEAD
-interface TemplatesResponse {
-  status: boolean;
-  data: {
-    paper_templates: {
-      data: Template[];
-      current_page: number;
-      last_page: number;
-      total: number;
-      per_page: number;
-    };
-  };
-  message: string;
-}
-
-// Select Components
-const Select = ({ children, value, onValueChange, placeholder = "Select...", disabled = false }) => {
-  const [isOpen, setIsOpen] = useState(false);
-=======
 // ✅ Select Components (updated for single open dropdown)
 const Select = ({ id, children, value, onValueChange, placeholder = "Select...", disabled = false, openSelect, setOpenSelect }) => {
   const isOpen = openSelect === id;
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
 
   const selectedOption = React.Children.toArray(children).find(child =>
     child.props.value === value
@@ -149,23 +106,10 @@ const TemplatesPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
-<<<<<<< HEAD
-  const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [lastPage, setLastPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-
-  // Class and subject data
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
-
-=======
 
   // ✅ Track which Select is open
   const [openSelect, setOpenSelect] = useState<string | null>(null);
   
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
   // New template form state
   const [newTemplate, setNewTemplate] = useState({
     name: '',
@@ -173,20 +117,6 @@ const TemplatesPage = () => {
     subject_id: ''
   });
 
-<<<<<<< HEAD
-  // Edit template form state
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
-  const [editForm, setEditForm] = useState({
-    name: '',
-    class_id: '',
-    subject_id: ''
-  });
-
-  // Fetch classes on component mount
-  useEffect(() => {
-    fetchClasses();
-    fetchTemplates(1, '');
-=======
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
 
   // Class and subject options
@@ -242,7 +172,6 @@ const TemplatesPage = () => {
       setTemplates(mockTemplates);
       setIsLoading(false);
     }, 1000);
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
   }, []);
 
   // Fetch templates
@@ -349,38 +278,10 @@ const TemplatesPage = () => {
   const handleClassChange = async (classId: string) => {
     setNewTemplate(prev => ({
       ...prev,
-<<<<<<< HEAD
-      class_id: classId,
-      subject_id: '' // Reset subject when class changes
-    }));
-
-    // Fetch subjects for the selected class
-    if (classId) {
-      await fetchSubjects(classId);
-    } else {
-      setFilteredSubjects([]);
-    }
-  };
-
-  const handleEditClassChange = async (classId: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      class_id: classId,
-      subject_id: '' // Reset subject when class changes
-    }));
-
-    // Fetch subjects for the selected class
-    if (classId) {
-      await fetchSubjects(classId);
-    } else {
-      setFilteredSubjects([]);
-    }
-=======
       class: selectedClass,
       subject: ''
     }));
     setAvailableSubjects(subjectOptions[selectedClass] || []);
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
   };
 
   const handleCreateNew = () => setIsCreatePopupOpen(true);
@@ -390,44 +291,9 @@ const TemplatesPage = () => {
       alert('Please fill in all fields');
       return;
     }
-<<<<<<< HEAD
-
-    try {
-      const response = await ApiService.request('/user/paper-templates', {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          title: newTemplate.name,
-          class_id: newTemplate.class_id,
-          subject_id: newTemplate.subject_id
-        }),
-      });
-
-      if (response.status && response.data) {
-        handleClosePopup();
-        // Navigate to template builder with the new template
-        navigate(`/templates/builder?edit=${response.data.paper_template.id}`);
-      }
-    } catch (error) {
-      console.error('Error creating template:', error);
-      alert('Failed to create template. Please try again.');
-    }
-  };
-
-  const handleEditTemplate = (template: Template) => {
-    setEditingTemplate(template);
-    setEditForm({
-      name: template.title,
-      class_id: template.class_id,
-      subject_id: template.subject_id
-=======
     const newTemplateId = Date.now().toString();
     navigate(`/templates/builder?edit=${newTemplateId}`, {
       state: { templateDetails: newTemplate }
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
     });
     // Fetch subjects for the template's class
     fetchSubjects(template.class_id);
@@ -480,50 +346,6 @@ const TemplatesPage = () => {
 
   const handleClosePopup = () => {
     setIsCreatePopupOpen(false);
-<<<<<<< HEAD
-    setNewTemplate({
-      name: '',
-      class_id: '',
-      subject_id: ''
-    });
-    setFilteredSubjects([]);
-  };
-
-  const handleCloseEditPopup = () => {
-    setIsEditPopupOpen(false);
-    setEditingTemplate(null);
-    setEditForm({
-      name: '',
-      class_id: '',
-      subject_id: ''
-    });
-    setFilteredSubjects([]);
-  };
-
-  const handleOpenBuilder = (id: string) => {
-    navigate(`/templates/builder?edit=${id}`);
-  };
-
-  const handleDeleteTemplate = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this template?')) {
-      try {
-        const response = await ApiService.request(`/user/paper-templates/${id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (response.status) {
-          setTemplates(prev => prev.filter(t => t.id !== id));
-        } else {
-          alert('Failed to delete template');
-        }
-      } catch (error) {
-        console.error('Error deleting template:', error);
-        alert('Failed to delete template');
-      }
-    }
-  };
-=======
     setNewTemplate({ name: '', class: '', subject: '' });
     setAvailableSubjects([]);
   };
@@ -553,7 +375,6 @@ const TemplatesPage = () => {
       </GlassmorphismLayout>
     );
   }
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
 
   return (
     <GlassmorphismLayout>
@@ -618,12 +439,8 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Class</Label>
                       <Select
-<<<<<<< HEAD
-                        value={newTemplate.class_id}
-=======
                         id="class"
                         value={newTemplate.class}
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
                         onValueChange={handleClassChange}
                         placeholder="Select Class"
                         openSelect={openSelect}
@@ -640,12 +457,6 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Subject</Label>
                       <Select
-<<<<<<< HEAD
-                        value={newTemplate.subject_id}
-                        onValueChange={(value) => setNewTemplate(prev => ({ ...prev, subject_id: value }))}
-                        placeholder={newTemplate.class_id ? "Select Subject" : "Select Class First"}
-                        disabled={!newTemplate.class_id}
-=======
                         id="subject"
                         value={newTemplate.subject}
                         onValueChange={(value) => setNewTemplate(prev => ({ ...prev, subject: value }))}
@@ -653,7 +464,6 @@ const TemplatesPage = () => {
                         disabled={!newTemplate.class}
                         openSelect={openSelect}
                         setOpenSelect={setOpenSelect}
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
                       >
                         {filteredSubjects.map((subject) => (
                           <SelectItem key={subject.id} value={subject.id}>
@@ -680,83 +490,6 @@ const TemplatesPage = () => {
               </div>
             )}
 
-<<<<<<< HEAD
-            {/* Edit Template Popup */}
-            {isEditPopupOpen && editingTemplate && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                <div className="glassmorphism-strong rounded-2xl p-6 w-full max-w-md">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-white">Edit Template</h2>
-                    <Button
-                      variant="ghost"
-                      onClick={handleCloseEditPopup}
-                      className="text-slate-300 hover:text-white p-2"
-                    >
-                      <X size={20} />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-white">Template Name</Label>
-                      <Input
-                        value={editForm.name}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Enter template name"
-                        className="glass-input mt-1"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-white">Class</Label>
-                      <Select
-                        value={editForm.class_id}
-                        onValueChange={handleEditClassChange}
-                        placeholder="Select Class"
-                      >
-                        {classes.map((classItem) => (
-                          <SelectItem key={classItem.id} value={classItem.id}>
-                            {classItem.name}
-                          </SelectItem>
-                        ))}
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-white">Subject</Label>
-                      <Select
-                        value={editForm.subject_id}
-                        onValueChange={(value) => setEditForm(prev => ({ ...prev, subject_id: value }))}
-                        placeholder={editForm.class_id ? "Select Subject" : "Select Class First"}
-                        disabled={!editForm.class_id}
-                      >
-                        {filteredSubjects.map((subject) => (
-                          <SelectItem key={subject.id} value={subject.id}>
-                            {subject.name}
-                          </SelectItem>
-                        ))}
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 mt-6">
-                    <Button
-                      variant="outline"
-                      onClick={handleCloseEditPopup}
-                      className="flex-1 border-slate-400 text-slate-300 hover:bg-slate-800"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSaveEditTemplate}
-                      disabled={!editForm.name || !editForm.class_id || !editForm.subject_id}
-                      className="flex-1 emerald-gradient"
-                    >
-                      Update Template
-                    </Button>
-                  </div>
-                </div>
-=======
             {/* Templates Grid */}
             {filteredTemplates.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
@@ -806,7 +539,6 @@ const TemplatesPage = () => {
                     </div>
                   </Card>
                 ))}
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
               </div>
             )}
 
@@ -918,16 +650,7 @@ const TemplatesPage = () => {
               <div className="glassmorphism-strong rounded-xl p-12 text-center">
                 <FileText size={48} className="mx-auto text-slate-400 mb-4" />
                 <h3 className="text-xl text-white mb-2">No templates found</h3>
-<<<<<<< HEAD
-                <p className="text-slate-300/80 mb-6">
-                  {searchTerm
-                    ? 'Try adjusting your search terms'
-                    : 'Get started by creating your first template'
-                  }
-                </p>
-=======
                 <p className="text-slate-300/80 mb-6">{searchTerm ? 'Try adjusting your search terms' : 'Get started by creating your first template'}</p>
->>>>>>> 572e53cfa5bb7005da5780c6f066772d77df8b99
                 <Button onClick={handleCreateNew} className="emerald-gradient">
                   <Plus size={20} className="mr-2" /> Create Template
                 </Button>
