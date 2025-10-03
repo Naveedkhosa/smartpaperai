@@ -1,28 +1,69 @@
 // src/pages/TemplatesPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, FileText, MoreVertical, Edit, Trash2, Download, BookOpen, FileDigit, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import GlassmorphismLayout from "@/components/GlassmorphismLayout";
-import TeacherSidebar from '@/components/TeacherSidebar';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
+import GlassmorphismLayout from "../components/GlassmorphismLayout";
+import TeacherSidebar from '../components/TeacherSidebar';
+import { ApiService } from "../lib/api";
+import { useAuth } from "../contexts/AuthContext";
+
+interface Class {
+  id: string;
+  name: string;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+}
 
 interface Template {
   id: string;
   title: string;
-  description: string;
-  totalQuestions: number;
-  totalMarks: number;
-  sections: number;
-  createdAt: string;
-  updatedAt: string;
-  isPublic: boolean;
+  class_id: string;
+  subject_id: string;
+  total_marks: number;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+  class?: {
+    id: string;
+    name: string;
+  };
+  subject?: {
+    id: string;
+    name: string;
+  };
+  sections_count: number;
+  sections?: Array<{
+    id: string;
+    title: string;
+    groups: Array<{
+      questions_count: number;
+    }>;
+  }>;
 }
 
-// Select Components (copied from TemplateBuilder for consistency)
+interface TemplatesResponse {
+  status: boolean;
+  data: {
+    paper_templates: {
+      data: Template[];
+      current_page: number;
+      last_page: number;
+      total: number;
+      per_page: number;
+    };
+  };
+  message: string;
+}
+
+// Select Components
 const Select = ({ children, value, onValueChange, placeholder = "Select...", disabled = false }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -44,10 +85,10 @@ const Select = ({ children, value, onValueChange, placeholder = "Select...", dis
         <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
           {selectedOption ? selectedOption.props.children : placeholder}
         </span>
-        <svg 
+        <svg
           className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-          fill="none" 
-          stroke="currentColor" 
+          fill="none"
+          stroke="currentColor"
           viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -86,114 +127,171 @@ const Label = ({ children, className = "", ...props }) => (
 
 const TemplatesPage = () => {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
-  
+  const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Class and subject data
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]);
+
   // New template form state
   const [newTemplate, setNewTemplate] = useState({
     name: '',
-    class: '',
-    subject: ''
+    class_id: '',
+    subject_id: ''
   });
 
-  const [availableSubjects, setAvailableSubjects] = useState([]);
+  // Edit template form state
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    class_id: '',
+    subject_id: ''
+  });
 
-  // Class and subject options
-  const classOptions = [
-    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
-    'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
-    'Class 11', 'Class 12'
-  ];
-
-  const subjectOptions = {
-    'Class 1': ['English', 'Mathematics', 'Science', 'Social Studies'],
-    'Class 2': ['English', 'Mathematics', 'Science', 'Social Studies'],
-    'Class 3': ['English', 'Mathematics', 'Science', 'Social Studies'],
-    'Class 4': ['English', 'Mathematics', 'Science', 'Social Studies'],
-    'Class 5': ['English', 'Mathematics', 'Science', 'Social Studies'],
-    'Class 6': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
-    'Class 7': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
-    'Class 8': ['English', 'Mathematics', 'Science', 'Social Studies', 'Computer Science'],
-    'Class 9': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
-    'Class 10': ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science'],
-    'Class 11': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English'],
-    'Class 12': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'English']
-  };
-
-  // Mock data
+  // Fetch classes on component mount
   useEffect(() => {
-    const mockTemplates: Template[] = [
-      {
-        id: '1',
-        title: 'Mathematics Final Exam Template',
-        description: 'Comprehensive math exam covering algebra, geometry, and calculus with multiple choice and problem-solving questions',
-        totalQuestions: 25,
-        totalMarks: 100,
-        sections: 4,
-        createdAt: '2024-01-15',
-        updatedAt: '2024-01-20',
-        isPublic: true
-      },
-      {
-        id: '2',
-        title: 'Science Quiz Template',
-        description: 'Quick assessment template for physics and chemistry concepts',
-        totalQuestions: 15,
-        totalMarks: 50,
-        sections: 2,
-        createdAt: '2024-01-10',
-        updatedAt: '2024-01-18',
-        isPublic: false
-      },
-      {
-        id: '3',
-        title: 'English Comprehension Template',
-        description: 'Reading comprehension and grammar assessment template',
-        totalQuestions: 30,
-        totalMarks: 100,
-        sections: 3,
-        createdAt: '2024-01-08',
-        updatedAt: '2024-01-12',
-        isPublic: true
-      },
-      {
-        id: '4',
-        title: 'History Exam Template',
-        description: 'World history examination with essay and short answer questions',
-        totalQuestions: 20,
-        totalMarks: 80,
-        sections: 3,
-        createdAt: '2024-01-05',
-        updatedAt: '2024-01-10',
-        isPublic: true
-      }
-    ];
-
-    setTimeout(() => {
-      setTemplates(mockTemplates);
-      setIsLoading(false);
-    }, 1000);
+    fetchClasses();
+    fetchTemplates(1, '');
   }, []);
 
-  const filteredTemplates = templates.filter(template =>
-    template.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    template.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Fetch templates
+  const fetchTemplates = useCallback(async (page = 1, search = '', append = false) => {
+    try {
+      if (page === 1) {
+        setIsLoading(true);
+        setTemplates([]); // Clear templates when doing new search
+      } else {
+        setIsLoadingMore(true);
+      }
 
-  const handleClassChange = (selectedClass: string) => {
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+      const response = await ApiService.request(`/user/paper-templates?page=${page}&per_page=12${searchParam}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      }) as TemplatesResponse;
+
+      if (response.status && response.data.paper_templates) {
+        const templatesData = response.data.paper_templates;
+
+        if (append) {
+          setTemplates(prev => [...prev, ...templatesData.data]);
+        } else {
+          setTemplates(templatesData.data);
+        }
+
+        setCurrentPage(templatesData.current_page);
+        setLastPage(templatesData.last_page);
+        setHasMore(templatesData.current_page < templatesData.last_page);
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [token]);
+
+  // Fetch classes
+  const fetchClasses = async () => {
+    try {
+      const response = await ApiService.request('/user/classes', {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.status && response.data) {
+        setClasses(response.data.classes || []);
+      }
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    }
+  };
+
+  // Fetch subjects for a class
+  const fetchSubjects = async (classId: string) => {
+    try {
+      const response = await ApiService.request(`/user/classes/${classId}/subjects`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response?.status && response?.data) {
+        setFilteredSubjects(response?.data?.class?.subjects || []);
+      }
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      setFilteredSubjects([]);
+    }
+  };
+
+  // Search with debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchTemplates(1, searchTerm);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, fetchTemplates]);
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isLoadingMore || !hasMore || isLoading) return;
+
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+
+      if (scrollTop + clientHeight >= scrollHeight - 100) {
+        loadMoreTemplates();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLoadingMore, hasMore, isLoading]);
+
+  const loadMoreTemplates = () => {
+    if (hasMore && !isLoadingMore && !isLoading) {
+      fetchTemplates(currentPage + 1, searchTerm, true);
+    }
+  };
+
+  const handleClassChange = async (classId: string) => {
     setNewTemplate(prev => ({
       ...prev,
-      class: selectedClass,
-      subject: '' // Reset subject when class changes
+      class_id: classId,
+      subject_id: '' // Reset subject when class changes
     }));
-    
-    // Load subjects based on selected class
-    if (subjectOptions[selectedClass]) {
-      setAvailableSubjects(subjectOptions[selectedClass]);
+
+    // Fetch subjects for the selected class
+    if (classId) {
+      await fetchSubjects(classId);
     } else {
-      setAvailableSubjects([]);
+      setFilteredSubjects([]);
+    }
+  };
+
+  const handleEditClassChange = async (classId: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      class_id: classId,
+      subject_id: '' // Reset subject when class changes
+    }));
+
+    // Fetch subjects for the selected class
+    if (classId) {
+      await fetchSubjects(classId);
+    } else {
+      setFilteredSubjects([]);
     }
   };
 
@@ -201,66 +299,137 @@ const TemplatesPage = () => {
     setIsCreatePopupOpen(true);
   };
 
-  const handleSaveNewTemplate = () => {
-    if (!newTemplate.name || !newTemplate.class || !newTemplate.subject) {
+  const handleSaveNewTemplate = async () => {
+    if (!newTemplate.name || !newTemplate.class_id || !newTemplate.subject_id) {
       alert('Please fill in all fields');
       return;
     }
 
-    // Generate a new template ID
-    const newTemplateId = Date.now().toString();
-    
-    // Navigate to template builder with the new template details
-    navigate(`/templates/builder?edit=${newTemplateId}`, {
-      state: {
-        templateDetails: newTemplate
+    try {
+      const response = await ApiService.request('/user/paper-templates', {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: newTemplate.name,
+          class_id: newTemplate.class_id,
+          subject_id: newTemplate.subject_id
+        }),
+      });
+
+      if (response.status && response.data) {
+        handleClosePopup();
+        // Navigate to template builder with the new template
+        navigate(`/templates/builder?edit=${response.data.paper_template.id}`);
       }
+    } catch (error) {
+      console.error('Error creating template:', error);
+      alert('Failed to create template. Please try again.');
+    }
+  };
+
+  const handleEditTemplate = (template: Template) => {
+    setEditingTemplate(template);
+    setEditForm({
+      name: template.title,
+      class_id: template.class_id,
+      subject_id: template.subject_id
     });
+    // Fetch subjects for the template's class
+    fetchSubjects(template.class_id);
+    setIsEditPopupOpen(true);
+  };
+
+  const handleSaveEditTemplate = async () => {
+    if (!editingTemplate || !editForm.name || !editForm.class_id || !editForm.subject_id) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    try {
+      const response = await ApiService.request(`/user/paper-templates/${editingTemplate.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: editForm.name,
+          class_id: editForm.class_id,
+          subject_id: editForm.subject_id
+        }),
+      });
+
+      if (response.status) {
+        // Update the template in the local state
+        setTemplates(prev => prev.map(t => 
+          t.id === editingTemplate.id 
+            ? { 
+                ...t, 
+                title: editForm.name,
+                class_id: editForm.class_id,
+                subject_id: editForm.subject_id,
+                class: classes.find(c => c.id === editForm.class_id),
+                subject: filteredSubjects.find(s => s.id === editForm.subject_id)
+              }
+            : t
+        ));
+        handleCloseEditPopup();
+      } else {
+        alert('Failed to update template');
+      }
+    } catch (error) {
+      console.error('Error updating template:', error);
+      alert('Failed to update template. Please try again.');
+    }
   };
 
   const handleClosePopup = () => {
     setIsCreatePopupOpen(false);
     setNewTemplate({
       name: '',
-      class: '',
-      subject: ''
+      class_id: '',
+      subject_id: ''
     });
-    setAvailableSubjects([]);
+    setFilteredSubjects([]);
   };
 
-  const handleEditTemplate = (id: string) => {
+  const handleCloseEditPopup = () => {
+    setIsEditPopupOpen(false);
+    setEditingTemplate(null);
+    setEditForm({
+      name: '',
+      class_id: '',
+      subject_id: ''
+    });
+    setFilteredSubjects([]);
+  };
+
+  const handleOpenBuilder = (id: string) => {
     navigate(`/templates/builder?edit=${id}`);
   };
 
-  const handleDeleteTemplate = (id: string) => {
+  const handleDeleteTemplate = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this template?')) {
-      setTemplates(prev => prev.filter(t => t.id !== id));
+      try {
+        const response = await ApiService.request(`/user/paper-templates/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.status) {
+          setTemplates(prev => prev.filter(t => t.id !== id));
+        } else {
+          alert('Failed to delete template');
+        }
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        alert('Failed to delete template');
+      }
     }
   };
-
-  const handleDuplicateTemplate = (template: Template) => {
-    const newTemplate = {
-      ...template,
-      id: Date.now().toString(),
-      title: `${template.title} (Copy)`,
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0]
-    };
-    setTemplates(prev => [...prev, newTemplate]);
-  };
-
-  if (isLoading) {
-    return (
-      <GlassmorphismLayout>
-        <div className="flex">
-          <TeacherSidebar />
-          <div className="flex-1 ml-0 lg:ml-0 min-h-screen flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
-          </div>
-        </div>
-      </GlassmorphismLayout>
-    );
-  }
 
   return (
     <GlassmorphismLayout>
@@ -298,6 +467,11 @@ const TemplatesPage = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="glass-input pl-10"
                 />
+                {isLoading && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-300"></div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -330,13 +504,13 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Class</Label>
                       <Select
-                        value={newTemplate.class}
+                        value={newTemplate.class_id}
                         onValueChange={handleClassChange}
                         placeholder="Select Class"
                       >
-                        {classOptions.map((classOption) => (
-                          <SelectItem key={classOption} value={classOption}>
-                            {classOption}
+                        {classes.map((classItem) => (
+                          <SelectItem key={classItem.id} value={classItem.id}>
+                            {classItem.name}
                           </SelectItem>
                         ))}
                       </Select>
@@ -345,14 +519,14 @@ const TemplatesPage = () => {
                     <div>
                       <Label className="text-white">Subject</Label>
                       <Select
-                        value={newTemplate.subject}
-                        onValueChange={(value) => setNewTemplate(prev => ({ ...prev, subject: value }))}
-                        placeholder={newTemplate.class ? "Select Subject" : "Select Class First"}
-                        disabled={!newTemplate.class}
+                        value={newTemplate.subject_id}
+                        onValueChange={(value) => setNewTemplate(prev => ({ ...prev, subject_id: value }))}
+                        placeholder={newTemplate.class_id ? "Select Subject" : "Select Class First"}
+                        disabled={!newTemplate.class_id}
                       >
-                        {availableSubjects.map((subject) => (
-                          <SelectItem key={subject} value={subject}>
-                            {subject}
+                        {filteredSubjects.map((subject) => (
+                          <SelectItem key={subject.id} value={subject.id}>
+                            {subject.name}
                           </SelectItem>
                         ))}
                       </Select>
@@ -369,7 +543,7 @@ const TemplatesPage = () => {
                     </Button>
                     <Button
                       onClick={handleSaveNewTemplate}
-                      disabled={!newTemplate.name || !newTemplate.class || !newTemplate.subject}
+                      disabled={!newTemplate.name || !newTemplate.class_id || !newTemplate.subject_id}
                       className="flex-1 emerald-gradient"
                     >
                       Create Template
@@ -379,105 +553,195 @@ const TemplatesPage = () => {
               </div>
             )}
 
-            {/* Templates Grid */}
-            {filteredTemplates.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
-                {filteredTemplates.map((template) => (
-                  <Card key={template.id} className="relative group overflow-hidden rounded-xl border border-white/30 hover:border-emerald-400/40 transition-all bg-slate-900">
-                    {/* Header */}
-                    <div className="h-32 w-full flex items-center justify-center relative overflow-hidden bg-slate-800">
-                      <div className="text-6xl text-slate-400">
-                        <FileText />
-                      </div>
-                      
-                      {/* Title overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-sm font-bold p-2">
-                        <p className="line-clamp-1">{template.title}</p>
-                      </div>
+            {/* Edit Template Popup */}
+            {isEditPopupOpen && editingTemplate && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="glassmorphism-strong rounded-2xl p-6 w-full max-w-md">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-white">Edit Template</h2>
+                    <Button
+                      variant="ghost"
+                      onClick={handleCloseEditPopup}
+                      className="text-slate-300 hover:text-white p-2"
+                    >
+                      <X size={20} />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-white">Template Name</Label>
+                      <Input
+                        value={editForm.name}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Enter template name"
+                        className="glass-input mt-1"
+                      />
                     </div>
 
-                    {/* Info with icons */}
-                    <div className="flex items-center justify-between p-3 border-t border-white/20 bg-slate-800/50">
-                      <div className="flex items-center gap-2 text-slate-200 text-xs">
-                        <FileDigit size={16} />
-                        <span>{template.totalQuestions} Qs</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-200 text-xs">
-                        <BookOpen size={16} />
-                        <span>{template.totalMarks} Marks</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-200 text-xs">
-                        <span>{template.sections} Sections</span>
-                      </div>
+                    <div>
+                      <Label className="text-white">Class</Label>
+                      <Select
+                        value={editForm.class_id}
+                        onValueChange={handleEditClassChange}
+                        placeholder="Select Class"
+                      >
+                        {classes.map((classItem) => (
+                          <SelectItem key={classItem.id} value={classItem.id}>
+                            {classItem.name}
+                          </SelectItem>
+                        ))}
+                      </Select>
                     </div>
 
-                    {/* Description */}
-                    <div className="p-3">
-                      <p className="text-slate-300 text-sm line-clamp-2 mb-3">
-                        {template.description}
-                      </p>
-                      
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-400 text-xs">
-                          Updated {new Date(template.updatedAt).toLocaleDateString()}
-                        </span>
-                        {template.isPublic ? (
-                          <Badge variant="outline" className="text-green-400 border-green-400/30 text-xs">
-                            Public
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-slate-400 border-slate-400/30 text-xs">
-                            Private
-                          </Badge>
-                        )}
-                      </div>
+                    <div>
+                      <Label className="text-white">Subject</Label>
+                      <Select
+                        value={editForm.subject_id}
+                        onValueChange={(value) => setEditForm(prev => ({ ...prev, subject_id: value }))}
+                        placeholder={editForm.class_id ? "Select Subject" : "Select Class First"}
+                        disabled={!editForm.class_id}
+                      >
+                        {filteredSubjects.map((subject) => (
+                          <SelectItem key={subject.id} value={subject.id}>
+                            {subject.name}
+                          </SelectItem>
+                        ))}
+                      </Select>
                     </div>
+                  </div>
 
-                    {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center">
-                      <p className="text-slate-200 text-sm line-clamp-3 mb-4">
-                        {template.description}
-                      </p>
-                      
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditTemplate(template.id)}
-                          className="p-2 rounded-full bg-blue-500 hover:bg-blue-400 text-white"
-                        >
-                          <Edit size={16} />
-                        </Button>
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDuplicateTemplate(template)}
-                          className="p-2 rounded-full bg-yellow-500 hover:bg-yellow-400 text-white"
-                        >
-                          <Download size={16} />
-                        </Button>
-                        
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteTemplate(template.id)}
-                          className="p-2 rounded-full bg-red-500 hover:bg-red-400 text-white"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                  <div className="flex gap-3 mt-6">
+                    <Button
+                      variant="outline"
+                      onClick={handleCloseEditPopup}
+                      className="flex-1 border-slate-400 text-slate-300 hover:bg-slate-800"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSaveEditTemplate}
+                      disabled={!editForm.name || !editForm.class_id || !editForm.subject_id}
+                      className="flex-1 emerald-gradient"
+                    >
+                      Update Template
+                    </Button>
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* Templates Grid */}
+            {isLoading && templates.length === 0 ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
+              </div>
+            ) : templates.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+                  {templates.map((template) => (
+                    <Card key={template.id} className="relative group overflow-hidden rounded-xl border border-white/30 hover:border-emerald-400/40 transition-all bg-slate-900">
+                      {/* Header */}
+                      <div className="h-32 w-full flex items-center justify-center relative overflow-hidden bg-slate-800">
+                        <div className="text-6xl text-slate-400">
+                          <FileText />
+                        </div>
+                        
+                        {/* Title overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-sm font-bold p-2">
+                          <p className="line-clamp-1">{template.title}</p>
+                        </div>
+                      </div>
+
+                      {/* Info with icons */}
+                      <div className="flex items-center justify-between p-3 border-t border-white/20 bg-slate-800/50">
+                        <div className="flex items-center gap-2 text-slate-200 text-xs">
+                          <BookOpen size={16} />
+                          <span>{template.total_marks} Marks</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-200 text-xs">
+                          <span>{template.sections_count} Sections</span>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <div className="p-3">
+                        <div className="mb-2">
+                          <Badge variant="outline" className="text-blue-400 border-blue-400/30 text-xs mr-2">
+                            {template.class?.name}
+                          </Badge>
+                          <Badge variant="outline" className="text-green-400 border-green-400/30 text-xs">
+                            {template.subject?.name}
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400 text-xs">
+                            Updated {new Date(template.updated_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center">
+                        <p className="text-slate-200 text-sm line-clamp-3 mb-4">
+                          {template.class?.name} - {template.subject?.name}
+                        </p>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditTemplate(template)}
+                            className="p-2 rounded-full bg-blue-500 hover:bg-blue-400 text-white"
+                          >
+                            <Edit size={16} />
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenBuilder(template.id)}
+                            className="p-2 rounded-full bg-green-500 hover:bg-green-400 text-white"
+                          >
+                            <FileText size={16} />
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTemplate(template.id)}
+                            className="p-2 rounded-full bg-red-500 hover:bg-red-400 text-white"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Load More Indicator */}
+                {isLoadingMore && (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-300"></div>
+                  </div>
+                )}
+
+                {/* End of Results */}
+                {!hasMore && templates.length > 0 && (
+                  <div className="text-center py-4">
+                    <p className="text-slate-400 text-sm">No more templates to load</p>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="glassmorphism-strong rounded-xl p-12 text-center">
                 <FileText size={48} className="mx-auto text-slate-400 mb-4" />
                 <h3 className="text-xl text-white mb-2">No templates found</h3>
                 <p className="text-slate-300/80 mb-6">
-                  {searchTerm 
-                    ? 'Try adjusting your search terms' 
+                  {searchTerm
+                    ? 'Try adjusting your search terms'
                     : 'Get started by creating your first template'
                   }
                 </p>
