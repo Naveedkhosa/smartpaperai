@@ -660,8 +660,8 @@ const TemplateBuilder = () => {
                                     <h1 className="text-xl font-bold">Create Template</h1>
                                     <p className="text-blue-100 text-sm">Design your exam structure</p>
                                 </div>
-                                 <div className="flex  items-center gap-4 sm:flex-row flex-col gap-0">
-                                    <p className="text-blue-100 text-sm">Class : 10th</p> 
+                                <div className="flex  items-center gap-4 sm:flex-row flex-col gap-0">
+                                    <p className="text-blue-100 text-sm">Class : 10th</p> <span className='hidden px-1 sm:block'> • </span> 
                                     <p className="text-blue-100 text-sm">Subject : Mathematics</p>
                                 </div>
                             </div>
