@@ -89,26 +89,17 @@ const PapersPage = () => {
   });
   const navigate = useNavigate();
   const { toast } = useToast();
-  const papersApi = new ApiService('/papers');
-  const getToken = () => localStorage.getItem('smartpaper_token');
+  const { token } = useAuth();
 
-  const checkToken = () => {
-    const token = localStorage.getItem('smartpaper_token');
-    const user = localStorage.getItem('smartpaper_user');
-  
-    console.log('🔑 Token from localStorage:', token);
-    console.log('👤 User from localStorage:', user);
-  
-    if (!token) {
-      console.error('❌ No token found in localStorage');
-      return false;
-    }
-  
-    return true;
-  };
+  // Fix: Create ApiService instance with proper base path
+ 
+
+
+
+
 
   const fetchClasses = async () => {
-    const token = getToken();
+   
     if (!token) return;
 
     try {
@@ -138,7 +129,7 @@ const PapersPage = () => {
   };
 
   const fetchSubjects = async (classId: string) => {
-    const token = getToken();
+   
     if (!token || !classId) {
       setSubjects([]);
       return;
@@ -173,14 +164,15 @@ const PapersPage = () => {
     try {
       setIsLoading(true);
     
-      if (!checkToken()) {
-        console.log('Redirecting to login...');
-        navigate('/login');
-        return;
-      }
+    
       console.log('📡 Fetching papers from API...');
     
-      const response = await papersApi.getAll();
+      // Fix: Use the correct API endpoint structure
+       const response = await ApiService.request(`/user/papers`, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` },
+              });
+      
     
       console.log('📦 API Response:', response);
     
@@ -189,11 +181,19 @@ const PapersPage = () => {
         console.log(`✅ Loaded ${response.data.papers.length} papers`);
       } else {
         console.error('❌ Invalid API response format:', response);
-        setPapers(getMockPapers());
+        toast({
+          title: 'Error',
+          description: 'Failed to load papers',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('❌ Error fetching papers:', error);
-      setPapers(getMockPapers());
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch papers',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -217,7 +217,8 @@ const PapersPage = () => {
         subject_id: parseInt(formData.subjectId),
       };
 
-      const response = await papersApi.update(editingPaper.id, payload);
+      // Fix: Use static method with correct endpoint
+      const response = await ApiService.put(`/user/papers/${editingPaper.id}`, payload);
     
       if (response.status) {
         await fetchPapers();
@@ -228,7 +229,7 @@ const PapersPage = () => {
           description: 'Paper updated successfully',
         });
       } else {
-        throw new Error('Failed to update paper');
+        throw new Error(response.message || 'Failed to update paper');
       }
     } catch (error) {
       console.error('❌ Error updating paper:', error);
@@ -244,17 +245,25 @@ const PapersPage = () => {
     try {
       setDeletingId(id);
     
-      const response = await papersApi.delete(id);
+      // Fix: Use static method with correct endpoint
+      const response = await ApiService.delete(`/user/papers/${id}`);
     
       if (response.status) {
         setPapers(prev => prev.filter(p => p.id !== id));
-        console.log('✅ Paper deleted successfully');
+        toast({
+          title: 'Success',
+          description: 'Paper deleted successfully',
+        });
       } else {
-        throw new Error('Failed to delete paper');
+        throw new Error(response.message || 'Failed to delete paper');
       }
     } catch (error) {
       console.error('❌ Error deleting paper:', error);
-      setPapers(prev => prev.filter(p => p.id !== id));
+      toast({
+        title: 'Error',
+        description: 'Failed to delete paper',
+        variant: 'destructive',
+      });
     } finally {
       setDeletingId(null);
       setActiveDropdown(null);
@@ -283,70 +292,39 @@ const PapersPage = () => {
     }
   };
 
-  const getMockPapers = (): Paper[] => [
-    {
-      id: '1',
-      title: 'Mathematics Final Exam 2024',
-      user_id: 1,
-      class_id: 1,
-      subject_id: 1,
-      created_by: 'manual',
-      uploaded_paper_file: null,
-      data_source: 'personal',
-      duration: 120,
-      total_marks: 100,
-      created_at: '2024-01-15T00:00:00.000000Z',
-      updated_at: '2024-01-20T00:00:00.000000Z',
-      sections: [],
-      student_class: { id: 1, name: '10th Grade' },
-      subject: { id: 1, name: 'Mathematics' }
-    },
-    {
-      id: '2',
-      title: 'Science Midterm Assessment',
-      user_id: 1,
-      class_id: 2,
-      subject_id: 2,
-      created_by: 'manual',
-      uploaded_paper_file: null,
-      data_source: 'personal',
-      duration: 90,
-      total_marks: 80,
-      created_at: '2024-01-10T00:00:00.000000Z',
-      updated_at: '2024-01-18T00:00:00.000000Z',
-      sections: [],
-      student_class: { id: 2, name: '9th Grade' },
-      subject: { id: 2, name: 'Science' }
-    },
-    {
-      id: '3',
-      title: 'English Literature Test',
-      user_id: 1,
-      class_id: 3,
-      subject_id: 3,
-      created_by: 'manual',
-      uploaded_paper_file: null,
-      data_source: 'personal',
-      duration: 120,
-      total_marks: 100,
-      created_at: '2024-01-08T00:00:00.000000Z',
-      updated_at: '2024-01-12T00:00:00.000000Z',
-      sections: [],
-      student_class: { id: 3, name: '11th Grade' },
-      subject: { id: 3, name: 'English' }
-    }
-  ];
+  const handleDuplicatePaper = async (paper: Paper) => {
+    try {
+      // Create a copy of the paper with modified title
+      const duplicatePayload = {
+        title: `${paper.title} (Copy)`,
+        class_id: paper.class_id,
+        subject_id: paper.subject_id,
+        duration: paper.duration,
+        created_by: 'manual',
+        data_source: 'personal'
+      };
 
-  const handleDuplicatePaper = (paper: Paper) => {
-    const newPaper = {
-      ...paper,
-      id: Date.now().toString(),
-      title: `${paper.title} (Copy)`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    setPapers(prev => [...prev, newPaper]);
-    setActiveDropdown(null);
+      const response = await ApiService.post('/user/papers', duplicatePayload);
+    
+      if (response.status) {
+        await fetchPapers();
+        toast({
+          title: 'Success',
+          description: 'Paper duplicated successfully',
+        });
+      } else {
+        throw new Error('Failed to duplicate paper');
+      }
+    } catch (error) {
+      console.error('❌ Error duplicating paper:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to duplicate paper',
+        variant: 'destructive',
+      });
+    } finally {
+      setActiveDropdown(null);
+    }
   };
 
   const getTotalQuestions = (paper: Paper) => {
@@ -649,10 +627,10 @@ const PapersPage = () => {
                           <div className="space-y-3 mb-4">
                             <div className="flex items-center gap-2 text-sm">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium text-white ${getSubjectColor(paper.subject?.name || 'Default')}`}>
-                                {paper.subject?.name}
+                                {paper.subject?.name || 'No Subject'}
                               </span>
                               <span className="px-3 py-1 bg-white/10 rounded-full text-xs font-medium text-slate-300">
-                                {paper.student_class?.name}
+                                {paper.student_class?.name || 'No Class'}
                               </span>
                             </div>
                           </div>
@@ -714,9 +692,9 @@ const PapersPage = () => {
                             <div className="flex-1 min-w-0">
                               <h3 className="text-lg font-semibold text-white mb-1 truncate">{paper.title}</h3>
                               <div className="flex items-center gap-3 text-sm text-slate-300 flex-wrap">
-                                <span className="flex items-center gap-1 font-medium">{paper.subject?.name}</span>
+                                <span className="flex items-center gap-1 font-medium">{paper.subject?.name || 'No Subject'}</span>
                                 <span>•</span>
-                                <span>{paper.student_class?.name}</span>
+                                <span>{paper.student_class?.name || 'No Class'}</span>
                                 <span>•</span>
                                 <span className="flex items-center gap-1">
                                   <Clock size={14} />
