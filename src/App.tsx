@@ -192,14 +192,17 @@ function AppRoutes() {
     </ProtectedRoute>
   } 
 />
-      <Route 
-        path="/paper-viewer" 
-        element={
-          <ProtectedRoute>
-            <PaperViewer />
-          </ProtectedRoute>
-        } 
-      />
+    <Route
+  path="/teacher/paper-viewer/:id"
+  element={
+    <ProtectedRoute requiredRole="teacher">
+      <PaperViewer />
+    </ProtectedRoute>
+  }
+/>
+
+
+
       <Route 
   path="/teacher/classes" 
   element={

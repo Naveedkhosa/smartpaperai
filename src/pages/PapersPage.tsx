@@ -42,6 +42,8 @@ interface Paper {
   data_source: string | null;
   duration: number;
   total_marks: number;
+  questions_count?: number;
+  sections_count?: number;
   created_at: string;
   updated_at: string;
   sections: any[];
@@ -53,6 +55,21 @@ interface Paper {
     id: number;
     name: string;
   };
+}
+
+interface PapersData {
+  current_page: number;
+  data: Paper[];
+  from: number;
+  last_page: number;
+  last_page_url: string;
+  links: any[];
+  next_page_url: string | null;
+  path: string;
+  per_page: number;
+  prev_page_url: string | null;
+  to: number;
+  total: number;
 }
 
 interface ClassItem {
@@ -69,13 +86,12 @@ interface SubjectItem {
 }
 
 const PapersPage = () => {
-  const [papers, setPapers] = useState<Paper[]>([]);
+  const [papersData, setPapersData] = useState<PapersData | null>(null);
   const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [filteredSubjects, setFilteredSubjects] = useState<SubjectItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(9);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingPaper, setEditingPaper] = useState<Paper | null>(null);
@@ -87,36 +103,34 @@ const PapersPage = () => {
     classId: '',
     subjectId: ''
   });
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const { token } = useAuth();
 
-  // Fix: Create ApiService instance with proper base path
- 
+  const getToken = () => {
+    return token || localStorage.getItem('smartpaper_token');
+  };
 
+  const checkToken = () => {
+    const token = getToken();
+    if (!token) {
+      console.error('❌ No token found');
+      navigate('/login');
+      return false;
+    }
+    return true;
+  };
 
-
-
-
+  // Fetch classes
   const fetchClasses = async () => {
-   
-    if (!token) return;
-
     try {
-      const response = await fetch(`${API_BASE_URL}/user/classes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
+      const response = await ApiService.request('/user/classes', {
+        method: "GET",
+        headers: { Authorization: `Bearer ${getToken()}` },
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch classes');
-      }
-
-      const data = await response.json();
-      if (data.status && data.data && data.data.classes) {
-        setClasses(data.data.classes);
+      if (response.status && response.data) {
+        setClasses(response.data.classes || []);
       }
     } catch (error) {
       console.error('Error fetching classes:', error);
@@ -128,57 +142,53 @@ const PapersPage = () => {
     }
   };
 
+  // Fetch subjects for a class
   const fetchSubjects = async (classId: string) => {
-   
-    if (!token || !classId) {
-      setSubjects([]);
-      return;
-    }
-
     try {
-      const response = await fetch(`${API_BASE_URL}/user/classes/${classId}/subjects`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
+      const response = await ApiService.request(`/user/classes/${classId}/subjects`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${getToken()}` },
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch subjects');
+      if (response?.status && response?.data) {
+        setFilteredSubjects(response?.data?.class?.subjects || []);
       }
-
-      const data = await response.json();
-      setSubjects(data.data.class?.subjects || []);
     } catch (error) {
       console.error('Error fetching subjects:', error);
-      setSubjects([]);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch subjects',
-        variant: 'destructive',
-      });
+      setFilteredSubjects([]);
     }
   };
 
-  const fetchPapers = async () => {
+  const fetchPapers = async (page = 1, search = '') => {
     try {
       setIsLoading(true);
-    
-    
+
+      if (!checkToken()) {
+        return;
+      }
+
       console.log('📡 Fetching papers from API...');
-    
-      // Fix: Use the correct API endpoint structure
-       const response = await ApiService.request(`/user/papers`, {
-                method: "GET",
-                headers: { Authorization: `Bearer ${token}` },
-              });
-      
-    
+
+      const params = new URLSearchParams({
+        page: page.toString(),
+        per_page: '50',
+      });
+
+      if (search) {
+        params.append('search', search);
+      }
+
+      const url = `/user/papers?${params.toString()}`;
+
+      const response = await ApiService.request(url, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+
       console.log('📦 API Response:', response);
-    
+
       if (response.status && response.data && response.data.papers) {
-        setPapers(response.data.papers);
-        console.log(`✅ Loaded ${response.data.papers.length} papers`);
+        setPapersData(response.data.papers);
+        console.log(`✅ Loaded ${response.data.papers.data.length} papers`);
       } else {
         console.error('❌ Invalid API response format:', response);
         toast({
@@ -208,20 +218,22 @@ const PapersPage = () => {
       });
       return;
     }
-
     try {
-      const payload = {
-        title: formData.title,
-        duration: parseInt(formData.duration),
-        class_id: parseInt(formData.classId),
-        subject_id: parseInt(formData.subjectId),
-      };
-
-      // Fix: Use static method with correct endpoint
-      const response = await ApiService.put(`/user/papers/${editingPaper.id}`, payload);
-    
+      const response = await ApiService.request(`/user/papers/${editingPaper.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          duration: parseInt(formData.duration),
+          class_id: parseInt(formData.classId),
+          subject_id: parseInt(formData.subjectId),
+        }),
+      });
       if (response.status) {
-        await fetchPapers();
+        fetchPapers(currentPage, searchTerm);
         setIsEditDialogOpen(false);
         setEditingPaper(null);
         toast({
@@ -244,12 +256,14 @@ const PapersPage = () => {
   const handleDeletePaper = async (id: string) => {
     try {
       setDeletingId(id);
-    
-      // Fix: Use static method with correct endpoint
-      const response = await ApiService.delete(`/user/papers/${id}`);
-    
+
+      const response = await ApiService.request(`/user/papers/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+
       if (response.status) {
-        setPapers(prev => prev.filter(p => p.id !== id));
+        fetchPapers(currentPage, searchTerm);
         toast({
           title: 'Success',
           description: 'Paper deleted successfully',
@@ -288,8 +302,14 @@ const PapersPage = () => {
     if (value) {
       fetchSubjects(value);
     } else {
-      setSubjects([]);
+      setFilteredSubjects([]);
     }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setCurrentPage(1);
   };
 
   const handleDuplicatePaper = async (paper: Paper) => {
@@ -303,11 +323,17 @@ const PapersPage = () => {
         created_by: 'manual',
         data_source: 'personal'
       };
+      const response = await ApiService.request('/user/papers', {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(duplicatePayload),
+      });
 
-      const response = await ApiService.post('/user/papers', duplicatePayload);
-    
       if (response.status) {
-        await fetchPapers();
+        fetchPapers(currentPage, searchTerm);
         toast({
           title: 'Success',
           description: 'Paper duplicated successfully',
@@ -327,21 +353,7 @@ const PapersPage = () => {
     }
   };
 
-  const getTotalQuestions = (paper: Paper) => {
-    if (!paper.sections || paper.sections.length === 0) return 0;
-  
-    let totalQuestions = 0;
-    paper.sections.forEach(section => {
-      if (section.section_groups) {
-        section.section_groups.forEach((group: any) => {
-          if (group.questions) {
-            totalQuestions += group.questions.length;
-          }
-        });
-      }
-    });
-    return totalQuestions;
-  };
+  const getTotalQuestions = (paper: Paper) => paper.questions_count || 0;
 
   const getSubjectColor = (subjectName: string) => {
     const colors: { [key: string]: string } = {
@@ -368,19 +380,17 @@ const PapersPage = () => {
 
   useEffect(() => {
     fetchClasses();
-    fetchPapers();
   }, []);
 
-  const filteredPapers = papers.filter(paper =>
-    paper.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (paper.subject?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (paper.student_class?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    fetchPapers(currentPage, searchTerm);
+  }, [currentPage, searchTerm]);
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentPapers = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
+  const currentPapers = papersData?.data || [];
+  const totalPages = papersData?.last_page || 1;
+  const totalPapers = papersData?.total || 0;
+  const totalQuestions = papersData?.data.reduce((sum, p) => sum + getTotalQuestions(p), 0) || 0;
+  const totalMarks = papersData?.data.reduce((sum, p) => sum + p.total_marks, 0) || 0;
 
   const LoadingAnimation = () => (
     <div className="flex-1 min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
@@ -439,11 +449,11 @@ const PapersPage = () => {
 
   return (
     <GlassmorphismLayout>
-      <div className="flex">
-        <TeacherSidebar />
-        <div className="flex-1 min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-          <div className="max-w-7xl mx-auto p-6">
-            {/* Header */}
+  <div className="flex">
+         <TeacherSidebar />
+         <div className="flex-1 min-h-screen p-0">
+           <div className="container mx-auto p-4">
+             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
                 <div>
@@ -458,29 +468,16 @@ const PapersPage = () => {
                   Create New Paper
                 </button>
               </div>
-
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-slate-300 mb-1">Total Papers</p>
-                      <p className="text-2xl font-bold text-white">{papers.length}</p>
+                      <p className="text-2xl font-bold text-white">{totalPapers}</p>
                     </div>
                     <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
                       <FileText className="text-blue-400" size={24} />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-300 mb-1">Active Papers</p>
-                      <p className="text-2xl font-bold text-white">{papers.length}</p>
-                    </div>
-                    <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
-                      <BookOpen className="text-green-400" size={24} />
                     </div>
                   </div>
                 </div>
@@ -488,9 +485,20 @@ const PapersPage = () => {
                 <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
                   <div className="flex items-center justify-between">
                     <div>
+                      <p className="text-sm text-slate-300 mb-1">Active Papers</p>
+                      <p className="text-2xl font-bold text-white">{totalPapers}</p>
+                    </div>
+                    <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                      <BookOpen className="text-green-400" size={24} />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div>
                       <p className="text-sm text-slate-300 mb-1">Total Questions</p>
                       <p className="text-2xl font-bold text-white">
-                        {papers.reduce((sum, p) => sum + getTotalQuestions(p), 0)}
+                        {totalQuestions}
                       </p>
                     </div>
                     <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
@@ -498,13 +506,12 @@ const PapersPage = () => {
                     </div>
                   </div>
                 </div>
-
                 <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-slate-300 mb-1">Total Marks</p>
                       <p className="text-2xl font-bold text-white">
-                        {papers.reduce((sum, p) => sum + p.total_marks, 0)}
+                        {totalMarks}
                       </p>
                     </div>
                     <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center">
@@ -513,7 +520,6 @@ const PapersPage = () => {
                   </div>
                 </div>
               </div>
-
               {/* Search and View Toggle */}
               <div className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10">
                 <div className="flex flex-col lg:flex-row gap-4">
@@ -523,10 +529,7 @@ const PapersPage = () => {
                       type="text"
                       placeholder="Search by paper title, subject, or class..."
                       value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setCurrentPage(1);
-                      }}
+                      onChange={handleSearchChange}
                       className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     />
                   </div>
@@ -547,7 +550,6 @@ const PapersPage = () => {
                 </div>
               </div>
             </div>
-
             {/* Papers Display */}
             {currentPapers.length > 0 ? (
               <>
@@ -556,7 +558,7 @@ const PapersPage = () => {
                     viewMode === 'grid' ? (
                       <div key={paper.id} className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 hover:border-white/20 transition-all overflow-hidden group">
                         <div className={`h-2 ${getSubjectColor(paper.subject?.name || 'Default')}`}></div>
-                        
+
                         <div className="p-6">
                           <div className="flex items-start justify-between mb-4">
                             <h3 className="text-lg font-semibold text-white line-clamp-2 flex-1 pr-2">
@@ -569,7 +571,7 @@ const PapersPage = () => {
                               >
                                 <MoreVertical size={18} className="text-slate-300" />
                               </button>
-                              
+
                               {activeDropdown === paper.id && (
                                 <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl border border-white/20 z-10">
                                   <button
@@ -623,7 +625,6 @@ const PapersPage = () => {
                               )}
                             </div>
                           </div>
-
                           <div className="space-y-3 mb-4">
                             <div className="flex items-center gap-2 text-sm">
                               <span className={`px-3 py-1 rounded-full text-xs font-medium text-white ${getSubjectColor(paper.subject?.name || 'Default')}`}>
@@ -634,7 +635,6 @@ const PapersPage = () => {
                               </span>
                             </div>
                           </div>
-
                           <div className="grid grid-cols-3 gap-4 mb-4 pb-4 border-b border-white/10">
                             <div className="text-center">
                               <p className="text-xs text-slate-400 mb-1">Duration</p>
@@ -652,7 +652,6 @@ const PapersPage = () => {
                               <p className="text-sm font-semibold text-white">{paper.total_marks}</p>
                             </div>
                           </div>
-
                           <div className="flex items-center justify-between text-xs text-slate-400 mb-4">
                             <span className="flex items-center gap-1">
                               <Calendar size={12} />
@@ -662,7 +661,6 @@ const PapersPage = () => {
                               Active
                             </span>
                           </div>
-
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               onClick={() => navigate(`/teacher/papers/${paper.id}`)}
@@ -688,7 +686,7 @@ const PapersPage = () => {
                             <div className={`w-12 h-12 ${getSubjectColor(paper.subject?.name || 'Default')} rounded-lg flex items-center justify-center flex-shrink-0`}>
                               <FileText className="text-white" size={24} />
                             </div>
-                            
+
                             <div className="flex-1 min-w-0">
                               <h3 className="text-lg font-semibold text-white mb-1 truncate">{paper.title}</h3>
                               <div className="flex items-center gap-3 text-sm text-slate-300 flex-wrap">
@@ -707,7 +705,6 @@ const PapersPage = () => {
                               </div>
                             </div>
                           </div>
-
                           <div className="flex items-center gap-3">
                             <span className="text-xs text-slate-400">{formatDate(paper.updated_at)}</span>
                             <button
@@ -729,7 +726,7 @@ const PapersPage = () => {
                               >
                                 <MoreVertical size={18} className="text-slate-300" />
                               </button>
-                              
+
                               {activeDropdown === paper.id && (
                                 <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl border border-white/20 z-10">
                                   <button
@@ -774,15 +771,14 @@ const PapersPage = () => {
                     )
                   ))}
                 </div>
-
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="bg-white/5 backdrop-blur-lg rounded-xl p-4 border border-white/10">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                       <div className="text-slate-300 text-sm">
-                        Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredPapers.length)} of {filteredPapers.length} papers
+                        Showing {papersData?.from}-{papersData?.to} of {papersData?.total} papers
                       </div>
-                    
+
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -791,7 +787,7 @@ const PapersPage = () => {
                         >
                           Previous
                         </button>
-                      
+
                         <div className="flex items-center gap-1">
                           {[...Array(totalPages)].map((_, index) => (
                             <button
@@ -807,7 +803,7 @@ const PapersPage = () => {
                             </button>
                           ))}
                         </div>
-                      
+
                         <button
                           onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                           disabled={currentPage === totalPages}
@@ -847,7 +843,6 @@ const PapersPage = () => {
                 </div>
               </div>
             )}
-
             {/* Edit Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
               <DialogContent className="bg-slate-800 border-white/20 text-white max-w-md">
@@ -901,7 +896,7 @@ const PapersPage = () => {
                         <SelectValue placeholder="Select subject" />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-800 border-white/20 text-white">
-                        {subjects.map((sub) => (
+                        {filteredSubjects.map((sub) => (
                           <SelectItem key={sub.id} value={sub.id.toString()}>
                             {sub.name}
                           </SelectItem>
@@ -921,8 +916,8 @@ const PapersPage = () => {
                   >
                     Cancel
                   </Button>
-                  <Button 
-                    onClick={handleUpdatePaper} 
+                  <Button
+                    onClick={handleUpdatePaper}
                     className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
                   >
                     Save Changes
