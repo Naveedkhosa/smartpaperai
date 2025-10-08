@@ -386,16 +386,16 @@ const TemplatesPage = () => {
 
       if (response.status) {
         // Update the template in the local state
-        setTemplates(prev => prev.map(t => 
-          t.id === editingTemplate.id 
-            ? { 
-                ...t, 
-                title: editForm.name,
-                class_id: editForm.class_id,
-                subject_id: editForm.subject_id,
-                class: classes.find(c => c.id === editForm.class_id),
-                subject: filteredSubjects.find(s => s.id === editForm.subject_id)
-              }
+        setTemplates(prev => prev.map(t =>
+          t.id === editingTemplate.id
+            ? {
+              ...t,
+              title: editForm.name,
+              class_id: editForm.class_id,
+              subject_id: editForm.subject_id,
+              class: classes.find(c => c.id === editForm.class_id),
+              subject: filteredSubjects.find(s => s.id === editForm.subject_id)
+            }
             : t
         ));
         handleCloseEditPopup();
@@ -668,45 +668,45 @@ const TemplatesPage = () => {
                         <div className="text-6xl text-slate-400">
                           <FileText />
                         </div>
-                        
+
                         {/* Title overlay */}
                         <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-sm font-bold p-2">
                           <p className="line-clamp-1">{template.title}</p>
                         </div>
 
                         {/* Action Menu (3 Dots) */}
-<div className="absolute top-2 right-2 z-10">
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <button className="p-2 rounded-full bg-slate-800/70 hover:bg-slate-700 transition">
-        <MoreVertical className="text-slate-200 w-4 h-4" />
-      </button>
-    </DropdownMenuTrigger>
+                        <div className="absolute top-2 right-2 z-10">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="p-2 rounded-full bg-slate-800/70 hover:bg-slate-700 transition">
+                                <MoreVertical className="text-slate-200 w-4 h-4" />
+                              </button>
+                            </DropdownMenuTrigger>
 
-    <DropdownMenuContent align="end" className="bg-slate-800/90 border border-slate-700 text-white rounded-lg w-40">
-      <DropdownMenuItem
-        onClick={() => handleEditTemplate(template)}
-        className="flex items-center gap-2 hover:bg-slate-700 cursor-pointer px-3 py-2"
-      >
-        <Edit size={16} className="text-blue-400" /> Edit
-      </DropdownMenuItem>
+                            <DropdownMenuContent align="end" className="bg-slate-800/90 border border-slate-700 text-white rounded-lg w-40">
+                              <DropdownMenuItem
+                                onClick={() => handleEditTemplate(template)}
+                                className="flex items-center gap-2 hover:bg-slate-700 cursor-pointer px-3 py-2"
+                              >
+                                <Edit size={16} className="text-blue-400" /> Edit
+                              </DropdownMenuItem>
 
-      <DropdownMenuItem
-        onClick={() => handleOpenBuilder(template.id)}
-        className="flex items-center gap-2 hover:bg-slate-700 cursor-pointer px-3 py-2"
-      >
-        <FileText size={16} className="text-green-400" /> Builder
-      </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleOpenBuilder(template.id)}
+                                className="flex items-center gap-2 hover:bg-slate-700 cursor-pointer px-3 py-2"
+                              >
+                                <FileText size={16} className="text-green-400" /> Builder
+                              </DropdownMenuItem>
 
-      <DropdownMenuItem
-        onClick={() => handleDeleteTemplate(template.id)}
-        className="flex items-center gap-2 hover:bg-slate-700 cursor-pointer px-3 py-2 text-red-400"
-      >
-        <Trash2 size={16} /> Delete
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
-</div>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteTemplate(template.id)}
+                                className="flex items-center gap-2 hover:bg-slate-700 cursor-pointer px-3 py-2 text-red-400"
+                              >
+                                <Trash2 size={16} /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
 
 
 
@@ -733,7 +733,7 @@ const TemplatesPage = () => {
                             {template.subject?.name}
                           </Badge>
                         </div>
-                        
+
                         <div className="flex justify-between items-center">
                           <span className="text-slate-400 text-xs">
                             Updated {new Date(template.updated_at).toLocaleDateString()}
@@ -742,41 +742,41 @@ const TemplatesPage = () => {
                       </div>
 
                       {/* Hover Overlay */}
-                   {/* Hover Overlay */}
-<div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center">
-  <p className="text-slate-200 text-sm line-clamp-3 mb-4">
-    {template.class?.name} - {template.subject?.name}
-  </p>
-  
-  <div className="flex gap-2">
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => handleEditTemplate(template)}
-      className="p-2 rounded-full bg-blue-500 hover:bg-blue-400 text-white"
-    >
-      <Edit size={16} />
-    </Button>
-    
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => handleOpenBuilder(template.id)}
-      className="p-2 rounded-full bg-green-500 hover:bg-green-400 text-white"
-    >
-      <FileText size={16} />
-    </Button>
-    
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => handleDeleteTemplate(template.id)}
-      className="p-2 rounded-full bg-red-500 hover:bg-red-400 text-white"
-    >
-      <Trash2 size={16} />
-    </Button>
-  </div>
-</div>
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center">
+                        <p className="text-slate-200 text-sm line-clamp-3 mb-4">
+                          {template.class?.name} - {template.subject?.name}
+                        </p>
+
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditTemplate(template)}
+                            className="p-2 rounded-full bg-blue-500 hover:bg-blue-400 text-white"
+                          >
+                            <Edit size={16} />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenBuilder(template.id)}
+                            className="p-2 rounded-full bg-green-500 hover:bg-green-400 text-white"
+                          >
+                            <FileText size={16} />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTemplate(template.id)}
+                            className="p-2 rounded-full bg-red-500 hover:bg-red-400 text-white"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </div>
 
                     </Card>
                   ))}

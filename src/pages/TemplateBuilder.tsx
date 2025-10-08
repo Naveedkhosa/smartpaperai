@@ -147,7 +147,7 @@ interface Section {
 
 interface QuestionGroup {
     id: string;
-    type: 'mcq' | 'true-false' | 'short-answer' | 'long-answer' | 'fill-blanks' | 'paragraph';
+    type: 'mcq' | 'true-false' | 'short-answer' | 'long-answer' | 'fill-blanks' | 'paragraph' | 'conditional';
     instruction: string;
     numberingStyle: 'numeric' | 'alphabetic' | 'roman';
     questionsCount: number;
@@ -189,6 +189,11 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
             label: 'Paragraph',
             icon: '📖',
             color: 'indigo'
+        },
+        'conditional':{
+            label: 'Conditional',
+            icon: 'OR',
+            color: 'green'
         }
     };
 
@@ -295,6 +300,7 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                                     <SelectItem value="long-answer">📄 Long Answer</SelectItem>
                                     <SelectItem value="fill-blanks">___ Fill Blanks</SelectItem>
                                     <SelectItem value="paragraph">📖 Paragraph</SelectItem>
+                                    <SelectItem value="conditional">x/y Conditional</SelectItem>
                                 </Select>
                             </div>
 
@@ -673,7 +679,8 @@ const TemplateBuilder = () => {
             '3': 'short-answer',
             '4': 'long-answer',
             '5': 'fill-blanks',
-            '6': 'paragraph'
+            '6': 'paragraph',
+            '7':'conditional'
         };
         return typeMap[typeId] || 'mcq';
     };
@@ -686,7 +693,8 @@ const TemplateBuilder = () => {
             'short-answer': '3',
             'long-answer': '4',
             'fill-blanks': '5',
-            'paragraph': '6'
+            'paragraph': '6',
+            'conditional':'7'
         };
         return typeMap[type] || '1';
     };
