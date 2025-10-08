@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-    Plus, Trash2, Save, ArrowLeft, GripVertical, BookOpen, Target,
-    BarChart3, AlertCircle, Settings, ChevronDown, ChevronUp
+    Plus, Trash2, Save, ArrowLeft, BookOpen, Target,
+    BarChart3, AlertCircle, Settings, ChevronDown, ChevronUp,
+    ArrowUp, ArrowDown
 } from 'lucide-react';
 import { ApiService } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -25,7 +26,7 @@ const Button = ({ children, onClick, className = "", variant = "default", size =
                             ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700 shadow-lg hover:shadow-xl'
                             : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
             }
-      ${size === 'sm' ? 'px-3 py-2 text-sm min-h-[36px]' : size === 'lg' ? 'px-8 py-4 text-lg min-h-[56px]' : 'px-6 py-3 min-h-[44px]'}
+      ${size === 'sm' ? 'px-1 py-1 text-sm min-h-[36px]' : size === 'lg' ? 'px-8 py-4 text-lg min-h-[56px]' : 'px-6 py-3 min-h-[44px]'}
       ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       ${className}
     `}
@@ -155,7 +156,7 @@ interface QuestionGroup {
 }
 
 // Mobile-Optimized Collapsible Question Group Component
-const QuestionGroupComponent = ({ group, groupIndex, onUpdate, onDelete }) => {
+const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, onDelete, onMoveUp, onMoveDown }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const groupTypes = {
@@ -204,6 +205,34 @@ const QuestionGroupComponent = ({ group, groupIndex, onUpdate, onDelete }) => {
                 <div className="flex items-center justify-between gap-3">
                     {/* Left Side - Group Info */}
                     <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* Order Controls */}
+                        <div className="flex flex-col gap-1">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMoveUp(groupIndex);
+                                }}
+                                disabled={groupIndex === 0}
+                                className="p-1 min-h-[24px] w-7 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                            >
+                                <ArrowUp size={14} />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMoveDown(groupIndex);
+                                }}
+                                disabled={groupIndex === sectionGroups.length - 1}
+                                className="p-1 min-h-[24px] w-7 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                            >
+                                <ArrowDown size={14} />
+                            </Button>
+                        </div>
+
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md flex-shrink-0">
                             {groupIndex + 1}
                         </div>
@@ -361,8 +390,8 @@ const QuestionGroupComponent = ({ group, groupIndex, onUpdate, onDelete }) => {
     );
 };
 
-// Mobile-Optimized Section Component - Updated with Collapsible Feature
-const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup }) => {
+// Mobile-Optimized Section Component with Order Controls
+const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onAddGroup, onMoveUp, onMoveDown }) => {
     const [isExpanded, setIsExpanded] = useState(true);
 
     const sectionStats = useMemo(() => {
@@ -371,9 +400,23 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup }) => {
         return { totalQuestions, totalMarks };
     }, [section.groups]);
 
+    const moveGroupUp = (groupIndex) => {
+        if (groupIndex === 0) return;
+        const updatedGroups = [...section.groups];
+        [updatedGroups[groupIndex - 1], updatedGroups[groupIndex]] = [updatedGroups[groupIndex], updatedGroups[groupIndex - 1]];
+        onEdit({ ...section, groups: updatedGroups });
+    };
+
+    const moveGroupDown = (groupIndex) => {
+        if (groupIndex === section.groups.length - 1) return;
+        const updatedGroups = [...section.groups];
+        [updatedGroups[groupIndex], updatedGroups[groupIndex + 1]] = [updatedGroups[groupIndex + 1], updatedGroups[groupIndex]];
+        onEdit({ ...section, groups: updatedGroups });
+    };
+
     return (
         <Card className="mb-6 overflow-hidden">
-            {/* Mobile-First Section Header - Now Collapsible */}
+            {/* Mobile-First Section Header with Order Controls */}
             <div
                 className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-gray-200 cursor-pointer hover:bg-blue-100/50 transition-colors touch-manipulation"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -381,12 +424,38 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup }) => {
                 <div className="flex items-center justify-between gap-3">
                     {/* Left Side - Section Info */}
                     <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* Order Controls */}
+                        <div className="flex flex-col gap-1">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMoveUp(index);
+                                }}
+                                disabled={index === 0}
+                                className="p-1 min-h-[24px] w-7 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                            >
+                                <ArrowUp size={14} />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMoveDown(index);
+                                }}
+                                disabled={index === totalSections - 1}
+                                className="p-1 min-h-[24px] w-7 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                            >
+                                <ArrowDown size={14} />
+                            </Button>
+                        </div>
+
                         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white font-bold text-lg flex items-center justify-center shadow-md flex-shrink-0">
                             {index + 1}
                         </div>
-                        <div className="p-2 text-gray-400 hover:text-gray-600 cursor-grab rounded-lg hover:bg-white/50 transition-colors touch-manipulation">
-                            <GripVertical size={20} />
-                        </div>
+                        
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                                 <Badge variant="default" className="text-xs">
@@ -501,6 +570,7 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup }) => {
                                         key={group.id}
                                         group={group}
                                         groupIndex={groupIndex}
+                                        sectionGroups={section.groups}
                                         onUpdate={(updatedGroup) => {
                                             const updatedGroups = section.groups.map(g =>
                                                 g.id === group.id ? updatedGroup : g
@@ -511,6 +581,8 @@ const SectionComponent = ({ section, index, onEdit, onDelete, onAddGroup }) => {
                                             const updatedGroups = section.groups.filter(g => g.id !== group.id);
                                             onEdit({ ...section, groups: updatedGroups });
                                         }}
+                                        onMoveUp={moveGroupUp}
+                                        onMoveDown={moveGroupDown}
                                     />
                                 ))}
                             </div>
@@ -574,7 +646,7 @@ const TemplateBuilder = () => {
                         instruction: section.instruction || '',
                         groups: section.groups.map((group: any, groupIndex: number) => ({
                             id: group.id || `group-${index}-${groupIndex}`,
-                            type: mapQuestionType(group.question_type_id), // You'll need to map this
+                            type: mapQuestionType(group.question_type_id),
                             instruction: group.instruction || '',
                             numberingStyle: group.numbering_style,
                             questionsCount: group.questions_count,
@@ -595,7 +667,6 @@ const TemplateBuilder = () => {
 
     // Helper function to map question type IDs to type strings
     const mapQuestionType = (typeId: string): string => {
-        // You'll need to adjust this mapping based on your question type IDs
         const typeMap: { [key: string]: string } = {
             '1': 'mcq',
             '2': 'true-false',
@@ -679,6 +750,22 @@ const TemplateBuilder = () => {
         ));
     };
 
+    // Move section up
+    const moveSectionUp = (index: number) => {
+        if (index === 0) return;
+        const newSections = [...sections];
+        [newSections[index - 1], newSections[index]] = [newSections[index], newSections[index - 1]];
+        setSections(newSections);
+    };
+
+    // Move section down
+    const moveSectionDown = (index: number) => {
+        if (index === sections.length - 1) return;
+        const newSections = [...sections];
+        [newSections[index], newSections[index + 1]] = [newSections[index + 1], newSections[index]];
+        setSections(newSections);
+    };
+
     const saveTemplate = async () => {
         if (!templateId) {
             alert('No template ID found. Please create a template first.');
@@ -705,6 +792,7 @@ const TemplateBuilder = () => {
             const sectionsData = sections.map((section, index) => ({
                 title: section.title,
                 instruction: section.instruction,
+                order: index,
                 groups: section.groups.map((group, groupIndex) => ({
                     question_type_id: mapTypeToId(group.type),
                     instruction: group.instruction,
@@ -835,6 +923,18 @@ const TemplateBuilder = () => {
                     </Button>
                 </div>
 
+                {/* Order Instructions */}
+                <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 text-center">
+                    <div className="flex items-center justify-center gap-2 text-blue-700 mb-2">
+                        <ArrowUp size={20} />
+                        <ArrowDown size={20} />
+                        <span className="font-semibold">Use Arrows to Reorder</span>
+                    </div>
+                    <p className="text-blue-600 text-sm">
+                        Use the up/down arrows to change the order of sections and groups
+                    </p>
+                </div>
+
                 {/* Main Content */}
                 {sections.length === 0 ? (
                     <Card className="text-center py-12">
@@ -863,9 +963,12 @@ const TemplateBuilder = () => {
                                 key={section.id}
                                 section={section}
                                 index={index}
+                                totalSections={sections.length}
                                 onEdit={updateSection}
                                 onDelete={deleteSection}
                                 onAddGroup={addQuestionGroup}
+                                onMoveUp={moveSectionUp}
+                                onMoveDown={moveSectionDown}
                             />
                         ))}
                     </div>
