@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Plus, Trash2, Save, ArrowLeft, BookOpen, Target,
     BarChart3, AlertCircle, Settings, ChevronDown, ChevronUp,
-    ArrowUp, ArrowDown
+    ArrowUp, ArrowDown, Eye, X, Download, Printer, Loader2, FileText
 } from 'lucide-react';
 import { ApiService } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -154,6 +154,367 @@ interface QuestionGroup {
     marksPerQuestion: number;
     optionsCount?: number;
 }
+
+// Paper Preview Modal Component
+const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
+    const [isPrinting, setIsPrinting] = useState(false);
+    const [generatedPaper, setGeneratedPaper] = useState(null);
+
+    // Generate random paper data based on template
+    useEffect(() => {
+        if (isOpen && templateData && sections) {
+            generateRandomPaper();
+        }
+    }, [isOpen, templateData, sections]);
+
+    const generateRandomPaper = () => {
+        const randomPaper = {
+            id: 'preview-' + Date.now(),
+            title: templateData?.name || 'Exam Paper',
+            subject: templateData?.subject || { name: 'Mathematics' },
+            student_class: templateData?.class || { name: 'Grade 10' },
+            duration: 180,
+            total_marks: sections.reduce((total, section) => 
+                total + section.groups.reduce((secTotal, group) => 
+                    secTotal + (group.questionsCount * group.marksPerQuestion), 0
+                ), 0
+            ),
+            sections: sections.map((section, sIndex) => ({
+                id: `section-${sIndex}`,
+                title: section.title,
+                instructions: section.instruction,
+                section_groups: section.groups.map((group, gIndex) => ({
+                    id: `group-${sIndex}-${gIndex}`,
+                    instructions: group.instruction,
+                    question_type: { 
+                        slug: group.type,
+                        name: getQuestionTypeName(group.type)
+                    },
+                    questions: Array.from({ length: group.questionsCount }, (_, qIndex) => ({
+                        id: `question-${sIndex}-${gIndex}-${qIndex}`,
+                        question_text: generateRandomQuestion(group.type, qIndex + 1),
+                        marks: group.marksPerQuestion,
+                        options: group.type === 'mcq' ? 
+                            Array.from({ length: group.optionsCount || 4 }, (_, optIndex) => ({
+                                id: `opt-${sIndex}-${gIndex}-${qIndex}-${optIndex}`,
+                                option_text: generateRandomOption(optIndex)
+                            })) : []
+                    }))
+                }))
+            }))
+        };
+        setGeneratedPaper(randomPaper);
+    };
+
+    const getQuestionTypeName = (type) => {
+        const typeMap = {
+            'mcq': 'Multiple Choice',
+            'true-false': 'True/False',
+            'short-answer': 'Short Answer',
+            'long-answer': 'Long Answer',
+            'fill-blanks': 'Fill in the Blanks',
+            'paragraph': 'Paragraph',
+            'conditional': 'Conditional'
+        };
+        return typeMap[type] || 'Question';
+    };
+
+    const generateRandomQuestion = (type, index) => {
+        const questions = {
+            'mcq': [
+                `What is the result of ${Math.floor(Math.random() * 100) + 1} + ${Math.floor(Math.random() * 100) + 1}?`,
+                `Which of the following is a prime number?`,
+                `Solve for x: ${Math.floor(Math.random() * 10) + 1}x + ${Math.floor(Math.random() * 10) + 1} = ${Math.floor(Math.random() * 50) + 1}`,
+                `What is the capital of ${['France', 'Germany', 'Italy', 'Spain'][Math.floor(Math.random() * 4)]}?`,
+                `Which element has the chemical symbol '${['O', 'H', 'C', 'N'][Math.floor(Math.random() * 4)]}'?`
+            ],
+            'true-false': [
+                `The Earth is the largest planet in our solar system.`,
+                `Water boils at 100 degrees Celsius at sea level.`,
+                `Photosynthesis occurs only during the day.`,
+                `The human body has 206 bones.`,
+                `Python is a compiled programming language.`
+            ],
+            'short-answer': [
+                `Define Newton's First Law of Motion.`,
+                `What is the formula for calculating area of a circle?`,
+                `Name the process by which plants make their food.`,
+                `What is the capital of Australia?`,
+                `Explain the term 'democracy' in one sentence.`
+            ],
+            'long-answer': [
+                `Explain the process of photosynthesis in detail, including all the necessary components and conditions.`,
+                `Discuss the causes and effects of World War II, highlighting at least three major consequences.`,
+                `Describe the structure and functions of the human heart with a labeled diagram.`,
+                `Write a comprehensive essay on the impact of technology on modern education.`,
+                `Explain the water cycle in detail with appropriate diagrams and examples.`
+            ],
+            'fill-blanks': [
+                `The process of liquid turning into gas is called __________.`,
+                `The capital of Japan is __________.`,
+                `The chemical formula for water is __________.`,
+                `The largest ocean on Earth is the __________ Ocean.`,
+                `The force that pulls objects toward the center of the Earth is called __________.`
+            ],
+            'paragraph': [
+                `Read the following passage carefully and answer the questions that follow: "The Industrial Revolution marked a major turning point in history. Almost every aspect of daily life was influenced in some way..."`,
+                `Study the given paragraph and respond to the questions: "Climate change refers to long-term shifts in temperatures and weather patterns. These shifts may be natural, but since the 1800s..."`,
+                `Analyze the following text: "The Renaissance was a period in European history marking the transition from the Middle Ages to modernity and covering the 15th and 16th centuries..."`
+            ],
+            'conditional': [
+                `Answer any 3 out of the following 5 questions.`,
+                `Choose 2 questions from Part A and 3 questions from Part B.`,
+                `Attempt any four questions, with at least one from each section.`
+            ]
+        };
+        const typeQuestions = questions[type] || questions['short-answer'];
+        return typeQuestions[Math.floor(Math.random() * typeQuestions.length)];
+    };
+
+    const generateRandomOption = (index) => {
+        const options = [
+            `Option ${String.fromCharCode(65 + index)}`,
+            `Choice ${String.fromCharCode(65 + index)}`,
+            `Alternative ${index + 1}`,
+            `Selection ${String.fromCharCode(65 + index)}`,
+            `Answer ${index + 1}`
+        ];
+        return options[Math.floor(Math.random() * options.length)];
+    };
+
+    const getQuestionNumber = (sectionIndex, groupIndex, questionIndex) => {
+        if (!generatedPaper) return 0;
+        let count = 1;
+        for (let s = 0; s < sectionIndex; s++) {
+            for (let g = 0; g < generatedPaper.sections[s].section_groups.length; g++) {
+                count += generatedPaper.sections[s].section_groups[g].questions.length;
+            }
+        }
+        for (let g = 0; g < groupIndex; g++) {
+            count += generatedPaper.sections[sectionIndex].section_groups[g].questions.length;
+        }
+        return count + questionIndex;
+    };
+
+    const handlePrint = () => {
+        setIsPrinting(true);
+        setTimeout(() => {
+            const printContent = document.getElementById('paper-preview-content');
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Paper Preview</title>
+                    <style>
+                        body { 
+                            font-family: 'Times New Roman', serif; 
+                            margin: 0; 
+                            padding: 20mm;
+                            color: black;
+                            background: white;
+                        }
+                        .print-area { 
+                            width: 210mm; 
+                            min-height: 297mm; 
+                        }
+                        .text-center { text-align: center; }
+                        .border-b { border-bottom: 1px solid #666; }
+                        .border-t { border-top: 1px solid #666; }
+                        .mb-6 { margin-bottom: 24px; }
+                        .mb-4 { margin-bottom: 16px; }
+                        .mb-3 { margin-bottom: 12px; }
+                        .mb-2 { margin-bottom: 8px; }
+                        .mt-6 { margin-top: 24px; }
+                        .pb-4 { padding-bottom: 16px; }
+                        .pt-3 { padding-top: 12px; }
+                        .p-10 { padding: 40px; }
+                        .text-lg { font-size: 18px; }
+                        .text-xl { font-size: 20px; }
+                        .text-2xl { font-size: 24px; }
+                        .text-sm { font-size: 14px; }
+                        .text-xs { font-size: 12px; }
+                        .font-bold { font-weight: bold; }
+                        .font-semibold { font-weight: 600; }
+                        .italic { font-style: italic; }
+                        .underline { text-decoration: underline; }
+                        .grid { display: grid; }
+                        .grid-cols-2 { grid-template-columns: 1fr 1fr; }
+                        .gap-x-10 { column-gap: 40px; }
+                        .gap-y-1 { row-gap: 4px; }
+                        .ml-8 { margin-left: 32px; }
+                        .mt-2 { margin-top: 8px; }
+                        .mr-2 { margin-right: 8px; }
+                        .flex { display: flex; }
+                        .items-center { align-items: center; }
+                        .items-start { align-items: flex-start; }
+                        .justify-between { justify-content: space-between; }
+                        .leading-snug { line-height: 1.375; }
+                    </style>
+                </head>
+                <body>
+                    ${printContent.innerHTML}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+            setIsPrinting(false);
+        }, 500);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+                    <div className="flex items-center gap-3">
+                        <FileText size={24} />
+                        <div>
+                            <h2 className="text-xl font-bold">Paper Preview</h2>
+                            <p className="text-blue-100 text-sm">Randomly generated questions based on your template</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handlePrint}
+                            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded flex items-center gap-2"
+                        >
+                            {isPrinting ? (
+                                <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                                <Printer size={16} />
+                            )}
+                            Print
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-white/10 rounded-full text-white"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Modal Content */}
+                <div className="flex-1 overflow-auto p-6 bg-gray-100">
+                    {generatedPaper ? (
+                        <div id="paper-preview-content" className="print-area bg-white text-black mx-auto w-[210mm] min-h-[297mm] shadow-lg p-10 font-[Times_New_Roman]">
+                            {/* Header */}
+                            <div className="text-center border-b border-gray-400 pb-4 mb-6">
+                                <h1 className="text-2xl font-bold uppercase">{generatedPaper.title}</h1>
+                                <div className="text-[15px] mt-2">
+                                    <span>
+                                        <strong>Subject:</strong> {generatedPaper.subject?.name || "N/A"} &nbsp; | &nbsp;
+                                    </span>
+                                    <span>
+                                        <strong>Class:</strong> {generatedPaper.student_class?.name || "N/A"} &nbsp; | &nbsp;
+                                    </span>
+                                    <span>
+                                        <strong>Time:</strong> {generatedPaper.duration} Min &nbsp; | &nbsp;
+                                    </span>
+                                    <span>
+                                        <strong>Total Marks:</strong> {generatedPaper.total_marks}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Body */}
+                            {generatedPaper.sections.map((section: any, sIndex: number) => (
+                                <div key={section.id} className="mb-8">
+                                    <h2 className="text-lg font-bold underline mb-2">
+                                        {section.title}
+                                    </h2>
+                                    {section.instructions && (
+                                        <p className="mb-4 text-[15px] italic">{section.instructions}</p>
+                                    )}
+
+                                    {section.section_groups.map((group: any, gIndex: number) => (
+                                        <div key={group.id}>
+                                            {group.instructions && (
+                                                <p className="font-semibold mb-3">{group.instructions}</p>
+                                            )}
+
+                                            {group.questions.map((question: any, qIndex: number) => {
+                                                const qNumber = getQuestionNumber(sIndex, gIndex, qIndex);
+                                                return (
+                                                    <div key={question.id} className="mb-4">
+                                                        <div className="flex justify-between items-start">
+                                                            <p className="text-[16px] leading-snug">
+                                                                <strong>Q{qNumber}.</strong> {question.question_text}
+                                                            </p>
+                                                            {question.marks > 0 && (
+                                                                <span className="text-[14px] font-semibold text-gray-700">
+                                                                    ({question.marks})
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* MCQs */}
+                                                        {group.question_type?.slug === "mcq" && (
+                                                            <div className="ml-8 mt-2 grid grid-cols-2 gap-x-10 gap-y-1 text-[15px]">
+                                                                {question.options.map((opt: any, i: number) => (
+                                                                    <div key={opt.id} className="flex items-center">
+                                                                        <span className="font-semibold mr-2">
+                                                                            {String.fromCharCode(65 + i)}.
+                                                                        </span>
+                                                                        <span>{opt.option_text}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+
+                            {/* Footer */}
+                            <div className="text-center border-t border-gray-400 pt-3 mt-6 text-sm italic">
+                                --- End of Paper --- <br />
+                                Best of luck to all students!
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center h-64">
+                            <Loader2 className="w-8 h-8 animate-spin mr-3 text-blue-600" />
+                            <span>Generating paper preview...</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-white">
+                    <div className="text-sm text-gray-600">
+                        This is a preview with randomly generated questions. Actual paper will be generated from your question bank.
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button variant="outline" onClick={onClose}>
+                            Close
+                        </Button>
+                        <Button 
+                            onClick={() => {
+                                if (templateData?.id) {
+                                    window.open(`../teacher/paper-viewer/${templateData.id}`, '_blank');
+                                }
+                            }}
+                            variant="primary"
+                        >
+                            <Eye size={16} className="mr-2" />
+                            Open Full Paper Viewer
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // Mobile-Optimized Collapsible Question Group Component
 const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, onDelete, onMoveUp, onMoveDown }) => {
@@ -624,6 +985,8 @@ const TemplateBuilder = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [templateData, setTemplateData] = useState(null);
+    const [showViewButton, setShowViewButton] = useState(false);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
 
     // Fetch template data if editing
     useEffect(() => {
@@ -774,6 +1137,16 @@ const TemplateBuilder = () => {
         setSections(newSections);
     };
 
+    const handlePreviewPaper = () => {
+        setShowPreviewModal(true);
+    };
+
+    const handleViewPaper = () => {
+        if (templateId) {
+            navigate(`../teacher/paper-viewer/${templateId}`);
+        }
+    };
+
     const saveTemplate = async () => {
         if (!templateId) {
             alert('No template ID found. Please create a template first.');
@@ -825,6 +1198,7 @@ const TemplateBuilder = () => {
 
             if (response.status) {
                 alert('Template saved successfully!');
+                setShowViewButton(true);
                 fetchTemplateData();
             } else {
                 throw new Error(response.message || 'Failed to save template');
@@ -864,23 +1238,37 @@ const TemplateBuilder = () => {
                                     Back
                                 </Button>
 
-                                <Button
-                                    onClick={saveTemplate}
-                                    disabled={isSaving}
-                                    className="w-[fit-content] bg-white text-blue-600 hover:bg-blue-50 shadow-lg"
-                                >
-                                    {isSaving ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                                            Saving...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save size={17} className="mr-2" />
-                                            Save Template
-                                        </>
+                                <div className="flex items-center gap-2">
+                                    {/* Preview Button - Only show after saving */}
+                                    {showViewButton && templateId && (
+                                        <Button
+                                            onClick={handlePreviewPaper}
+                                            className="bg-white/10 border-white/30 text-white hover:bg-white/20 shadow-lg"
+                                            size="sm"
+                                        >
+                                            <Eye size={17} className="mr-2" />
+                                            Preview Paper
+                                        </Button>
                                     )}
-                                </Button>
+                                    
+                                    <Button
+                                        onClick={saveTemplate}
+                                        disabled={isSaving}
+                                        className="w-[fit-content] bg-white text-blue-600 hover:bg-blue-50 shadow-lg"
+                                    >
+                                        {isSaving ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save size={17} className="mr-2" />
+                                                Save Template
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1">
@@ -982,18 +1370,33 @@ const TemplateBuilder = () => {
                     </div>
                 )}
 
-                {/* Bottom Save Button */}
+                {/* Bottom Save Button with View Option */}
                 {sections.length > 0 && (
                     <div className="mt-12 pt-8 border-t border-gray-200">
                         <div className="flex flex-col items-center space-y-4">
                             <div className="text-center">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Save Your Template?</h3>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                    {showViewButton ? 'Template Saved Successfully!' : 'Ready to Save Your Template?'}
+                                </h3>
                                 <p className="text-gray-600">
                                     Your template contains {sections.length} section{sections.length !== 1 ? 's' : ''} with {totals.totalQuestions} questions totaling {totals.totalMarks} marks.
                                 </p>
                             </div>
 
                             <div className="flex items-center space-x-4">
+                                {/* Preview Paper Button - Bottom Section */}
+                                {showViewButton && templateId && (
+                                    <Button 
+                                        onClick={handlePreviewPaper}
+                                        variant="outline" 
+                                        size="lg" 
+                                        className="min-w-[200px] border-blue-600 text-blue-600 hover:bg-blue-50"
+                                    >
+                                        <Eye className="w-5 h-5 mr-2" />
+                                        Preview Generated Paper
+                                    </Button>
+                                )}
+                                
                                 <Button 
                                     onClick={saveTemplate} 
                                     variant="primary" 
@@ -1009,14 +1412,35 @@ const TemplateBuilder = () => {
                                     ) : (
                                         <>
                                             <Save className="w-5 h-5 mr-2" />
-                                            Save Template
+                                            {showViewButton ? 'Update Template' : 'Save Template'}
                                         </>
                                     )}
                                 </Button>
                             </div>
+
+                            {/* Preview Paper Info */}
+                            {showViewButton && (
+                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-200 text-center max-w-md">
+                                    <div className="flex items-center justify-center gap-2 text-green-700 mb-2">
+                                        <Eye size={20} />
+                                        <span className="font-semibold">Paper Ready to Preview</span>
+                                    </div>
+                                    <p className="text-green-600 text-sm">
+                                        Click "Preview Generated Paper" to see randomly generated questions based on your template specifications.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
+
+                {/* Paper Preview Modal */}
+                <PaperPreviewModal 
+                    isOpen={showPreviewModal}
+                    onClose={() => setShowPreviewModal(false)}
+                    templateData={templateData}
+                    sections={sections}
+                />
             </div>
         </div>
     );
