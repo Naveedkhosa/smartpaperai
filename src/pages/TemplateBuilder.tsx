@@ -26,7 +26,8 @@ const Button = ({ children, onClick, className = "", variant = "default", size =
                             ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700 shadow-lg hover:shadow-xl'
                             : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
             }
-      ${size === 'sm' ? 'px-1 py-1 text-sm min-h-[36px]' : size === 'lg' ? 'px-8 py-4 text-lg min-h-[56px]' : 'px-6 py-3 min-h-[44px]'}
+      ${size === 'sm' ? 'px-3 py-2 text-sm min-h-[36px]' : size === 'lg' ? 'px-6 py-4 text-lg min-h-[56px]' : 'px-4 py-3 min-h-[44px]'}
+      ${size === 'sm' ? 'text-xs' : size === 'lg' ? 'text-base' : 'text-sm'}
       ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       ${className}
     `}
@@ -39,7 +40,7 @@ const Button = ({ children, onClick, className = "", variant = "default", size =
 const Input = ({ className = "", ...props }) => (
     <input
         className={`
-      w-full px-4 py-4 border-2 border-gray-300 rounded-xl text-base bg-white min-h-[52px]
+      w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base bg-white min-h-[48px]
       focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
       transition-all duration-300 placeholder-gray-400 hover:border-gray-400 touch-manipulation
       ${className}
@@ -52,7 +53,7 @@ const Textarea = ({ className = "", rows = 3, ...props }) => (
     <textarea
         rows={rows}
         className={`
-      w-full px-4 py-4 border-2 border-gray-300 rounded-xl text-base resize-none bg-white
+      w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base resize-none bg-white
       focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
       transition-all duration-300 placeholder-gray-400 hover:border-gray-400 touch-manipulation
       ${className}
@@ -95,7 +96,7 @@ const Select = ({ children, value, onValueChange, placeholder = "Select..." }) =
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl text-base bg-white text-left min-h-[52px]
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-base bg-white text-left min-h-[48px]
                    focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 
                    transition-all duration-300 flex items-center justify-between hover:border-gray-400 touch-manipulation"
             >
@@ -103,7 +104,7 @@ const Select = ({ children, value, onValueChange, placeholder = "Select..." }) =
                     {selectedOption ? selectedOption.props.children : placeholder}
                 </span>
                 <ChevronDown
-                    className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+                    className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
                 />
             </button>
             {isOpen && (
@@ -125,14 +126,14 @@ const Select = ({ children, value, onValueChange, placeholder = "Select..." }) =
 const SelectItem = ({ children, value, onClick }) => (
     <div
         onClick={onClick}
-        className="px-4 py-4 text-base hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0 first:rounded-t-xl last:rounded-b-xl touch-manipulation min-h-[52px] flex items-center"
+        className="px-4 py-3 text-base hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0 first:rounded-t-xl last:rounded-b-xl touch-manipulation min-h-[48px] flex items-center"
     >
         {children}
     </div>
 );
 
 const Label = ({ children, className = "", ...props }) => (
-    <label className={`block text-sm font-bold text-gray-800 mb-3 ${className}`} {...props}>
+    <label className={`block text-sm font-bold text-gray-800 mb-2 ${className}`} {...props}>
         {children}
     </label>
 );
@@ -368,87 +369,71 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4">
+            <div className="bg-white rounded-2xl w-full h-full max-h-[95vh] max-w-[95vw] overflow-hidden flex flex-col">
                 {/* Modal Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-                    <div className="flex items-center gap-3">
-                        <FileText size={24} />
+                <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex-shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <FileText size={20} className="sm:w-6 sm:h-6" />
                         <div>
-                            <h2 className="text-xl font-bold">Paper Preview</h2>
-                            <p className="text-blue-100 text-sm">Randomly generated questions based on your template</p>
+                            <h2 className="text-lg sm:text-xl font-bold">Paper Preview</h2>
+                            <p className="text-blue-100 text-xs sm:text-sm">Randomly generated questions based on your template</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={handlePrint}
-                            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded flex items-center gap-2"
-                        >
-                            {isPrinting ? (
-                                <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                                <Printer size={16} />
-                            )}
-                            Print
-                        </button>
+                    <div className="flex items-center gap-1 sm:gap-2">
+                        
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-white/10 rounded-full text-white"
                         >
-                            <X size={20} />
+                            <X size={18} className="sm:w-5 sm:h-5" />
                         </button>
                     </div>
                 </div>
 
                 {/* Modal Content */}
-                <div className="flex-1 overflow-auto p-6 bg-gray-100">
+                <div className="flex-1 overflow-auto p-2 sm:p-4 bg-gray-100">
                     {generatedPaper ? (
-                        <div id="paper-preview-content" className="print-area bg-white text-black mx-auto w-[210mm] min-h-[297mm] shadow-lg p-10 font-[Times_New_Roman]">
+                        <div id="paper-preview-content" className="print-area bg-white text-black mx-auto w-full max-w-[800px] min-h-[297mm] shadow-lg p-4 sm:p-8 md:p-10 font-[Times_New_Roman]">
                             {/* Header */}
                             <div className="text-center border-b border-gray-400 pb-4 mb-6">
-                                <h1 className="text-2xl font-bold uppercase">{generatedPaper.title}</h1>
-                                <div className="text-[15px] mt-2">
-                                    <span>
-                                        <strong>Subject:</strong> {generatedPaper.subject?.name || "N/A"} &nbsp; | &nbsp;
-                                    </span>
-                                    <span>
-                                        <strong>Class:</strong> {generatedPaper.student_class?.name || "N/A"} &nbsp; | &nbsp;
-                                    </span>
-                                    <span>
-                                        <strong>Time:</strong> {generatedPaper.duration} Min &nbsp; | &nbsp;
-                                    </span>
-                                    <span>
-                                        <strong>Total Marks:</strong> {generatedPaper.total_marks}
-                                    </span>
+                                <h1 className="text-xl sm:text-2xl font-bold uppercase">{generatedPaper.title}</h1>
+                                <div className="text-sm sm:text-[15px] mt-2 space-y-1 sm:space-y-0">
+                                    <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
+                                        <span><strong>Subject:</strong> {generatedPaper.subject?.name || "N/A"}</span>
+                                        <span><strong>Class:</strong> {generatedPaper.student_class?.name || "N/A"}</span>
+                                        <span><strong>Time:</strong> {generatedPaper.duration} Min</span>
+                                        <span><strong>Total Marks:</strong> {generatedPaper.total_marks}</span>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Body */}
                             {generatedPaper.sections.map((section: any, sIndex: number) => (
-                                <div key={section.id} className="mb-8">
-                                    <h2 className="text-lg font-bold underline mb-2">
+                                <div key={section.id} className="mb-6 sm:mb-8">
+                                    <h2 className="text-base sm:text-lg font-bold underline mb-2">
                                         {section.title}
                                     </h2>
                                     {section.instructions && (
-                                        <p className="mb-4 text-[15px] italic">{section.instructions}</p>
+                                        <p className="mb-4 text-sm sm:text-[15px] italic">{section.instructions}</p>
                                     )}
 
                                     {section.section_groups.map((group: any, gIndex: number) => (
                                         <div key={group.id}>
                                             {group.instructions && (
-                                                <p className="font-semibold mb-3">{group.instructions}</p>
+                                                <p className="font-semibold mb-3 text-sm sm:text-base">{group.instructions}</p>
                                             )}
 
                                             {group.questions.map((question: any, qIndex: number) => {
                                                 const qNumber = getQuestionNumber(sIndex, gIndex, qIndex);
                                                 return (
                                                     <div key={question.id} className="mb-4">
-                                                        <div className="flex justify-between items-start">
-                                                            <p className="text-[16px] leading-snug">
+                                                        <div className="flex justify-between items-start gap-2">
+                                                            <p className="text-sm sm:text-[16px] leading-snug flex-1">
                                                                 <strong>Q{qNumber}.</strong> {question.question_text}
                                                             </p>
                                                             {question.marks > 0 && (
-                                                                <span className="text-[14px] font-semibold text-gray-700">
+                                                                <span className="text-xs sm:text-[14px] font-semibold text-gray-700 flex-shrink-0">
                                                                     ({question.marks})
                                                                 </span>
                                                             )}
@@ -456,7 +441,7 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
 
                                                         {/* MCQs */}
                                                         {group.question_type?.slug === "mcq" && (
-                                                            <div className="ml-8 mt-2 grid grid-cols-2 gap-x-10 gap-y-1 text-[15px]">
+                                                            <div className="ml-4 sm:ml-8 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-10 gap-y-1 text-sm sm:text-[15px]">
                                                                 {question.options.map((opt: any, i: number) => (
                                                                     <div key={opt.id} className="flex items-center">
                                                                         <span className="font-semibold mr-2">
@@ -476,39 +461,29 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                             ))}
 
                             {/* Footer */}
-                            <div className="text-center border-t border-gray-400 pt-3 mt-6 text-sm italic">
+                            <div className="text-center border-t border-gray-400 pt-3 mt-6 text-xs sm:text-sm italic">
                                 --- End of Paper --- <br />
                                 Best of luck to all students!
                             </div>
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-64">
-                            <Loader2 className="w-8 h-8 animate-spin mr-3 text-blue-600" />
-                            <span>Generating paper preview...</span>
+                            <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin mr-3 text-blue-600" />
+                            <span className="text-sm sm:text-base">Generating paper preview...</span>
                         </div>
                     )}
                 </div>
 
                 {/* Modal Footer */}
-                <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-white">
-                    <div className="text-sm text-gray-600">
+                <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-gray-200 bg-white flex-shrink-0 gap-3 sm:gap-0">
+                    <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                         This is a preview with randomly generated questions. Actual paper will be generated from your question bank.
                     </div>
-                    <div className="flex items-center gap-3">
-                        <Button variant="outline" onClick={onClose}>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <Button variant="outline" onClick={onClose} size="sm">
                             Close
                         </Button>
-                        <Button 
-                            onClick={() => {
-                                if (templateData?.id) {
-                                    window.open(`../teacher/paper-viewer/${templateData.id}`, '_blank');
-                                }
-                            }}
-                            variant="primary"
-                        >
-                            <Eye size={16} className="mr-2" />
-                            Open Full Paper Viewer
-                        </Button>
+                      
                     </div>
                 </div>
             </div>
@@ -565,25 +540,25 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
         <Card className="mb-4 overflow-hidden">
             {/* Mobile-Optimized Collapsed Header */}
             <div
-                className="p-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
+                className="p-3 sm:p-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center justify-between gap-2 sm:gap-3">
                     {/* Left Side - Group Info */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                         {/* Order Controls */}
                         <div className="flex flex-col gap-1">
                             <Button
                                 variant="ghost"
-                                size="sm"
+                                size="lg"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onMoveUp(groupIndex);
                                 }}
                                 disabled={groupIndex === 0}
-                                className="p-1 min-h-[24px] w-7 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                className="p-1 min-h-[20px] w-10 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
                             >
-                                <ArrowUp size={14} />
+                                <ArrowUp size={12} />
                             </Button>
                             <Button
                                 variant="ghost"
@@ -593,27 +568,27 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                                     onMoveDown(groupIndex);
                                 }}
                                 disabled={groupIndex === sectionGroups.length - 1}
-                                className="p-1 min-h-[24px] w-7 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                className="p-1 min-h-[20px] w-10 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
                             >
-                                <ArrowDown size={14} />
+                                <ArrowDown size={12} />
                             </Button>
                         </div>
 
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md flex-shrink-0">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md flex-shrink-0">
                             {groupIndex + 1}
                         </div>
 
                         <div className="flex-1 min-w-0">
                             {/* Question Type and Count - Mobile First */}
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-lg flex-shrink-0">{currentType.icon}</span>
-                                <span className="font-semibold text-gray-900 text-sm truncate">{currentType.label}</span>
+                            <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                                <span className="text-base sm:text-lg flex-shrink-0">{currentType.icon}</span>
+                                <span className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{currentType.label}</span>
                             </div>
 
                             {/* Question Count Display - Simplified */}
-                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                            <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
                                 <span className="font-medium">{group.questionsCount}</span>
-                                <span className="text-xs">questions</span>
+                                <span className="text-xs">Q</span>
                                 <span className="mx-1 text-gray-400">•</span>
                                 <span className="font-medium text-gray-900">{totalMarks} marks</span>
                             </div>
@@ -621,7 +596,7 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                     </div>
 
                     {/* Right Side - Actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                         <Button
                             variant="ghost"
                             size="sm"
@@ -629,12 +604,12 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                                 e.stopPropagation();
                                 onDelete();
                             }}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 min-h-[36px] w-9"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 sm:p-2 min-h-[32px] w-9 sm:w-9"
                         >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} className="sm:w-7 sm:h-7" />
                         </Button>
                         <div className="text-gray-400 p-1">
-                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            {isExpanded ? <ChevronUp size={16} className="sm:w-5 sm:h-5" /> : <ChevronDown size={16} className="sm:w-5 sm:h-5" />}
                         </div>
                     </div>
                 </div>
@@ -642,13 +617,13 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
 
             {/* Expanded Content - Mobile Optimized */}
             {isExpanded && (
-                <div className="p-4 bg-gray-50 border-t border-gray-200">
-                    <div className="space-y-6">
+                <div className="p-3 sm:p-4 bg-gray-50 border-t border-gray-200">
+                    <div className="space-y-4 sm:space-y-6">
                         {/* Configuration - Mobile Stack */}
-                        <div className="space-y-4">
+                        <div className="space-y-3 sm:space-y-4">
                             <div>
                                 <Label className="flex items-center gap-2">
-                                    <Settings size={16} className="text-blue-600" />
+                                    <Settings size={14} className="text-blue-600 sm:w-4 sm:h-4" />
                                     Question Type
                                 </Label>
                                 <Select
@@ -665,10 +640,10 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                                 </Select>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                 <div>
                                     <Label className="flex items-center gap-2">
-                                        <BarChart3 size={16} className="text-green-600" />
+                                        <BarChart3 size={14} className="text-green-600 sm:w-4 sm:h-4" />
                                         Questions
                                     </Label>
                                     <Input
@@ -683,7 +658,7 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
 
                                 <div>
                                     <Label className="flex items-center gap-2">
-                                        <Target size={16} className="text-purple-600" />
+                                        <Target size={14} className="text-purple-600 sm:w-4 sm:h-4" />
                                         Marks Each
                                     </Label>
                                     <Input
@@ -701,19 +676,19 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                         {/* Instructions */}
                         <div>
                             <Label className="flex items-center gap-2">
-                                <AlertCircle size={16} className="text-orange-600" />
+                                <AlertCircle size={14} className="text-orange-600 sm:w-4 sm:h-4" />
                                 Instructions (Optional)
                             </Label>
                             <Textarea
                                 value={group.instruction}
                                 onChange={(e) => onUpdate({ ...group, instruction: e.target.value })}
                                 placeholder="Add specific instructions for this group..."
-                                rows={3}
+                                rows={2}
                             />
                         </div>
 
                         {/* Additional Settings - Mobile Stack */}
-                        <div className="space-y-4">
+                        <div className="space-y-3 sm:space-y-4">
                             <div>
                                 <Label>Numbering Style</Label>
                                 <Select
@@ -742,9 +717,9 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                             )}
 
                             {/* Total Display */}
-                            <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-200">
-                                <div className="text-2xl font-bold text-blue-600 mb-1">{totalMarks}</div>
-                                <div className="text-sm text-blue-700 font-medium">Total Marks</div>
+                            <div className="bg-blue-50 rounded-xl p-3 sm:p-4 text-center border border-blue-200">
+                                <div className="text-xl sm:text-2xl font-bold text-blue-600 mb-1">{totalMarks}</div>
+                                <div className="text-xs sm:text-sm text-blue-700 font-medium">Total Marks</div>
                                 <div className="text-xs text-blue-600 mt-1">
                                     {group.questionsCount} × {group.marksPerQuestion}
                                 </div>
@@ -782,15 +757,15 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
     };
 
     return (
-        <Card className="mb-6 overflow-hidden">
+        <Card className="mb-4 sm:mb-6 overflow-hidden">
             {/* Mobile-First Section Header with Order Controls */}
             <div
-                className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-gray-200 cursor-pointer hover:bg-blue-100/50 transition-colors touch-manipulation"
+                className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-4 border-b border-gray-200 cursor-pointer hover:bg-blue-100/50 transition-colors touch-manipulation"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center justify-between gap-2 sm:gap-3">
                     {/* Left Side - Section Info */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                         {/* Order Controls */}
                         <div className="flex flex-col gap-1">
                             <Button
@@ -801,9 +776,9 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
                                     onMoveUp(index);
                                 }}
                                 disabled={index === 0}
-                                className="p-1 min-h-[24px] w-7 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                className="p-1 min-h-[20px] w-10 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
                             >
-                                <ArrowUp size={14} />
+                                <ArrowUp size={12} />
                             </Button>
                             <Button
                                 variant="ghost"
@@ -813,35 +788,35 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
                                     onMoveDown(index);
                                 }}
                                 disabled={index === totalSections - 1}
-                                className="p-1 min-h-[24px] w-7 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                className="p-1 min-h-[20px] w-10 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
                             >
-                                <ArrowDown size={14} />
+                                <ArrowDown size={12} />
                             </Button>
                         </div>
 
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white font-bold text-lg flex items-center justify-center shadow-md flex-shrink-0">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white font-bold text-base sm:text-lg flex items-center justify-center shadow-md flex-shrink-0">
                             {index + 1}
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-1 sm:gap-2 mb-1">
                                 <Badge variant="default" className="text-xs">
-                                    Section {index + 1}
+                                    S {index + 1}
                                 </Badge>
-                                <span className="font-semibold text-gray-900 truncate">{section.title}</span>
+                                <span className="font-semibold text-gray-900 text-sm sm:text-base truncate">{section.title}</span>
                             </div>
-                            <div className="flex items-center gap-3 text-xs text-gray-600">
+                            <div className="flex items-center gap-1 sm:gap-3 text-xs text-gray-600 flex-wrap">
                                 <span>{section.groups.length} groups</span>
                                 <span>•</span>
-                                <span>{sectionStats.totalQuestions} questions</span>
+                                <span>{sectionStats.totalQuestions} Q</span>
                                 <span>•</span>
-                                <span className="font-medium text-gray-900">{sectionStats.totalMarks} marks</span>
+                                <span className="text-xs text-gray-600">{sectionStats.totalMarks} marks</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Right Side - Actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                         <Button
                             variant="ghost"
                             size="sm"
@@ -849,12 +824,12 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
                                 e.stopPropagation();
                                 onDelete(section.id);
                             }}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 min-h-[36px] w-9"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 sm:p-2 min-h-[32px] w-9 sm:w-9"
                         >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} className="sm:w-7 sm:h-7" />
                         </Button>
                         <div className="text-gray-400 p-1">
-                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            {isExpanded ? <ChevronUp size={16} className="sm:w-5 sm:h-5" /> : <ChevronDown size={16} className="sm:w-5 sm:h-5" />}
                         </div>
                     </div>
                 </div>
@@ -862,42 +837,42 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
 
             {/* Expanded Content */}
             {isExpanded && (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                     {/* Section Form Fields */}
-                    <div className="p-4 space-y-4">
+                    <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                         <div>
                             <Label className="flex items-center gap-2">
-                                <BookOpen size={16} className="text-blue-600" />
+                                <BookOpen size={14} className="text-blue-600 sm:w-4 sm:h-4" />
                                 Section Title
                             </Label>
                             <Input
                                 value={section.title}
                                 onChange={(e) => onEdit({ ...section, title: e.target.value })}
                                 placeholder="e.g., Section A"
-                                className="text-lg font-semibold"
+                                className="text-base sm:text-lg font-semibold"
                             />
                         </div>
 
                         <div>
                             <Label className="flex items-center gap-2">
-                                <AlertCircle size={16} className="text-green-600" />
+                                <AlertCircle size={14} className="text-green-600 sm:w-4 sm:h-4" />
                                 Instructions
                             </Label>
                             <Textarea
                                 value={section.instruction}
                                 onChange={(e) => onEdit({ ...section, instruction: e.target.value })}
                                 placeholder="Enter instructions for this section..."
-                                rows={3}
+                                rows={2}
                             />
                         </div>
                     </div>
 
                     {/* Question Groups Section */}
-                    <div className="p-4 border-t border-gray-200">
-                        <div className="flex items-center justify-between mb-4">
+                    <div className="p-3 sm:p-4 border-t border-gray-200">
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
                             <div className="flex items-center gap-2">
-                                <Target size={18} className="text-indigo-600" />
-                                <Label className="text-lg mb-0 font-bold">Groups</Label>
+                                <Target size={16} className="text-indigo-600 sm:w-5 sm:h-5" />
+                                <Label className="text-base sm:text-lg mb-0 font-bold">Groups</Label>
                                 <Badge variant="default" className="text-xs">
                                     {section.groups.length}
                                 </Badge>
@@ -908,30 +883,30 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
                                 size="sm"
                                 className="shadow-md"
                             >
-                                <Plus size={14} className="mr-1" />
+                                <Plus size={12} className="mr-1 sm:w-3 sm:h-3" />
                                 Add
                             </Button>
                         </div>
 
                         {section.groups.length === 0 ? (
-                            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-8 text-center border-2 border-dashed border-gray-300">
-                                <div className="p-4 bg-white rounded-2xl shadow-md w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                                    <Plus size={32} className="text-gray-400" />
+                            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-4 sm:p-8 text-center border-2 border-dashed border-gray-300">
+                                <div className="p-3 sm:p-4 bg-white rounded-2xl shadow-md w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 flex items-center justify-center">
+                                    <Plus size={20} className="sm:w-8 sm:h-8 text-gray-400" />
                                 </div>
-                                <h4 className="font-bold text-gray-900 text-lg mb-2">No groups yet</h4>
-                                <p className="text-gray-600 mb-4 text-sm">
+                                <h4 className="font-bold text-gray-900 text-base sm:text-lg mb-2">No groups yet</h4>
+                                <p className="text-gray-600 mb-3 sm:mb-4 text-xs sm:text-sm">
                                     Add question groups to define different types of questions.
                                 </p>
                                 <Button
                                     onClick={() => onAddGroup(section.id)}
                                     className="shadow-lg"
                                 >
-                                    <Plus size={18} className="mr-2" />
+                                    <Plus size={14} className="mr-2 sm:w-4 sm:h-4" />
                                     Add First Group
                                 </Button>
                             </div>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-2 sm:space-y-3">
                                 {section.groups.map((group, groupIndex) => (
                                     <QuestionGroupComponent
                                         key={group.id}
@@ -1221,12 +1196,12 @@ const TemplateBuilder = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-            <div className="max-w-4xl mx-auto p-4">
+            <div className="max-w-4xl mx-auto p-3 sm:p-4">
                 {/* Mobile-First Header */}
-                <Card className="mb-6 overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4">
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between gap-3">
+                <Card className="mb-4 sm:mb-6 overflow-hidden">
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-3 sm:p-4">
+                        <div className="space-y-3 sm:space-y-4">
+                            <div className="flex items-center justify-between gap-2 sm:gap-3">
                                 <Button
                                     variant="outline"
                                     className="bg-white/10 border-white/30 text-white hover:bg-white/20"
@@ -1234,11 +1209,11 @@ const TemplateBuilder = () => {
                                     onClick={handleBackClick}
                                     disabled={isSaving}
                                 >
-                                    <ArrowLeft size={18} className="mr-2" />
-                                    Back
+                                    <ArrowLeft size={16} className="mr-1 sm:mr-2 sm:w-4 sm:h-4" />
+                                    <span className="hidden sm:inline">Back</span>
                                 </Button>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 sm:gap-2">
                                     {/* Preview Button - Only show after saving */}
                                     {showViewButton && templateId && (
                                         <Button
@@ -1246,41 +1221,42 @@ const TemplateBuilder = () => {
                                             className="bg-white/10 border-white/30 text-white hover:bg-white/20 shadow-lg"
                                             size="sm"
                                         >
-                                            <Eye size={17} className="mr-2" />
-                                            Preview Paper
+                                            <Eye size={14} className="mr-1 sm:mr-2 sm:w-4 sm:h-4" />
+                                            <span className="hidden sm:inline">Preview</span>
                                         </Button>
                                     )}
                                     
                                     <Button
                                         onClick={saveTemplate}
                                         disabled={isSaving}
-                                        className="w-[fit-content] bg-white text-blue-600 hover:bg-blue-50 shadow-lg"
+                                        className="bg-white text-blue-600 hover:bg-blue-50 shadow-lg"
+                                        size="sm"
                                     >
                                         {isSaving ? (
                                             <>
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                                                Saving...
+                                                <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-blue-600 mr-1 sm:mr-2"></div>
+                                                <span className="hidden sm:inline">Saving...</span>
                                             </>
                                         ) : (
                                             <>
-                                                <Save size={17} className="mr-2" />
-                                                Save Template
+                                                <Save size={14} className="mr-1 sm:mr-2 sm:w-4 sm:h-4" />
+                                                <span className="hidden sm:inline">Save</span>
                                             </>
                                         )}
                                     </Button>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between gap-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
                                 <div className="flex-1">
-                                    <h1 className="text-xl font-bold">
+                                    <h1 className="text-lg sm:text-xl font-bold">
                                         {templateId ? 'Edit Template' : 'Create Template'}
                                     </h1>
-                                    <p className="text-blue-100 text-sm">Design your exam structure</p>
+                                    <p className="text-blue-100 text-xs sm:text-sm">Design your exam structure</p>
                                 </div>
                                 {templateData && (
-                                    <div className="flex items-center gap-4 sm:flex-row flex-col gap-0">
-                                        <p className="text-blue-100 text-sm">Class: {templateData.class?.name}</p> 
-                                        <p className="text-blue-100 text-sm">Subject: {templateData.subject?.name}</p>
+                                    <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+                                        <p className="text-blue-100 text-xs sm:text-sm">Class: {templateData.class?.name}</p> 
+                                        <p className="text-blue-100 text-xs sm:text-sm">Subject: {templateData.subject?.name}</p>
                                     </div>
                                 )}
                             </div>
@@ -1288,58 +1264,58 @@ const TemplateBuilder = () => {
                     </div>
 
                     {/* Mobile Stats Grid */}
-                    <div className="p-4 bg-white">
-                        <div className="grid grid-cols-4 gap-0">
-                            <div className="text-center p-1 bg-gradient-to-br from-blue-50 to-blue-100  border border-blue-200">
-                                <div className="text-sm font-bold text-blue-600 mb-1">{sections.length} Sections</div>
+                    <div className="p-3 sm:p-4 bg-white">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-0">
+                            <div className="text-center p-2 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
+                                <div className="text-xs sm:text-sm font-bold text-blue-600">{sections.length} Sections</div>
                             </div>
-                            <div className="text-center p-1 bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
-                                <div className="text-sm font-bold text-green-600 mb-1">{totals.totalGroups} Groups</div>
+                            <div className="text-center p-2 bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
+                                <div className="text-xs sm:text-sm font-bold text-green-600">{totals.totalGroups} Groups</div>
                             </div>
-                            <div className="text-center p-1 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
-                                <div className="text-sm font-bold text-purple-600 mb-1">{totals.totalQuestions} Questions</div>
+                            <div className="text-center p-2 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
+                                <div className="text-xs sm:text-sm font-bold text-purple-600">{totals.totalQuestions} Questions</div>
                             </div>
-                            <div className="text-center p-1 bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200">
-                                <div className="text-sm font-bold text-orange-600 mb-1">{totals.totalMarks} Marks</div>
+                            <div className="text-center p-2 bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200">
+                                <div className="text-xs sm:text-sm font-bold text-orange-600">{totals.totalMarks} Marks</div>
                             </div>
                         </div>
                     </div>
                 </Card>
 
                 {/* Add Section Button - Above Sections */}
-                <div className="mb-6">
+                <div className="mb-4 sm:mb-6">
                     <Button
                         onClick={addSection}
                         variant="success"
                         className="w-full shadow-lg"
                         disabled={isSaving}
                     >
-                        <Plus size={18} className="mr-2" />
+                        <Plus size={16} className="mr-2 sm:w-4 sm:h-4" />
                         Add Section
                     </Button>
                 </div>
 
                 {/* Order Instructions */}
-                <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 text-center">
+                <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 text-center">
                     <div className="flex items-center justify-center gap-2 text-blue-700 mb-2">
-                        <ArrowUp size={20} />
-                        <ArrowDown size={20} />
-                        <span className="font-semibold">Use Arrows to Reorder</span>
+                        <ArrowUp size={16} className="sm:w-5 sm:h-5" />
+                        <ArrowDown size={16} className="sm:w-5 sm:h-5" />
+                        <span className="font-semibold text-sm sm:text-base">Use Arrows to Reorder</span>
                     </div>
-                    <p className="text-blue-600 text-sm">
+                    <p className="text-blue-600 text-xs sm:text-sm">
                         Use the up/down arrows to change the order of sections and groups
                     </p>
                 </div>
 
                 {/* Main Content */}
                 {sections.length === 0 ? (
-                    <Card className="text-center py-12">
+                    <Card className="text-center py-8 sm:py-12">
                         <div className="max-w-xs mx-auto">
-                            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center shadow-lg">
-                                <Plus size={40} className="text-blue-600" />
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center shadow-lg">
+                                <Plus size={24} className="sm:w-10 sm:h-10 text-blue-600" />
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">Ready to Create?</h3>
-                            <p className="text-gray-600 mb-4 text-sm">
+                            <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Ready to Create?</h3>
+                            <p className="text-gray-600 mb-3 sm:mb-4 text-xs sm:text-sm">
                                 Start building your exam template with sections and question groups.
                             </p>
                             <Button
@@ -1347,13 +1323,13 @@ const TemplateBuilder = () => {
                                 className="w-full shadow-lg"
                                 disabled={isSaving}
                             >
-                                <Plus size={18} className="mr-2" />
+                                <Plus size={16} className="mr-2 sm:w-4 sm:h-4" />
                                 Create First Section
                             </Button>
                         </div>
                     </Card>
                 ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                         {sections.map((section, index) => (
                             <SectionComponent
                                 key={section.id}
@@ -1372,28 +1348,28 @@ const TemplateBuilder = () => {
 
                 {/* Bottom Save Button with View Option */}
                 {sections.length > 0 && (
-                    <div className="mt-12 pt-8 border-t border-gray-200">
-                        <div className="flex flex-col items-center space-y-4">
+                    <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-gray-200">
+                        <div className="flex flex-col items-center space-y-3 sm:space-y-4">
                             <div className="text-center">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                                     {showViewButton ? 'Template Saved Successfully!' : 'Ready to Save Your Template?'}
                                 </h3>
-                                <p className="text-gray-600">
+                                <p className="text-gray-600 text-sm">
                                     Your template contains {sections.length} section{sections.length !== 1 ? 's' : ''} with {totals.totalQuestions} questions totaling {totals.totalMarks} marks.
                                 </p>
                             </div>
 
-                            <div className="flex items-center space-x-4">
+                            <div className="flex flex-row gap-2 sm:flex-row items-center space-y-0 sm:space-y-0 sm:space-x-4">
                                 {/* Preview Paper Button - Bottom Section */}
                                 {showViewButton && templateId && (
                                     <Button 
                                         onClick={handlePreviewPaper}
                                         variant="outline" 
                                         size="lg" 
-                                        className="min-w-[200px] border-blue-600 text-blue-600 hover:bg-blue-50"
+                                        className="w-full sm:w-auto min-w-[100px] border-blue-600 text-blue-600 hover:bg-blue-50"
                                     >
-                                        <Eye className="w-5 h-5 mr-2" />
-                                        Preview Generated Paper
+                                        <Eye className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                                        Preview
                                     </Button>
                                 )}
                                 
@@ -1401,18 +1377,18 @@ const TemplateBuilder = () => {
                                     onClick={saveTemplate} 
                                     variant="primary" 
                                     size="lg" 
-                                    className="min-w-[200px]"
+                                    className="w-full sm:w-auto min-w-[100px]"
                                     disabled={isSaving}
                                 >
                                     {isSaving ? (
                                         <>
-                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                            <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white mr-2"></div>
                                             Saving...
                                         </>
                                     ) : (
                                         <>
-                                            <Save className="w-5 h-5 mr-2" />
-                                            {showViewButton ? 'Update Template' : 'Save Template'}
+                                            <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                                            {showViewButton ? 'Update' : 'Save'}
                                         </>
                                     )}
                                 </Button>
@@ -1420,13 +1396,13 @@ const TemplateBuilder = () => {
 
                             {/* Preview Paper Info */}
                             {showViewButton && (
-                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-200 text-center max-w-md">
+                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-3 sm:p-4 border border-green-200 text-center max-w-md">
                                     <div className="flex items-center justify-center gap-2 text-green-700 mb-2">
-                                        <Eye size={20} />
-                                        <span className="font-semibold">Paper Ready to Preview</span>
+                                        <Eye size={16} className="sm:w-5 sm:h-5" />
+                                        <span className="font-semibold text-sm sm:text-base">Paper Ready to Preview</span>
                                     </div>
-                                    <p className="text-green-600 text-sm">
-                                        Click "Preview Generated Paper" to see randomly generated questions based on your template specifications.
+                                    <p className="text-green-600 text-xs sm:text-sm">
+                                        Click "Preview Paper" to see randomly generated questions based on your template specifications.
                                     </p>
                                 </div>
                             )}
