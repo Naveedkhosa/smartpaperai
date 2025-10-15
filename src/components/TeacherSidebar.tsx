@@ -46,7 +46,7 @@ export default function TeacherSidebar() {
   { path: "/teacher", label: "Overview", icon: Eye },
   { path: "/teacher/create", label: "Create Paper", icon: FileText },
    { path: "/teacher/papers", label: "Papers", icon: FileText },
-  { path: "/teacher/grade", label: "Grade Papers", icon: CheckCircle },
+  { path: "/teacher/grade", label: "Assessment Paper", icon: CheckCircle },
   { path: "/teacher/classes", label: "Classes", icon: Users },
   { path: "/teacher/subjects", label: "Subjects", icon: BookOpen },
   { path: "/teacher/study-materials", label: "Study Materials", icon: BookOpen },
@@ -77,8 +77,8 @@ export default function TeacherSidebar() {
 
       {/* Sidebar */}
       <div
-        className={`sidebar-container  fixed left-0 top-0 h-full glassmorphism-strong z-50 transition-all duration-300 
-          ${isCollapsed ? "w-20" : "w-64"} 
+        className={`sidebar-container  fixed left-0 top-0 h-full glassmorphism-strong !rounded-[0px] z-50 transition-all duration-300 
+          ${isCollapsed ? "w-20" : "w-70"} 
           ${isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
       >
         {/* Toggle Button - Desktop only */}

@@ -39,10 +39,40 @@ import {
   CheckCircle,
   Settings,
   Edit3,
+  MoreVertical,
+  Edit,
+  Trash2,
 } from "lucide-react";
 
 // API base URL
 const API_BASE_URL = "https://apis.babalrukn.com/api";
+
+interface Template {
+  id: string;
+  title: string;
+  class_id: string;
+  subject_id: string;
+  total_marks: number;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+  class?: {
+    id: string;
+    name: string;
+  };
+  subject?: {
+    id: string;
+    name: string;
+  };
+  sections_count: number;
+  sections?: Array<{
+    id: string;
+    title: string;
+    groups: Array<{
+      questions_count: number;
+    }>;
+  }>;
+}
 
 export default function CreatePaperPage() {
   const { user, logout, token } = useAuth();
@@ -58,11 +88,11 @@ export default function CreatePaperPage() {
     class_id: "",
     creationMethod: "generate", // 'generate', 'upload', or 'manual'
     generationMode: "intelligent", // 'asis-keybook', 'asis-pastpapers', 'intelligent'
-    questionTypes: [] as string[],
     duration: 120, // Duration in minutes
     sourceType: "public", // 'public' or 'personal'
     personalCategory: "All", // filter
     content: "",
+    template_id: "", // Selected template ID
   });
 
   // Fetch classes with authentication
@@ -89,8 +119,8 @@ export default function CreatePaperPage() {
     enabled: !!user?.id && !!token,
   });
 
-// Fetch subjects based on selected class
-const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
+  // Fetch subjects based on selected class
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
     queryKey: ['subjects', paperForm.class_id],
     queryFn: async () => {
         if (!paperForm.class_id) return [];
@@ -109,8 +139,48 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
         const data = await response.json();
         return data.data.class?.subjects || [];
     },
-    enabled: !!token && !!paperForm.class_id, // <-- make sure enabled is true only when class_id exists
-});
+    enabled: !!token && !!paperForm.class_id,
+  });
+
+  // Fetch templates
+  const { data: templates = [], isLoading: templatesLoading } = useQuery({
+    queryKey: ['templates', paperForm.class_id, paperForm.subject_id],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/user/paper-templates?per_page=100`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch templates');
+      }
+
+      const data = await response.json();
+      
+      if (data.status && data.data && data.data.paper_templates) {
+        // Filter templates by selected class and subject if they are set
+        let filteredTemplates = data.data.paper_templates.data || [];
+        
+        if (paperForm.class_id) {
+          filteredTemplates = filteredTemplates.filter((template: Template) => 
+            template.class_id === paperForm.class_id
+          );
+        }
+        
+        if (paperForm.subject_id) {
+          filteredTemplates = filteredTemplates.filter((template: Template) => 
+            template.subject_id === paperForm.subject_id
+          );
+        }
+        
+        return filteredTemplates;
+      }
+      return [];
+    },
+    enabled: !!token,
+  });
 
   // Mock data for public files
   const [publicFiles] = useState([
@@ -178,11 +248,11 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
         class_id: "",
         creationMethod: "generate",
         generationMode: "intelligent",
-        questionTypes: [],
         duration: 120,
         sourceType: "public",
         personalCategory: "All",
         content: "",
+        template_id: "",
       });
       
       toast({ 
@@ -207,11 +277,21 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
   });
 
   const handleCreatePaper = () => {
-    // Validate form
+    // Validate form - now including template_id for generate method
     if (!paperForm.title || !paperForm.class_id || !paperForm.subject_id) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Additional validation for template when using generate method
+    if (paperForm.creationMethod === "generate" && !paperForm.template_id) {
+      toast({
+        title: "Error",
+        description: "Please select a template",
         variant: "destructive",
       });
       return;
@@ -223,24 +303,24 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
       subject_id: parseInt(paperForm.subject_id),
       created_by: paperForm.creationMethod,
       duration: paperForm.duration,
-      total_marks: paperForm.total_marks,
+      // Include template_id if selected
+      ...(paperForm.template_id && {
+        template_id: parseInt(paperForm.template_id),
+      }),
       // Include generation parameters if using generate method
       ...(paperForm.creationMethod === "generate" && {
         data_source: paperForm.sourceType,
         generation_mode: paperForm.generationMode,
-        question_types: paperForm.questionTypes,
       }),
     };
     
     createPaperMutation.mutate(paperData);
   };
 
-  const handleQuestionTypeToggle = (type: string) => {
-    setPaperForm((prev) => ({
+  const handleTemplateSelect = (templateId: string) => {
+    setPaperForm(prev => ({
       ...prev,
-      questionTypes: prev.questionTypes.includes(type)
-        ? prev.questionTypes.filter((t) => t !== type)
-        : [...prev.questionTypes, type],
+      template_id: templateId === prev.template_id ? "" : templateId // Toggle selection
     }));
   };
 
@@ -292,7 +372,7 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
                 <h3 className="text-lg font-semibold text-white">
                   Basic Information
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <Label className="block text-white/80 text-sm font-medium mb-2">
                       Paper Title *
@@ -328,7 +408,7 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
                     <Select
                       value={paperForm.class_id}
                       onValueChange={(value) =>
-                        setPaperForm({ ...paperForm, class_id: value })
+                        setPaperForm({ ...paperForm, class_id: value, subject_id: "", template_id: "" })
                       }
                     >
                       <SelectTrigger
@@ -354,7 +434,7 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
                     <Select
                       value={paperForm.subject_id}
                       onValueChange={(value) =>
-                        setPaperForm({ ...paperForm, subject_id: value })
+                        setPaperForm({ ...paperForm, subject_id: value, template_id: "" })
                       }
                       disabled={!paperForm.class_id || subjectsLoading}
                     >
@@ -385,7 +465,7 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
                 <RadioGroup
                   value={paperForm.creationMethod}
                   onValueChange={(value) =>
-                    setPaperForm({ ...paperForm, creationMethod: value })
+                    setPaperForm({ ...paperForm, creationMethod: value, template_id: "" })
                   }
                   className="grid grid-cols-1 md:grid-cols-3 gap-4"
                 >
@@ -653,56 +733,154 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
                       </RadioGroup>
                     </div>
 
-                    {/* Question Types */}
-                    <div className="space-y-3 mt-6">
-                      <Label className="text-white/80 text-sm font-medium">
-                        Question Types & Marks
-                      </Label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {["MCQ", "Short Q", "Long Q"].map((type) => {
-                          // mapping for placeholders
-                          const totalPlaceholderMap = {
-                            MCQ: "Total MCQ",
-                            "Short Q": "Total Short",
-                            "Long Q": "Total Long",
-                          };
+                    {/* Template Selection - Required when Generate from Sources is selected */}
+                    <div className="space-y-4 mt-8">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold text-white">
+                            Select Template
+                          </h3>
+                          <span className="text-red-400 text-lg">*</span>
+                        </div>
+                        <Button
+                          onClick={() => navigate("/templates")}
+                          className="emerald-gradient"
+                          size="sm"
+                        >
+                          <Plus size={16} className="mr-2" /> New Template
+                        </Button>
+                      </div>
 
-                          return (
-                            <div key={type} className="glassmorphism p-4 rounded-lg">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <input
-                                  type="checkbox"
-                                  data-testid={`checkbox-${type
-                                    .toLowerCase()
-                                    .replace(" ", "-")}`}
-                                  checked={paperForm.questionTypes.includes(type)}
-                                  onChange={() => handleQuestionTypeToggle(type)}
-                                  className="rounded border-white/30"
-                                />
-                                <Label className="text-white cursor-pointer">
-                                  {type}
-                                </Label>
+                      {/* Validation message */}
+                      {!paperForm.template_id && (
+                        <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/30 rounded-lg p-3">
+                          Please select a template to continue
+                        </div>
+                      )}
+                      
+                      {templatesLoading ? (
+                        <div className="flex justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-300"></div>
+                        </div>
+                      ) : templates.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {templates.map((template: Template) => (
+                            <div
+                              key={template.id}
+                              className={`relative group overflow-hidden rounded-xl border transition-all bg-slate-900 cursor-pointer ${
+                                paperForm.template_id === template.id 
+                                  ? 'border-emerald-400 bg-emerald-400/10' 
+                                  : 'border-white/30 hover:border-emerald-400/40'
+                              } ${!paperForm.template_id ? 'border-red-400/50' : ''}`}
+                              onClick={() => handleTemplateSelect(template.id)}
+                            >
+                              {/* Header */}
+                              <div className="h-32 w-full flex items-center justify-center relative overflow-hidden bg-slate-800">
+                                <div className="text-6xl text-slate-400">
+                                  <FileText />
+                                </div>
+
+                                {/* Title overlay */}
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-sm font-bold p-2">
+                                  <p className="line-clamp-1">{template.title}</p>
+                                </div>
+
+                                {/* Selection Checkmark */}
+                                {paperForm.template_id === template.id && (
+                                  <div className="absolute top-2 right-2 z-10">
+                                    <div className="bg-emerald-500 rounded-full p-1">
+                                      <CheckCircle className="text-white" size={16} />
+                                    </div>
+                                  </div>
+                                )}
                               </div>
 
-                              {/* Marks input */}
-                              <Input
-                                type="number"
-                                placeholder="Marks"
-                                className="glass-input mt-2"
-                                disabled={!paperForm.questionTypes.includes(type)}
-                              />
+                              {/* Info with icons */}
+                              <div className="flex items-center justify-between p-3 border-t border-white/20 bg-slate-800/50">
+                                <div className="flex items-center gap-2 text-slate-200 text-xs">
+                                  <BookOpen size={16} />
+                                  <span>{template.total_marks} Marks</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-slate-200 text-xs">
+                                  <span>{template.sections_count} Sections</span>
+                                </div>
+                              </div>
 
-                              {/* Total input with dynamic placeholder */}
-                              <Input
-                                type="number"
-                                placeholder={totalPlaceholderMap[type]}
-                                className="glass-input mt-2"
-                                disabled={!paperForm.questionTypes.includes(type)}
-                              />
+                              {/* Description */}
+                              <div className="p-3">
+                                <div className="mb-2">
+                                  <Badge variant="outline" className="text-blue-400 border-blue-400/30 text-xs mr-2">
+                                    {template.class?.name}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-green-400 border-green-400/30 text-xs">
+                                    {template.subject?.name}
+                                  </Badge>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-400 text-xs">
+                                    Updated {new Date(template.updated_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Hover Overlay */}
+                              <div className={`absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center ${
+                                paperForm.template_id === template.id ? 'opacity-100' : ''
+                              }`}>
+                                <p className="text-slate-200 text-sm line-clamp-3 mb-4">
+                                  {template.class?.name} - {template.subject?.name}
+                                </p>
+
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/templates/builder?edit=${template.id}`);
+                                    }}
+                                    className="p-2 rounded-full bg-blue-500 hover:bg-blue-400 text-white"
+                                  >
+                                    <Edit size={16} />
+                                  </Button>
+
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/templates/builder?edit=${template.id}`);
+                                    }}
+                                    className="p-2 rounded-full bg-green-500 hover:bg-green-400 text-white"
+                                  >
+                                    <FileText size={16} />
+                                  </Button>
+
+                                 
+                                </div>
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="glassmorphism-strong rounded-xl p-12 text-center">
+                          <FileText size={48} className="mx-auto text-slate-400 mb-4" />
+                          <h3 className="text-xl text-white mb-2">No templates found</h3>
+                          <p className="text-slate-300/80 mb-6">
+                            {paperForm.class_id && paperForm.subject_id
+                              ? 'No templates found for selected class and subject'
+                              : 'Select a class and subject to see available templates'
+                            }
+                          </p>
+                          <Button 
+                            onClick={() => navigate("/templates")} 
+                            className="emerald-gradient"
+                          >
+                            <Plus size={20} className="mr-2" /> Create Template
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -756,8 +934,8 @@ const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
               <Button
                 data-testid="button-generate-paper"
                 onClick={handleCreatePaper}
-                disabled={createPaperMutation.isPending}
-                className="w-full emerald-gradient text-white font-semibold py-4 rounded-xl hover:shadow-lg transition-all"
+                disabled={createPaperMutation.isPending || (paperForm.creationMethod === "generate" && !paperForm.template_id)}
+                className="w-full emerald-gradient text-white font-semibold py-4 rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {createPaperMutation.isPending
                   ? "Creating..."
