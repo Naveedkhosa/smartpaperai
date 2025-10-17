@@ -1,9 +1,13 @@
+import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from './config';
 
 export class ApiService {
+
+  private token = useAuth().token;
+
   static async request(endpoint: string, options: RequestInit = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
-    
+
     const config = {
       headers: {
         'Content-Type': 'application/json',
@@ -17,15 +21,15 @@ export class ApiService {
       const response = await fetch(url, config);
 
       if (response.status === 401) {
-        localStorage.removeItem('smartpaperai_token');
+        localStorage.removeItem('smartpaper_token');
         window.location.href = '/login';
         return;
       }
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('API request failed:', error);
@@ -58,14 +62,14 @@ export class ApiService {
 
 // Auth-specific API calls
 export const authApi = {
-  login: (credentials: { email: string; password: string }) => 
+  login: (credentials: { email: string; password: string }) =>
     ApiService.post('/user/login', credentials),
-  
-  register: (userData: { name: string; email: string; phone: string; password: string }) => 
+
+  register: (userData: { name: string; email: string; phone: string; password: string }) =>
     ApiService.post('/user/register', userData),
-  
+
   logout: () => ApiService.post('/user/logout', {}),
-  
+
   getProfile: () => ApiService.get('/user/profile'),
 };
 

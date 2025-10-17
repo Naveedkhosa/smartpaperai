@@ -16,6 +16,12 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { ApiService } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate, useParams } from 'react-router-dom';
+import api from '../lib/axios';
+import { toast } from '../hooks/use-toast';
+import PageLoader from '../components/PageLoader';
 
 // ---------- Types ----------
 export interface Question {
@@ -328,26 +334,24 @@ const GroupForm: React.FC<{
     onSubmit: (type: string, paragraph: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => void;
     sectionTitle?: string;
     editing?: QuestionGroup | null;
-}> = ({ open, onClose, onSubmit, sectionTitle, editing }) => {
+    types?: any
+}> = ({ open, onClose, onSubmit, sectionTitle, editing, types }) => {
     const [type, setType] = useState(editing?.type || 'mcq');
     const [instruction, setInstruction] = useState(editing?.instruction || '');
-    const [logic, setLogic] = useState(editing?.logic || 'OR');
     const [paragraph, setParagraph] = useState(editing?.paragraph || '');
     const [numberingStyle, setNumberingStyle] = useState<'numeric' | 'roman' | 'alphabetic'>(editing?.numberingStyle || 'numeric');
 
     useEffect(() => {
         setType(editing?.type || 'mcq');
         setInstruction(editing?.instruction || '');
-        setLogic(editing?.logic || 'OR');
         setParagraph(editing?.paragraph || '');
         setNumberingStyle(editing?.numberingStyle || 'numeric');
     }, [editing]);
 
 
-
     const handle = (e: any) => {
         e.preventDefault();
-        onSubmit(type, type === 'paragraph' ? paragraph : '', instruction.trim(), numberingStyle, type === 'conditional' ? logic : undefined, editing?.id);
+        onSubmit(type, type === 'paragraph' ? paragraph : '', instruction.trim(), numberingStyle, type === 'conditional' ? 'OR' : '', editing?.id);
     };
 
     return (
@@ -360,14 +364,10 @@ const GroupForm: React.FC<{
                         onChange={(e) => setType(e.target.value)}
                         className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                        <option value="mcq">Multiple Choice Questions</option>
-                        <option value="true-false">True/False Questions</option>
-                        <option value="fill-in-blanks">Fill in the Blanks</option>
-                        <option value="short-answer">Short Questions</option>
-                        <option value="long-answer">Long Questions</option>
-                        <option value="conditional">Alternative Questions</option>
-                        <option value="paragraph">Passage Questions</option>
+                        {types && types.map((t: any) => <option key={t.id} value={t.slug}>{t.name}</option>)}
                     </select>
+
+
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Numbering Style</label>
@@ -391,19 +391,7 @@ const GroupForm: React.FC<{
 
                     />
                 </div>
-                {type === 'conditional' && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Logic</label>
-                        <select
-                            value={logic}
-                            onChange={(e) => setLogic(e.target.value)}
-                            className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                            <option value="OR">OR (answer any one)</option>
-                            <option value="AND">AND (answer all)</option>
-                        </select>
-                    </div>
-                )}
+
 
                 {type == "paragraph" && (
                     <div>
@@ -419,7 +407,7 @@ const GroupForm: React.FC<{
                 )}
 
                 <div className="flex justify-end gap-3 pt-2">
-                    <button type="button" onClick={() => { onClose }} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors">Cancel</button>
+                    <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors">Cancel</button>
                     <button type="submit" className="px-5 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors">{editing ? 'Save Changes' : 'Add Group'}</button>
                 </div>
 
@@ -442,11 +430,14 @@ const QuestionForm: React.FC<{
     const [marks, setMarks] = useState<number>(editing?.marks ?? 0);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    const [question_answer, setQuestionAnswer] = useState(editing?.content?.question_answer || '');
+
 
     useEffect(() => {
         setQuestionText(editing?.content?.questionText || '');
         setChoices(editing?.content?.choices || ['', '']);
         setCorrectAnswer(editing?.content?.correctAnswer ?? 0);
+        setQuestionAnswer(editing?.content?.question_answer || '');
         setMarks(editing?.marks ?? 0);
         setErrors({});
     }, [editing, open]);
@@ -473,6 +464,27 @@ const QuestionForm: React.FC<{
             newErrors.marks = 'Marks must be greater than 0';
         }
 
+        if (type === "mcq") {
+            // Validate choices for MCQ
+            const filledChoices = choices.filter(c => c.trim() !== '');
+            if (filledChoices.length < 2) {
+                newErrors.choices = 'At least two choices are required';
+            }
+            if (correctAnswer < 0 || correctAnswer >= filledChoices.length) {
+                newErrors.correctAnswer = 'Please select a valid correct answer';
+            }
+        } else if (type === "true-false") {
+            // Validate correct answer for True/False
+            if (correctAnswer !== 0 && correctAnswer !== 1) {
+                newErrors.correctAnswer = 'Please select True or False as the correct answer';
+            }
+        } else if (type === "fill-in-blanks") {
+            // Validate answer for short/long answer and fill in the blanks
+            if (!question_answer.trim()) {
+                newErrors.question_answer = 'Correct answer is required for this question type';
+            }
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -492,6 +504,8 @@ const QuestionForm: React.FC<{
         } else if (type === 'true-false') {
             content.choices = ['True', 'False'];
             content.correctAnswer = correctAnswer;
+        } else {
+            content.question_answer = question_answer;
         }
 
         let q: Question = { id: editing?.id || uid('q-'), type, content };
@@ -514,7 +528,8 @@ const QuestionForm: React.FC<{
     return (
         <Modal open={open} onClose={() => { onClose(); reset(); }} title={editing ? 'Edit Question' : 'Add Question'}>
             <form onSubmit={handleSubmit} className="space-y-5 max-h-[70vh] overflow-auto pr-2">
-                <div>
+
+                <div className='w-full'>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
                     <SimpleTextEditor
                         value={questionText}
@@ -523,24 +538,43 @@ const QuestionForm: React.FC<{
                         rows={3}
                     />
                     {errors.questionText && <p className="text-red-500 text-sm mt-1">{errors.questionText}</p>}
-
-                    <div className="mt-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
-                        <input
-                            type="number"
-                            min={0}
-                            value={marks}
-                            onChange={e => setMarks(Number(e.target.value))}
-                            className="w-24 p-2 rounded border border-gray-300"
-                        />
-                        {errors.marks && <p className="text-red-500 text-sm mt-1">{errors.marks}</p>}
-                    </div>
-
                 </div>
+
+                <div className='w-full'>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+                    <input
+                        type="number"
+                        min={0}
+                        value={marks}
+                        onChange={e => setMarks(Number(e.target.value))}
+                        className="w-24 p-2 rounded border border-gray-300"
+                    />
+                    {errors.marks && <p className="text-red-500 text-sm mt-1">{errors.marks}</p>}
+                </div>
+
+                {type !== "mcq" && type !== "true-false" &&
+                    (
+                        <div className='w-full'>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Correct Answer {type === "fill-in-blanks" ? "" : "(optional)"}
+
+                            </label>
+                            <SimpleTextEditor
+                                value={question_answer}
+                                onChange={setQuestionAnswer}
+                                placeholder="Enter your question..."
+                                rows={3}
+                            />
+                            {errors.question_answer && <p className="text-red-500 text-sm mt-1">{errors.question_answer}</p>}
+                        </div>
+                    )}
+
+
+
+
 
 
                 {type === 'mcq' && (
-                    <div>
+                    <div className='w-full'>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Choices</label>
                         <div className="space-y-3">
                             {choices.map((c, i) => (
@@ -577,7 +611,7 @@ const QuestionForm: React.FC<{
                     </div>
                 )}
                 {type === 'true-false' && (
-                    <div>
+                    <div className='w-full'>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
                         <div className="flex gap-6">
                             <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-300 hover:bg-gray-50 cursor-pointer">
@@ -591,6 +625,8 @@ const QuestionForm: React.FC<{
                         </div>
                     </div>
                 )}
+
+                {type === "fill-in-blanks" && <div className="my-6 text-gray-600 text-sm">Use <code className="bg-gray-100 px-1 rounded">__</code> to denote blanks in the question text.</div>}
 
 
                 <div className="flex justify-end gap-3 pt-4 border-t">
@@ -696,7 +732,6 @@ const FillInBlanksQuestion: React.FC<{ question: Question; questionNumber: any }
 };
 
 const ShortLongQuestion: React.FC<{ question: Question; questionNumber: any; }> = ({ question, questionNumber }) => {
-    const hasSubQuestions = question.content.subQuestions && question.content.subQuestions.length > 0 && question.content.subQuestions.some((sq: string) => sq);
     return (
         <div className="mb-4">
             {question.content.questionText && (
@@ -907,6 +942,10 @@ const PaperView: React.FC<{
 
 // ---------- Main Component ----------
 const PaperGeneratorAdvanced: React.FC = () => {
+    const { id } = useParams();
+
+    const [loading, setLoading] = useState(true);
+
     const [sections, setSections] = useState<Section[]>(() => {
         try {
             const raw = localStorage.getItem(LS_KEY);
@@ -924,6 +963,117 @@ const PaperGeneratorAdvanced: React.FC = () => {
             return [];
         }
     });
+
+
+    function convertToLocal(paperData:any) {
+        const paper = paperData;
+        
+        if (!paper || !paper.sections) {
+            throw new Error('Invalid paper data structure');
+        }
+
+        // Convert sections
+        const sections = paper.sections.map((section:any) => {
+            // Convert groups
+            const groups = section.section_groups.map((group:any) => {
+                const baseGroup = {
+                    id: `g-${group.id}`,
+                    type: group.question_type.slug,
+                    paragraph: group.paragraph || "",
+                    instruction: group.instructions || "",
+                    numberingStyle: group.numbering_style,
+                    logic:'',
+                    questions:[]
+                };
+
+                // Add logic only if it exists
+                if (group.logic) {
+                    baseGroup.logic = group.logic;
+                }
+
+                // Convert questions
+                baseGroup.questions = group.questions.map((question:any) => {
+                    const baseQuestion = {
+                        id: `q-${question.id}`,
+                        type: group.question_type.slug,
+                        marks: question.marks,
+                        content: {}
+                    };
+
+                    // Handle different question types
+                    switch (baseQuestion.type) {
+                        case 'mcq':
+                        case 'true-false':
+                            const choices = question.options.map((opt:any) => opt.option_text);
+                            const correctIndex = question.options.findIndex((opt:any) => opt.is_correct);
+                            baseQuestion.content = {
+                                questionText: question.question_text || "",
+                                choices: choices,
+                                correctAnswer: correctIndex >= 0 ? correctIndex : 0
+                            };
+                            break;
+
+                        case 'fill-in-blanks':
+                            baseQuestion.content = {
+                                questionText: question.question_text || "",
+                                question_answer: question.correct_answer || ""
+                            };
+                            break;
+
+                        case 'paragraph':
+                            baseQuestion.content = {
+                                questionText: question.question_text || ""
+                            };
+                            break;
+
+                        default: // short-answer, long-answer, conditional
+                            baseQuestion.content = {
+                                questionText: question.question_text || ""
+                            };
+                            break;
+                    }
+
+                    return baseQuestion;
+                });
+
+                return baseGroup;
+            });
+
+            return {
+                id: `sec-${section.id}`,
+                title: section.title || "",
+                instruction: section.instructions || "",
+                groups: groups
+            };
+        });
+
+        return sections;
+}
+
+
+
+    // load paper : api : /user/papers/:id
+    useEffect(() => {
+        if (!id) return;
+        // on 404 error, redirect to /teacher/papers
+        api.get(`/user/papers/${id}`).then((response) => {
+            const paperData = response?.data?.data?.paper;
+            if (paperData) {
+                console.log("loaded paper : ", paperData);
+                const localSections = convertToLocal(paperData);
+                setSections(localSections);
+                // update local storage
+                localStorage.setItem(LS_KEY, JSON.stringify(localSections));
+                console.log("local sections : ",localSections);
+            }
+        }).catch((error) => {
+            if (error.response && error.response.status === 404) {
+                window.location.href = '/teacher/papers';
+            }
+        }).finally(() => {
+            setLoading(false);
+        });
+    }, [id]);
 
     // UI states
     const [sectionModalOpen, setSectionModalOpen] = useState(false);
@@ -988,6 +1138,17 @@ const PaperGeneratorAdvanced: React.FC = () => {
         setEditingGroup(null);
         setGroupModalOpen(true);
     };
+
+    const [question_types, setQuestionTypes] = useState<any>();
+
+    const loadTypes = () => {
+        api.get(`/user/question-types`).then((response) => {
+            setQuestionTypes(response?.data?.question_types);
+        });
+    }
+    useEffect(() => {
+        loadTypes();
+    }, []);
 
     const handleAddOrEditGroup = (type: string, paragraph: string, instruction: string, numberingStyle: 'numeric' | 'roman' | 'alphabetic', logic?: string, editingId?: string) => {
         if (!currentSectionIdForGroup) return;
@@ -1117,8 +1278,60 @@ const PaperGeneratorAdvanced: React.FC = () => {
         URL.revokeObjectURL(url);
     };
 
+
+    function formatPayload(inputData: any) {
+        return {
+            sections: inputData.map((section: any) => ({
+                title: section.title,
+                instructions: section.instruction || '',
+                groups: section.groups.map((group: any) => {
+                    const baseGroup = {
+                        question_type: group.type,
+                        instructions: group.instruction || '',
+                        numbering_style: group.numberingStyle,
+                        logic: group.logic || null,
+                        paragraph: group.paragraph || '',
+                        questions: group.questions.map((question: any) => {
+                            const baseQuestion = {
+                                question_text: question.content?.questionText || '',
+                                marks: question.marks,
+                                correct_answer: question.content?.question_answer?.toString() || '',
+                                options: []
+                            };
+
+                            // Add options for MCQ and True/False questions
+                            if (['mcq', 'true-false'].includes(group.type) && question.content?.choices) {
+                                baseQuestion.options = question.content.choices.map((choice: any, index: number) => ({
+                                    option_text: choice,
+                                    is_correct: index === question.content.correctAnswer
+                                }));
+                            }
+
+                            return baseQuestion;
+                        })
+                    };
+
+                    return baseGroup;
+                })
+            }))
+        };
+    }
+
+    const [saving, setSaving] = useState(false);
+
     const savePaper = () => {
-        console.log(sections);
+        console.log("Sections : ",sections);
+        setSaving(true);
+        const payload = formatPayload(sections);
+        api.post(`/user/paper/${id}/sections`, payload).then((response) => {
+            alert("Paper saved successfully.");
+        }).catch((error) => {
+            console.log("error : ", error?.response?.data?.data?.errors);
+            alert("Failed to save paper.");
+        }).finally(() => {
+            setSaving(false);
+        });
+
     }
 
     const importJson = (file: File | null) => {
@@ -1160,7 +1373,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
         const paperContent = document.querySelector('.paper-content');
         if (!paperContent) return;
 
-        printWindow.document.write(`
+        printWindow.document.writeln(`
             <!DOCTYPE html>
             <html>
                 <head>
@@ -1196,8 +1409,16 @@ const PaperGeneratorAdvanced: React.FC = () => {
 
     // ---------- Search helper ----------
     const filteredSections = sections
-        .map((sec) => ({ ...sec, groups: sec.groups.filter((g) => g.type.includes(search) || g.instruction?.includes(search) || search === '') }))
-        .filter((s) => s.title.toLowerCase().includes(search.toLowerCase()) || s.instruction?.toLowerCase().includes(search.toLowerCase()) || s.groups.length > 0 || search === '');
+        .map((sec) => ({ ...sec, groups: sec.groups.filter((g) => g.type?.includes(search) || g.instruction?.includes(search) || search === '') }))
+        .filter((s) => s.title.toLowerCase()?.includes(search.toLowerCase()) || s.instruction?.toLowerCase()?.includes(search.toLowerCase()) || s.groups.length > 0 || search === '');
+
+    if (loading) {
+        return (
+           <>
+           <PageLoader/>
+           </>
+        );
+    }   
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 p-6">
@@ -1486,7 +1707,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
                 {/* Modals & confirmations */}
                 <SectionForm open={sectionModalOpen} onClose={() => { setSectionModalOpen(false); setEditingSection(null); }} onSubmit={handleAddOrEditSection} editing={editingSection} />
 
-                <GroupForm open={groupModalOpen} onClose={() => { setGroupModalOpen(false); setEditingGroup(null); setCurrentSectionIdForGroup(null); }} onSubmit={handleAddOrEditGroup} sectionTitle={sections.find((s) => s.id === currentSectionIdForGroup)?.title} editing={editingGroup} />
+                <GroupForm open={groupModalOpen} onClose={() => { setGroupModalOpen(false); setEditingGroup(null); setCurrentSectionIdForGroup(null); }} onSubmit={handleAddOrEditGroup} sectionTitle={sections.find((s) => s.id === currentSectionIdForGroup)?.title} editing={editingGroup} types={question_types} />
 
                 <QuestionForm open={questionModalOpen} onClose={() => { setQuestionModalOpen(false); setEditingQuestion(null); setCurrentSectionIdForQuestion(null); setCurrentGroupIdForQuestion(null); }} onSubmit={handleAddOrEditQuestion} type={currentTypeForQuestion} editing={editingQuestion} />
 
