@@ -1,0 +1,101 @@
+{
+    "status": true,
+    "sections": [
+        {
+            "section_groups": [
+                {
+                    "questions": [
+                        {
+                            "question": "Which planet is known as the Red Planet?",
+                            "correct_index": 2,
+                            "options": [
+                                "Earth",
+                                "Venus",
+                                "Mars",
+                                "Jupiter"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "questions": [
+                        {
+                            "question": "What is photosynthesis?",
+                            "answer": null
+                        },
+                        {
+                            "question": "Who is known as the Father of Computers?",
+                            "answer": null
+                        }
+                    ]
+                },
+                {
+                    "questions": [
+                        {
+                            "question": "The Sun is the largest planet in our solar system.",
+                            "answer": false
+                        },
+                        {
+                            "question": "Water freezes at 0 degrees Celsius.",
+                            "answer": true
+                        }
+                    ]
+                },
+                {
+                    "questions": [
+                        {
+                            "question": "The process by which plants make their own food is called __________.",
+                            "answer": "photosynthesis"
+                        },
+                        {
+                            "question": "The largest ocean on Earth is the __________ Ocean.",
+                            "answer": "Pacific Ocean"
+                        }
+                    ]
+                },
+                {
+                    "questions": [
+                        {
+                            "question": "Explain the importance of the water cycle and describe its main stages.",
+                            "answer": null
+                        },
+                        {
+                            "question": "Discuss the impact of technology on modern education.",
+                            "answer": null
+                        }
+                    ]
+                },
+                {
+                    "questions": [
+                        {
+                            "question": "Describe the process of photosynthesis.",
+                            "answer": null
+                        },
+                        {
+                            "question": "Explain how respiration differs from photosynthesis.",
+                            "answer": null
+                        }
+                    ]
+                },
+                {
+                    "paragraph": "lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum vestibulum. Cras venenatis euismod malesuada. Nullam ac erat ante. Sed ut dui ut lacus dictum fermentum vel tincidunt neque. Sed sed lacinia lectus. Duis sit amet sodales felis. Duis nunc eros, mattis at dui ac, convallis semper risus. In adipiscing ultrices tellus, in suscipit massa vehicula eu.",
+                    "questions": [
+                        {
+                            "question": "Why are trees important for life on Earth?",
+                            "answer": null
+                        },
+                        {
+                            "question": "How do trees help to keep the environment clean?",
+                            "answer": null
+                        },
+                        {
+                            "question": "What will happen if we continue to cut down trees?",
+                            "answer": null
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "message": null
+}

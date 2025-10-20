@@ -1,0 +1,139 @@
+{
+    "status": true,
+    "sections": [
+        {
+            "title": "Objective",
+            "instructions": null,
+            "section_groups": [
+                {
+                    "question_type": "mcq",
+                    "instructions": "Tick the correct option.",
+                    "numbering_style": "numeric",
+                    "questions": [
+                        {
+                            "question_text": "Which planet is known as the Red Planet?",
+                            "marks": 1,
+                            "correct_index": 2,
+                            "options": [
+                                "Earth",
+                                "Venus",
+                                "Mars",
+                                "Jupiter"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "question_type": "short-answer",
+                    "instructions": "Answer each question briefly and clearly in one to three sentences. Use complete sentences and provide key details to support your answer.",
+                    "numbering_style": "roman",
+                    "questions": [
+                        {
+                            "question_text": "What is photosynthesis?",
+                            "correct_answer": null,
+                            "marks": 2
+                        },
+                        {
+                            "question_text": "Who is known as the \u201cFather of Computers\u201d?",
+                            "correct_answer": null,
+                            "marks": 3
+                        }
+                    ]
+                },
+                {
+                    "question_type": "true-false",
+                    "instructions": "Read each statement carefully. Choose \u201cTrue\u201d if the statement is correct, and \u201cFalse\u201d if it is not.",
+                    "numbering_style": "numeric",
+                    "questions": [
+                        {
+                            "question_text": "The Sun is the largest planet in our solar system.",
+                            "marks": 1,
+                            "correct_answer": false
+                        },
+                        {
+                            "question_text": "Water freezes at 0 degrees Celsius.",
+                            "correct_answer": true,
+                            "marks": 1
+                        }
+                    ]
+                },
+                {
+                    "question_type": "fill-in-blanks",
+                    "instructions": "Complete each sentence by filling in the blank with the correct word or phrase.",
+                    "numbering_style": "roman",
+                    "questions": [
+                        {
+                            "question_text": "The process by which plants make their own food is called __________.",
+                            "correct_answer": "photosynthesis",
+                            "marks": 2
+                        },
+                        {
+                            "question_text": "The largest ocean on Earth is the __________ Ocean.",
+                            "correct_answer": "Pacific Ocean",
+                            "marks": 2
+                        }
+                    ]
+                },
+                {
+                    "question_type": "long-answer",
+                    "instructions": "Answer each question in 5\u20138 sentences. Explain your ideas clearly, include examples where possible, and write in complete sentences.",
+                    "numbering_style": "roman",
+                    "questions": [
+                        {
+                            "question_text": "Explain the importance of the water cycle and describe its main stages.",
+                            "correct_answer": null,
+                            "marks": 7
+                        },
+                        {
+                            "question_text": "Discuss the impact of technology on modern education.",
+                            "correct_answer": null,
+                            "marks": 8
+                        }
+                    ]
+                },
+                {
+                    "question_type": "conditional",
+                    "instructions": "Answer any one of the following. Each question carries equal marks.",
+                    "numbering_style": "alphabetic",
+                    "logic": "OR",
+                    "questions": [
+                        {
+                            "question_text": "Describe the process of photosynthesis.",
+                            "correct_answer": null,
+                            "marks": 5
+                        },
+                        {
+                            "question_text": "Explain how respiration differs from photosynthesis.",
+                            "correct_answer": null,
+                            "marks": 5
+                        }
+                    ]
+                },
+                {
+                    "question_type": "paragraph",
+                    "instructions": "Read the following passage carefully and then answer the questions that follow. Write your answers in complete sentences.",
+                    "numbering_style": "roman",
+                    "paragraph": "lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum vestibulum. Cras venenatis euismod malesuada. Nullam ac erat ante. Sed ut dui ut lacus dictum fermentum vel tincidunt neque. Sed sed lacinia lectus. Duis sit amet sodales felis. Duis nunc eros, mattis at dui ac, convallis semper risus. In adipiscing ultrices tellus, in suscipit massa vehicula eu.",
+                    "questions": [
+                        {
+                            "question_text": "Why are trees important for life on Earth?",
+                            "correct_answer": null,
+                            "marks": 2
+                        },
+                        {
+                            "question_text": "How do trees help to keep the environment clean?",
+                            "correct_answer": null,
+                            "marks": 2
+                        },
+                        {
+                            "question_text": "What will happen if we continue to cut down trees?",
+                            "correct_answer": null,
+                            "marks": 2
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "message": null
+}
