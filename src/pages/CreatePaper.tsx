@@ -156,7 +156,7 @@ function StudyMaterialCreationDialog({
   const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
 
   // Fetch material types
-  const { data: materialTypes } = useQuery({
+  const { data: materialTypes } = useQuery<MaterialType[]>({
     queryKey: ['material-types'],
     queryFn: async () => {
       const response = await fetch(`${API_BASE_URL}/user/study-materials/types`, {
@@ -177,7 +177,7 @@ function StudyMaterialCreationDialog({
   });
 
   // Fetch classes
-  const { data: classes } = useQuery({
+  const { data: classes } = useQuery<Class[]>({
     queryKey: ['classes'],
     queryFn: async () => {
       const response = await fetch(`${API_BASE_URL}/user/classes`, {
@@ -198,7 +198,7 @@ function StudyMaterialCreationDialog({
   });
 
   // Fetch subjects based on selected class
-  const { data: subjects = [] } = useQuery({
+  const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ['subjects', formData.class_id],
     queryFn: async () => {
       if (!formData.class_id) return [];
@@ -538,7 +538,7 @@ export default function CreatePaperPage() {
   const [isAddStudyMaterialDialogOpen, setIsAddStudyMaterialDialogOpen] = useState(false);
 
   // Fetch classes
-  const { data: classes, isLoading: classesLoading } = useQuery({
+  const { data: classes, isLoading: classesLoading } = useQuery<Class[]>({
     queryKey: ["/user/classes", user?.id],
     queryFn: async () => {
       const response = await fetch(`${API_BASE_URL}/user/classes`, {
@@ -561,7 +561,7 @@ export default function CreatePaperPage() {
   });
 
   // Fetch subjects based on selected class
-  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery<Subject[]>({
     queryKey: ['subjects', paperForm.class_id],
     queryFn: async () => {
       if (!paperForm.class_id) return [];
@@ -584,7 +584,7 @@ export default function CreatePaperPage() {
   });
 
   // Fetch templates based on selected class and subject
-  const { data: templates = [], isLoading: templatesLoading } = useQuery({
+  const { data: templates = [], isLoading: templatesLoading } = useQuery<Template[]>({
     queryKey: ['templates', paperForm.class_id, paperForm.subject_id],
     queryFn: async () => {
       if (!paperForm.class_id || !paperForm.subject_id) {
@@ -649,7 +649,7 @@ export default function CreatePaperPage() {
   });
 
   // Extract materials from response and filter by source type
-  const allMaterials = materialsResponse?.data?.materials?.data || [];
+  const allMaterials: StudyMaterial[] = materialsResponse?.data?.materials?.data || [];
   const materials = allMaterials.filter((material: StudyMaterial) => {
     if (paperForm.sourceType === 'public') {
       return material.is_public;
@@ -723,8 +723,12 @@ export default function CreatePaperPage() {
     if (selectedMaterial?.id === material.id) {
       // Deselect if same material is clicked
       setSelectedMaterial(null);
+      // If deselected, reset generation mode to 'intelligent'
+      setPaperForm(prev => ({
+        ...prev,
+        generationMode: 'intelligent'
+      }));
     } else {
-      // For all types except past papers, initialize with page numbers
       const isPastPaper = material.type.name.toLowerCase().includes('past paper');
       const newMaterial: SelectedMaterialWithPages = {
         ...material,
@@ -733,17 +737,20 @@ export default function CreatePaperPage() {
       };
       setSelectedMaterial(newMaterial);
 
-      // *** UPDATED LOGIC ***
-      // If the newly selected material is NOT a past paper
-      // and the current generation mode is 'asis-pastpapers',
-      // reset the generation mode to 'intelligent'.
-      if (!isPastPaper && paperForm.generationMode === 'asis-pastpapers') {
-        setPaperForm(prev => ({
-          ...prev,
-          generationMode: 'intelligent'
-        }));
+      // Set default generation mode based on selection
+      let newGenerationMode = paperForm.generationMode;
+      if (isPastPaper) {
+        // Default to asis-pastpapers if past paper is selected
+        newGenerationMode = 'asis-pastpapers';
+      } else if (newGenerationMode === 'asis-pastpapers') {
+        // If current mode is asis-pastpapers, but new selection is not, reset to intelligent/keybook
+        newGenerationMode = 'intelligent';
       }
-      // *** END UPDATED LOGIC ***
+
+      setPaperForm(prev => ({
+        ...prev,
+        generationMode: newGenerationMode
+      }));
     }
   };
 
@@ -791,6 +798,27 @@ export default function CreatePaperPage() {
       });
       return;
     }
+
+    // Validation for 'asis-pastpapers' mode - must have a past paper selected
+    if (paperForm.generationMode === 'asis-pastpapers' && (!selectedMaterial || !selectedMaterial.type.name.toLowerCase().includes('past paper'))) {
+      toast({
+        title: "Error",
+        description: "To use 'As-Is from Past Papers' mode, you must select a material of type 'Past Paper'.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation for 'asis-keybook' mode - must have a non-past paper material selected
+    if (paperForm.generationMode === 'asis-keybook' && (!selectedMaterial || selectedMaterial.type.name.toLowerCase().includes('past paper'))) {
+      toast({
+        title: "Error",
+        description: "To use 'As-Is from Key Book' mode, you must select a material that is not a 'Past Paper'.",
+        variant: "destructive",
+      });
+      return;
+    }
+
 
     const paperData = {
       title: paperForm.title,
@@ -1033,11 +1061,17 @@ export default function CreatePaperPage() {
               {/* Generation Options - Only show for generate method */}
               {paperForm.creationMethod === "generate" && (
                 <div className="space-y-6">
-                  {/* *** UPDATED CODE: Defined helper const here *** */}
                   {(() => {
+                    const isPastPaperMaterial = selectedMaterial?.type.name.toLowerCase().includes("past paper");
                     const isPastPaperOptionHidden =
                       selectedMaterial &&
-                      !selectedMaterial.type.name.toLowerCase().includes("past paper");
+                      !isPastPaperMaterial;
+                    
+                    // *** UPDATED LOGIC: Hide Keybook option if a Past Paper is selected ***
+                    const isKeyBookOptionHidden =
+                      selectedMaterial &&
+                      isPastPaperMaterial;
+                    // *** END UPDATED LOGIC ***
 
                     return (
                       <>
@@ -1111,7 +1145,6 @@ export default function CreatePaperPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                   {materials.map((material: StudyMaterial) => {
                                     const isSelected = selectedMaterial?.id === material.id;
-                                    const isPastPaper = material.type.name.toLowerCase().includes('past paper');
 
                                     return (
                                       <div
@@ -1277,7 +1310,6 @@ export default function CreatePaperPage() {
                                     )
                                     .map((material: StudyMaterial) => {
                                       const isSelected = selectedMaterial?.id === material.id;
-                                      const isPastPaper = material.type.name.toLowerCase().includes('past paper');
 
                                       return (
                                         <div
@@ -1473,6 +1505,11 @@ export default function CreatePaperPage() {
                                   data-testid="radio-intelligent-mode"
                                   value="intelligent"
                                   id="intelligent"
+                                  // Disabled if a specific as-is mode should be forced by material selection
+                                  disabled={selectedMaterial && 
+                                    ((isPastPaperMaterial && paperForm.generationMode !== 'asis-pastpapers') || 
+                                     (!isPastPaperMaterial && paperForm.generationMode !== 'asis-keybook'))
+                                  }
                                 />
                                 <Label
                                   htmlFor="intelligent"
@@ -1487,26 +1524,33 @@ export default function CreatePaperPage() {
                                 control
                               </p>
                             </div>
-                            <div className="glassmorphism p-4 rounded-lg">
-                              <div className="flex items-center space-x-3">
-                                <RadioGroupItem
-                                  data-testid="radio-asis-keybook-mode"
-                                  value="asis-keybook"
-                                  id="asis-keybook"
-                                />
-                                <Label
-                                  htmlFor="asis-keybook"
-                                  className="text-white cursor-pointer"
-                                >
-                                  As-Is from Key Book
-                                </Label>
-                              </div>
-                              <p className="text-white/60 text-xs ml-6 mt-1">
-                                Direct questions from selected key book materials
-                              </p>
-                            </div>
 
-                            {/* *** UPDATED CODE: Conditional Rendering *** */}
+                            {/* *** UPDATED CODE: Conditional Rendering for As-Is Key Book *** */}
+                            {!isKeyBookOptionHidden && (
+                              <div className="glassmorphism p-4 rounded-lg">
+                                <div className="flex items-center space-x-3">
+                                  <RadioGroupItem
+                                    data-testid="radio-asis-keybook-mode"
+                                    value="asis-keybook"
+                                    id="asis-keybook"
+                                    // Disabled if no material selected or selected material is past paper
+                                    disabled={!selectedMaterial || isPastPaperMaterial}
+                                  />
+                                  <Label
+                                    htmlFor="asis-keybook"
+                                    className="text-white cursor-pointer"
+                                  >
+                                    As-Is from Key Book
+                                  </Label>
+                                </div>
+                                <p className="text-white/60 text-xs ml-6 mt-1">
+                                  Direct questions from selected key book materials
+                                </p>
+                              </div>
+                            )}
+                            {/* *** END UPDATED CODE *** */}
+
+                            {/* Conditional Rendering for As-Is Past Papers */}
                             {!isPastPaperOptionHidden && (
                               <div className="glassmorphism p-4 rounded-lg">
                                 <div className="flex items-center space-x-3">
@@ -1514,6 +1558,8 @@ export default function CreatePaperPage() {
                                     data-testid="radio-asis-pastpapers-mode"
                                     value="asis-pastpapers"
                                     id="asis-pastpapers"
+                                    // Disabled if no material selected or selected material is not past paper
+                                    disabled={!selectedMaterial || !isPastPaperMaterial}
                                   />
                                   <Label
                                     htmlFor="asis-pastpapers"
@@ -1527,7 +1573,6 @@ export default function CreatePaperPage() {
                                 </p>
                               </div>
                             )}
-                            {/* *** END UPDATED CODE *** */}
 
                           </RadioGroup>
                         </div>
@@ -1695,7 +1740,6 @@ export default function CreatePaperPage() {
                       </>
                     );
                   })()}
-                  {/* *** END UPDATED WRAPPER *** */}
                 </div>
               )}
 
