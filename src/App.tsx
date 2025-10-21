@@ -11,6 +11,8 @@ import Register from "./pages/Register";
 import AdminDashboard from "./pages/AdminDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
+import TeacherStudent from "./pages/TeacherStudent";
+import AddStudent from "./pages/AddStudent";
 import Layout from "./components/Layout";
 import NotFound from "./pages/not-found";
 import CreatePaper from "./pages/CreatePaper";
@@ -172,6 +174,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="teacher">
             <Manage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/teacher/student" 
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <TeacherStudent />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/teacher/add-student" 
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <AddStudent />
           </ProtectedRoute>
         } 
       />
