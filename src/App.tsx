@@ -178,7 +178,7 @@ function AppRoutes() {
         } 
       />
       <Route 
-        path="/teacher/student" 
+        path="/teacher/students" 
         element={
           <ProtectedRoute requiredRole="teacher">
             <TeacherStudent />
