@@ -47,7 +47,7 @@ export default function TeacherSidebar() {
   { path: "/teacher/create", label: "Create Paper", icon: FileText },
    { path: "/teacher/papers", label: "Papers", icon: FileText },
   { path: "/teacher/grade", label: "Assessment Paper", icon: CheckCircle },
-  { path: "/teacher/students", label: " Students", icon: Users },
+  { path: "/teacher/students", label: "Students", icon: Users },
   { path: "/teacher/classes", label: "Classes", icon: Users },
   { path: "/teacher/subjects", label: "Subjects", icon: BookOpen },
   { path: "/teacher/study-materials", label: "Study Materials", icon: BookOpen },
