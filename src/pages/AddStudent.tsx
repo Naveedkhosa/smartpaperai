@@ -31,8 +31,8 @@ import {
   Users,
 } from "lucide-react";
 
-// API base URL
-const API_BASE_URL = "https://apis.babalrukn.com/api";
+// Import the API instance
+import api from '../lib/axios';
 
 interface Class {
   id: number;
@@ -44,10 +44,8 @@ interface StudentFormData {
   full_name: string;
   email: string;
   phone_number: string;
-  registration_no: string;
   father_name: string;
   class_id: string;
-  roll_no: string;
 }
 
 export default function AddStudent() {
@@ -56,16 +54,13 @@ export default function AddStudent() {
   const navigate = useNavigate();
   
   const [globalClass, setGlobalClass] = useState("");
-  const [rollNoPrefix, setRollNoPrefix] = useState("RN");
   const [studentForms, setStudentForms] = useState<StudentFormData[]>([
     {
       full_name: '',
       email: '',
       phone_number: '',
-      registration_no: '',
       father_name: '',
-      class_id: '',
-      roll_no: ''
+      class_id: ''
     }
   ]);
   const [expandedForms, setExpandedForms] = useState<number[]>([0]);
@@ -74,70 +69,39 @@ export default function AddStudent() {
   const { data: classes, isLoading: classesLoading } = useQuery({
     queryKey: ['classes'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/classes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-      if (!response.ok) throw new Error('Failed to fetch classes');
-      const data = await response.json();
-      return data.data.classes;
+      const response = await api.get('/user/classes');
+      return response.data.data.classes;
     },
     enabled: !!token,
   });
 
-  // Generate registration number
-  const generateRegNo = () => {
-    const prefix = 'STU';
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
-    return `${prefix}${timestamp}${random}`;
-  };
-
-  // Generate roll number
-  const generateRollNo = (index: number) => {
-    const number = (index + 1).toString().padStart(2, '0');
-    return `${rollNoPrefix}${number}`;
-  };
-
-  // Add student mutation
+  // Add students mutation
   const addStudentMutation = useMutation({
     mutationFn: async (studentsData: StudentFormData[]) => {
-      const response = await fetch(`${API_BASE_URL}/user/students`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          students: studentsData.map(student => ({
-            ...student,
-            class_id: parseInt(student.class_id),
-            registration_no: student.registration_no || generateRegNo(),
-            phone_number: student.phone_number || null
-          }))
-        }),
+      const response = await api.post('/user/students', {
+        students: studentsData.map(student => ({
+          full_name: student.full_name,
+          email: student.email,
+          phone_number: student.phone_number || null,
+          father_name: student.father_name,
+          class_id: parseInt(student.class_id)
+        }))
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add students');
-      }
-      return response.json();
+      return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       toast({
         title: 'Success',
-        description: 'Students added successfully',
+        description: data.message || 'Students added successfully',
         variant: 'success',
       });
-      navigate('/teacher/students'); // Navigate back to the list
+      navigate('/teacher/students');
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.response?.data?.message || 'Failed to add students',
         variant: 'destructive',
       });
     },
@@ -145,6 +109,8 @@ export default function AddStudent() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate global class
     if (!globalClass) {
       toast({
         title: 'Error',
@@ -154,8 +120,12 @@ export default function AddStudent() {
       return;
     }
 
+    // Validate individual forms
     const validForms = studentForms.filter(form => 
-      form.full_name && form.email && form.father_name
+      form.full_name.trim() && 
+      form.email.trim() && 
+      form.father_name.trim() &&
+      form.class_id
     );
 
     if (validForms.length === 0) {
@@ -167,12 +137,23 @@ export default function AddStudent() {
       return;
     }
 
-    const formsWithClassAndRoll = validForms.map((form, index) => ({
-      ...form,
-      class_id: globalClass,
-      roll_no: form.roll_no || generateRollNo(index)
-    }));
-    addStudentMutation.mutate(formsWithClassAndRoll);
+    // Check if all forms are valid
+    const invalidForms = studentForms.filter(form => 
+      !form.full_name.trim() || 
+      !form.email.trim() || 
+      !form.father_name.trim()
+    );
+
+    if (invalidForms.length > 0) {
+      toast({
+        title: 'Warning',
+        description: `${invalidForms.length} student form(s) are incomplete and will not be saved`,
+        variant: 'destructive',
+      });
+    }
+
+    // Submit only valid forms
+    addStudentMutation.mutate(validForms);
   };
 
   const addStudentForm = () => {
@@ -180,10 +161,8 @@ export default function AddStudent() {
       full_name: '',
       email: '',
       phone_number: '',
-      registration_no: '',
       father_name: '',
-      class_id: globalClass,
-      roll_no: generateRollNo(studentForms.length)
+      class_id: globalClass
     };
     setStudentForms(prev => [...prev, newForm]);
     setExpandedForms(prev => [...prev, prev.length]);
@@ -225,17 +204,22 @@ export default function AddStudent() {
     );
   };
 
-  const handleRollPrefixChange = (value: string) => {
-    const prefix = value.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase();
-    setRollNoPrefix(prefix || "RN");
-    
-    setStudentForms(prev => 
-      prev.map((form, index) => ({
-        ...form,
-        roll_no: form.roll_no ? prefix + form.roll_no.slice(2) : generateRollNo(index)
-      }))
-    );
+  // Validate email format
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
+
+  // Check if all required fields are filled for a form
+  const isFormValid = (form: StudentFormData) => {
+    return form.full_name.trim() && 
+           form.email.trim() && 
+           form.father_name.trim() &&
+           form.class_id &&
+           isValidEmail(form.email);
+  };
+
+  // Count valid forms
+  const validFormsCount = studentForms.filter(isFormValid).length;
 
   return (
     <GlassmorphismLayout>
@@ -263,6 +247,14 @@ export default function AddStudent() {
                     <p className="text-slate-200/90 text-sm">Fill the details below to add students</p>
                   </div>
                 </div>
+                <div className="text-right">
+                  <div className="text-slate-300 text-sm">
+                    Ready to save: <span className="text-emerald-300 font-bold">{validFormsCount}</span> / {studentForms.length}
+                  </div>
+                  <div className="text-slate-400 text-xs">
+                    {studentForms.length - validFormsCount} form(s) need attention
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -275,8 +267,8 @@ export default function AddStudent() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="global-class" className="text-white/80">
-                      Class for All Students *
+                    <Label htmlFor="global-class" className="text-white/80 flex items-center gap-1">
+                      Class for All Students <span className="text-red-400">*</span>
                     </Label>
                     <Select value={globalClass} onValueChange={handleGlobalClassChange}>
                       <SelectTrigger className="glass-input">
@@ -296,19 +288,30 @@ export default function AddStudent() {
                         )}
                       </SelectContent>
                     </Select>
+                    {!globalClass && (
+                      <p className="text-red-400 text-xs">Please select a class to continue</p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="roll-prefix" className="text-white/80">
-                      Roll Number Prefix (2 Alphabets)
+                    <Label htmlFor="student-count" className="text-white/80">
+                      Number of Students
                     </Label>
-                    <Input
-                      id="roll-prefix"
-                      value={rollNoPrefix}
-                      onChange={(e) => handleRollPrefixChange(e.target.value)}
-                      className="glass-input font-mono text-center"
-                      placeholder="RN"
-                      maxLength={2}
-                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="student-count"
+                        value={studentForms.length}
+                        className="glass-input font-mono text-center bg-slate-700/50"
+                        disabled
+                      />
+                      <Button
+                        type="button"
+                        onClick={addStudentForm}
+                        className="emerald-gradient hover:shadow-lg transition-all duration-200"
+                        disabled={!globalClass}
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -316,77 +319,195 @@ export default function AddStudent() {
 
             {/* Student Forms - Scrollable Area */}
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4 pb-4">
-              {studentForms.map((form, index) => (
-                <Card key={index} className="glassmorphism border-white/20 hover:border-emerald-400/30 transition-all duration-200">
-                  <CardContent className="p-0">
-                    <div 
-                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors rounded-t-lg"
-                      onClick={() => toggleFormExpansion(index)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg">
-                          <span className="text-white font-semibold text-sm">{index + 1}</span>
+              {studentForms.map((form, index) => {
+                const isValid = isFormValid(form);
+                return (
+                  <Card 
+                    key={index} 
+                    className={`glassmorphism border-white/20 hover:border-emerald-400/30 transition-all duration-200 ${
+                      !isValid ? 'border-orange-400/50' : 'border-emerald-400/30'
+                    }`}
+                  >
+                    <CardContent className="p-0">
+                      <div 
+                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors rounded-t-lg"
+                        onClick={() => toggleFormExpansion(index)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg ${
+                            isValid 
+                              ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' 
+                              : 'bg-gradient-to-br from-orange-400 to-orange-600'
+                          }`}>
+                            <span className="text-white font-semibold text-sm">{index + 1}</span>
+                          </div>
+                          <div>
+                            <h4 className="text-white font-semibold">
+                              {form.full_name || `Student ${index + 1}`}
+                            </h4>
+                            <p className={`text-xs ${
+                              isValid ? 'text-emerald-300' : 'text-orange-300'
+                            }`}>
+                              {isValid ? 'Ready to save' : 'Incomplete form'}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-white font-semibold">{form.full_name || `Student ${index + 1}`}</h4>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {studentForms.length > 1 && (
-                          <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); removeStudentForm(index); }} className="text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-full w-8 h-8 p-0">
-                            <X size={14} />
+                        <div className="flex items-center gap-2">
+                          {studentForms.length > 1 && (
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={(e) => { e.stopPropagation(); removeStudentForm(index); }} 
+                              className="text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-full w-8 h-8 p-0"
+                            >
+                              <X size={14} />
+                            </Button>
+                          )}
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-slate-400 hover:text-white rounded-full w-8 h-8 p-0"
+                          >
+                            {expandedForms.includes(index) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </Button>
-                        )}
-                        <Button type="button" variant="ghost" size="sm" className="text-slate-400 hover:text-white rounded-full w-8 h-8 p-0">
-                          {expandedForms.includes(index) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </Button>
-                      </div>
-                    </div>
-                    {expandedForms.includes(index) && (
-                      <div className="p-4 border-t border-white/10 space-y-4 animate-in fade-in duration-200">
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor={`full_name_${index}`} className="text-white/80 flex items-center gap-1">Full Name <span className="text-red-400">*</span></Label>
-                                <Input id={`full_name_${index}`} value={form.full_name} onChange={(e) => updateStudentForm(index, 'full_name', e.target.value)} className="glass-input" placeholder="Enter full name" required />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor={`father_name_${index}`} className="text-white/80 flex items-center gap-1">Father's Name <span className="text-red-400">*</span></Label>
-                                <Input id={`father_name_${index}`} value={form.father_name} onChange={(e) => updateStudentForm(index, 'father_name', e.target.value)} className="glass-input" placeholder="Enter father's name" required />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <div className="space-y-2">
-                                <Label htmlFor={`email_${index}`} className="text-white/80 flex items-center gap-1">Email Address <span className="text-red-400">*</span></Label>
-                                <Input id={`email_${index}`} type="email" value={form.email} onChange={(e) => updateStudentForm(index, 'email', e.target.value)} className="glass-input" placeholder="Enter email address" required />
-                            </div>
-                           <div className="space-y-2">
-                                <Label htmlFor={`phone_${index}`} className="text-white/80">Phone Number</Label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
-                                    <Input id={`phone_${index}`} type="tel" value={form.phone_number} onChange={(e) => updateStudentForm(index, 'phone_number', e.target.value)} className="glass-input pl-10" placeholder="Enter phone number" />
-                                </div>
-                           </div>
                         </div>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      {expandedForms.includes(index) && (
+                        <div className="p-4 border-t border-white/10 space-y-4 animate-in fade-in duration-200">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`full_name_${index}`} className="text-white/80 flex items-center gap-1">
+                                Full Name <span className="text-red-400">*</span>
+                              </Label>
+                              <Input 
+                                id={`full_name_${index}`} 
+                                value={form.full_name} 
+                                onChange={(e) => updateStudentForm(index, 'full_name', e.target.value)} 
+                                className="glass-input" 
+                                placeholder="Enter full name" 
+                                required 
+                              />
+                              {!form.full_name.trim() && (
+                                <p className="text-red-400 text-xs">Full name is required</p>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`father_name_${index}`} className="text-white/80 flex items-center gap-1">
+                                Father's Name <span className="text-red-400">*</span>
+                              </Label>
+                              <Input 
+                                id={`father_name_${index}`} 
+                                value={form.father_name} 
+                                onChange={(e) => updateStudentForm(index, 'father_name', e.target.value)} 
+                                className="glass-input" 
+                                placeholder="Enter father's name" 
+                                required 
+                              />
+                              {!form.father_name.trim() && (
+                                <p className="text-red-400 text-xs">Father's name is required</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`email_${index}`} className="text-white/80 flex items-center gap-1">
+                                Email Address <span className="text-red-400">*</span>
+                              </Label>
+                              <Input 
+                                id={`email_${index}`} 
+                                type="email" 
+                                value={form.email} 
+                                onChange={(e) => updateStudentForm(index, 'email', e.target.value)} 
+                                className="glass-input" 
+                                placeholder="Enter email address" 
+                                required 
+                              />
+                              {form.email && !isValidEmail(form.email) && (
+                                <p className="text-red-400 text-xs">Please enter a valid email address</p>
+                              )}
+                              {!form.email.trim() && (
+                                <p className="text-red-400 text-xs">Email is required</p>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`phone_${index}`} className="text-white/80">
+                                Phone Number
+                              </Label>
+                              <div className="relative">
+                                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+                                <Input 
+                                  id={`phone_${index}`} 
+                                  type="tel" 
+                                  value={form.phone_number} 
+                                  onChange={(e) => updateStudentForm(index, 'phone_number', e.target.value)} 
+                                  className="glass-input pl-10" 
+                                  placeholder="Enter phone number" 
+                                />
+                              </div>
+                              <p className="text-slate-400 text-xs">Optional field</p>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`class_${index}`} className="text-white/80 flex items-center gap-1">
+                              Class <span className="text-red-400">*</span>
+                            </Label>
+                            <Select 
+                              value={form.class_id} 
+                              onValueChange={(value) => updateStudentForm(index, 'class_id', value)}
+                            >
+                              <SelectTrigger className="glass-input">
+                                <SelectValue placeholder="Select class" />
+                              </SelectTrigger>
+                              <SelectContent className="glassmorphism-strong border-white/30 custom-scrollbar">
+                                {classes?.map((classItem: Class) => (
+                                  <SelectItem key={classItem.id} value={classItem.id.toString()}>
+                                    {classItem.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {!form.class_id && (
+                              <p className="text-red-400 text-xs">Class is required</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
 
             {/* Actions */}
             <div className="pt-4 border-t border-white/20 mt-auto">
-              <Button type="button" onClick={addStudentForm} className="w-full glassmorphism border-dashed border-white/30 hover:border-emerald-400/50 hover:bg-emerald-400/10" variant="outline" disabled={!globalClass}>
+              <Button 
+                type="button" 
+                onClick={addStudentForm} 
+                className="w-full glassmorphism border-dashed border-white/30 hover:border-emerald-400/50 hover:bg-emerald-400/10" 
+                variant="outline" 
+                disabled={!globalClass}
+              >
                 <Plus className="mr-2 text-emerald-300" size={20} />
                 Add Another Student
               </Button>
               <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => navigate("/teacher/student")} className="border-white/20 text-white hover:bg-white/10">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => navigate("/teacher/students")} 
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={addStudentMutation.isPending || !globalClass} className="emerald-gradient hover:shadow-lg">
+                <Button 
+                  type="submit" 
+                  disabled={addStudentMutation.isPending || validFormsCount === 0} 
+                  className="emerald-gradient hover:shadow-lg"
+                >
                   {addStudentMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Students ({studentForms.length})
+                  Save Students ({validFormsCount})
                 </Button>
               </div>
             </div>
@@ -402,4 +523,3 @@ export default function AddStudent() {
     </GlassmorphismLayout>
   );
 }
-

@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import TeacherSidebar from '@/components/TeacherSidebar';
 import GlassmorphismLayout from "@/components/GlassmorphismLayout";
@@ -36,17 +36,20 @@ import {
   Loader2,
   Phone,
   Hash,
+  Mail,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 
-// API base URL
-const API_BASE_URL = "https://apis.babalrukn.com/api";
+// Import the API instance
+import api from '../lib/axios';
 
 interface Student {
   id: number;
+  roll_number: string;
   full_name: string;
   email: string;
   phone_number?: string;
-  registration_no: string;
   father_name: string;
   class_id: number;
   class?: {
@@ -67,10 +70,16 @@ interface StudentFormData {
   full_name: string;
   email: string;
   phone_number: string;
-  registration_no: string;
   father_name: string;
   class_id: string;
-  roll_no: string;
+}
+
+interface StudentsStats {
+  total: number;
+  active: number;
+  inactive: number;
+  withEmail: number;
+  withPhone: number;
 }
 
 // Edit Student Dialog Component
@@ -91,44 +100,29 @@ function EditStudentDialog({
     full_name: '',
     email: '',
     phone_number: '',
-    registration_no: '',
     father_name: '',
     class_id: '',
-    roll_no: ''
   });
 
   // Fetch classes
   const { data: classes, isLoading: classesLoading } = useQuery({
     queryKey: ['classes'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/classes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch classes');
-      }
-
-      const data = await response.json();
-      return data.data.classes;
+      const response = await api.get('/user/classes');
+      return response.data.data.classes;
     },
     enabled: !!token,
   });
 
   // Update form when student changes
-  useState(() => {
+  useEffect(() => {
     if (student) {
       setFormData({
         full_name: student.full_name,
         email: student.email,
         phone_number: student.phone_number || '',
-        registration_no: student.registration_no,
         father_name: student.father_name,
         class_id: student.class_id.toString(),
-        roll_no: ''
       });
     }
   }, [student]);
@@ -136,27 +130,14 @@ function EditStudentDialog({
   // Update student mutation
   const updateStudentMutation = useMutation({
     mutationFn: async (studentData: StudentFormData) => {
-      const response = await fetch(`${API_BASE_URL}/user/students/${student?.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          full_name: studentData.full_name,
-          email: studentData.email,
-          phone_number: studentData.phone_number || null,
-          father_name: studentData.father_name,
-          class_id: parseInt(studentData.class_id),
-        }),
+      const response = await api.put(`/user/students/${student?.id}`, {
+        full_name: studentData.full_name,
+        email: studentData.email,
+        phone_number: studentData.phone_number || null,
+        father_name: studentData.father_name,
+        class_id: parseInt(studentData.class_id),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update student');
-      }
-
-      return response.json();
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
@@ -168,10 +149,10 @@ function EditStudentDialog({
         variant: 'success',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.response?.data?.message || 'Failed to update student',
         variant: 'destructive',
       });
     },
@@ -301,22 +282,6 @@ function EditStudentDialog({
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit_registration_no" className="text-white/80">
-                Registration Number
-              </Label>
-              <Input
-                id="edit_registration_no"
-                value={formData.registration_no}
-                className="glass-input bg-slate-700/50 cursor-not-allowed"
-                disabled
-                title="Registration number cannot be changed"
-              />
-              <p className="text-slate-400 text-xs">
-                Registration number cannot be modified
-              </p>
-            </div>
           </div>
 
           <DialogFooter className="flex gap-2 pt-6 border-t border-white/20 mt-6">
@@ -391,24 +356,34 @@ export default function StudentsListPage() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
+  const [activeStatus, setActiveStatus] = useState("all");
+
+  // Calculate students statistics
+  const calculateStats = (students: Student[]): StudentsStats => {
+    const total = students.length;
+    const withEmail = students.filter(student => student.email && student.email.length > 0).length;
+    const withPhone = students.filter(student => student.phone_number && student.phone_number.length > 0).length;
+    
+    // Since the API doesn't have explicit active/inactive status,
+    // we'll consider students with class assigned as active and without class as inactive
+    const active = students.filter(student => student.class_id).length;
+    const inactive = students.filter(student => !student.class_id).length;
+
+    return {
+      total,
+      active,
+      inactive,
+      withEmail,
+      withPhone,
+    };
+  };
 
   // Fetch students
-  const { data: studentsResponse, isLoading: studentsLoading } = useQuery({
+  const { data: studentsResponse, isLoading: studentsLoading, error } = useQuery({
     queryKey: ['students'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/students`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch students');
-      }
-
-      const data = await response.json();
-      return data;
+      const response = await api.get('/user/students');
+      return response.data;
     },
     enabled: !!token,
   });
@@ -417,53 +392,38 @@ export default function StudentsListPage() {
   const { data: classes } = useQuery({
     queryKey: ['classes'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/user/classes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch classes');
-      }
-
-      const data = await response.json();
-      return data.data.classes;
+      const response = await api.get('/user/classes');
+      return response.data.data.classes;
     },
     enabled: !!token,
   });
 
-  const students: Student[] = studentsResponse?.data?.students || [];
+  const students: Student[] = studentsResponse?.data?.students?.data || studentsResponse?.data?.students || [];
+  const stats = calculateStats(students);
 
-  // Filter students based on search and class
+  // Filter students based on search, class, and active status
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.registration_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.roll_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (student.phone_number && student.phone_number.includes(searchTerm));
     
-    const matchesClass = selectedClass === "all" || student.class_id.toString() === selectedClass;
+    const matchesClass = selectedClass === "all" || 
+                        (selectedClass === "unassigned" && !student.class_id) ||
+                        student.class_id?.toString() === selectedClass;
     
-    return matchesSearch && matchesClass;
+    const matchesActiveStatus = activeStatus === "all" ||
+                              (activeStatus === "active" && student.class_id) ||
+                              (activeStatus === "inactive" && !student.class_id);
+    
+    return matchesSearch && matchesClass && matchesActiveStatus;
   });
 
   // Delete student mutation
   const deleteStudentMutation = useMutation({
     mutationFn: async (studentId: number) => {
-      const response = await fetch(`${API_BASE_URL}/user/students/${studentId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete student');
-      }
-
-      return response.json();
+      const response = await api.delete(`/user/students/${studentId}`);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
@@ -473,10 +433,10 @@ export default function StudentsListPage() {
         variant: 'success',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.response?.data?.message || 'Failed to delete student',
         variant: 'destructive',
       });
     },
@@ -495,6 +455,13 @@ export default function StudentsListPage() {
 
   const handleAddStudent = () => {
     navigate("/teacher/add-student");
+  };
+
+  // Reset filters
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setSelectedClass("all");
+    setActiveStatus("all");
   };
 
   return (
@@ -535,13 +502,14 @@ export default function StudentsListPage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            {/* Total Students Card */}
             <Card className="glassmorphism-strong border-white/30 hover:border-emerald-400/30 transition-all duration-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-300 text-sm">Total Students</p>
-                    <h3 className="text-2xl font-bold text-white">{students.length}</h3>
+                    <h3 className="text-2xl font-bold text-white">{stats.total}</h3>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                     <Users className="text-emerald-300" size={24} />
@@ -550,54 +518,49 @@ export default function StudentsListPage() {
               </CardContent>
             </Card>
 
+            {/* Active Students Card */}
             <Card className="glassmorphism-strong border-white/30 hover:border-blue-400/30 transition-all duration-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-slate-300 text-sm">Active Classes</p>
-                    <h3 className="text-2xl font-bold text-white">
-                      {[...new Set(students.map(s => s.class_id))].length}
-                    </h3>
+                    <p className="text-slate-300 text-sm">Active Students</p>
+                    <h3 className="text-2xl font-bold text-white">{stats.active}</h3>
+                    <p className="text-slate-400 text-xs mt-1">With class assigned</p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <Filter className="text-blue-300" size={24} />
+                    <UserCheck className="text-blue-300" size={24} />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="glassmorphism-strong border-white/30 hover:border-purple-400/30 transition-all duration-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-300 text-sm">This Month</p>
-                    <h3 className="text-2xl font-bold text-white">
-                      {students.filter(s => {
-                        const created = new Date(s.created_at);
-                        const now = new Date();
-                        return created.getMonth() === now.getMonth() && 
-                               created.getFullYear() === now.getFullYear();
-                      }).length}
-                    </h3>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <UserPlus className="text-purple-300" size={24} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
+            {/* Inactive Students Card */}
             <Card className="glassmorphism-strong border-white/30 hover:border-orange-400/30 transition-all duration-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-slate-300 text-sm">With Phone</p>
-                    <h3 className="text-2xl font-bold text-white">
-                      {students.filter(s => s.phone_number).length}
-                    </h3>
+                    <p className="text-slate-300 text-sm">Inactive Students</p>
+                    <h3 className="text-2xl font-bold text-white">{stats.inactive}</h3>
+                    <p className="text-slate-400 text-xs mt-1">No class assigned</p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center">
-                    <Phone className="text-orange-300" size={24} />
+                    <UserX className="text-orange-300" size={24} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Students with Email Card */}
+            <Card className="glassmorphism-strong border-white/30 hover:border-purple-400/30 transition-all duration-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-slate-300 text-sm">With Email</p>
+                    <h3 className="text-2xl font-bold text-white">{stats.withEmail}</h3>
+                    <p className="text-slate-400 text-xs mt-1">{((stats.withEmail / stats.total) * 100).toFixed(1)}% of total</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Mail className="text-purple-300" size={24} />
                   </div>
                 </div>
               </CardContent>
@@ -609,39 +572,63 @@ export default function StudentsListPage() {
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle className="text-white text-xl bg-gradient-to-r from-white to-emerald-200 bg-clip-text text-transparent">
-                  All Students
+                  All Students ({filteredStudents.length})
                 </CardTitle>
                 
                 {/* Search and Filters */}
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
-                    <Input
-                      placeholder="Search students..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="glass-input pl-10 w-full sm:w-64 focus:ring-2 focus:ring-emerald-400/50"
-                    />
-                  </div>
-                  
-                  <Select value={selectedClass} onValueChange={setSelectedClass}>
-                    <SelectTrigger className="glass-input w-full sm:w-40 focus:ring-2 focus:ring-emerald-400/50">
-                      <SelectValue placeholder="All Classes" />
-                    </SelectTrigger>
-                    <SelectContent className="glassmorphism-strong border-white/30 custom-scrollbar">
-                      <SelectItem value="all">All Classes</SelectItem>
-                      {classes?.map((cls: Class) => (
-                        <SelectItem key={cls.id} value={cls.id.toString()}>
-                          {cls.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+                      <Input
+                        placeholder="Search students..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="glass-input pl-10 w-full sm:w-64 focus:ring-2 focus:ring-emerald-400/50"
+                      />
+                    </div>
+                    
+                    {/* Class Filter */}
+                    <Select value={selectedClass} onValueChange={setSelectedClass}>
+                      <SelectTrigger className="glass-input w-full sm:w-40 focus:ring-2 focus:ring-emerald-400/50">
+                        <SelectValue placeholder="All Classes" />
+                      </SelectTrigger>
+                      <SelectContent className="glassmorphism-strong border-white/30 custom-scrollbar">
+                        <SelectItem value="all">All Classes</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {classes?.map((cls: Class) => (
+                          <SelectItem key={cls.id} value={cls.id.toString()}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  <Button variant="outline" className="border-white/20 text-white hover:bg-white/10 transition-colors">
-                    <Download className="mr-2" size={16} />
-                    Export
-                  </Button>
+                    {/* Active Status Filter */}
+                    <Select value={activeStatus} onValueChange={setActiveStatus}>
+                      <SelectTrigger className="glass-input w-full sm:w-40 focus:ring-2 focus:ring-emerald-400/50">
+                        <SelectValue placeholder="All Status" />
+                      </SelectTrigger>
+                      <SelectContent className="glassmorphism-strong border-white/30">
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {/* Reset Filters Button */}
+                    {(searchTerm || selectedClass !== "all" || activeStatus !== "all") && (
+                      <Button 
+                        variant="outline" 
+                        onClick={handleResetFilters}
+                        className="border-white/20 text-white hover:bg-white/10 transition-colors"
+                      >
+                        <X className="mr-2" size={16} />
+                        Reset
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -651,16 +638,32 @@ export default function StudentsListPage() {
                 <div className="flex justify-center items-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
                 </div>
+              ) : error ? (
+                <div className="text-center py-12">
+                  <Users className="mx-auto text-red-400 mb-4" size={48} />
+                  <h3 className="text-xl text-white mb-2">Failed to load students</h3>
+                  <p className="text-slate-300 mb-6">
+                    {error instanceof Error ? error.message : 'An error occurred while fetching students'}
+                  </p>
+                  <Button 
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['students'] })}
+                    className="emerald-gradient hover:shadow-lg transition-all duration-200"
+                  >
+                    <Loader2 className="mr-2" size={20} />
+                    Retry
+                  </Button>
+                </div>
               ) : filteredStudents.length > 0 ? (
                 <div className="overflow-x-auto custom-scrollbar">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-white/20">
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Student</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Registration No</th>
+                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Roll Number</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Class</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Father's Name</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Phone</th>
+                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Status</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Joined</th>
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Actions</th>
                       </tr>
@@ -683,13 +686,19 @@ export default function StudentsListPage() {
                           </td>
                           <td className="py-4 px-4">
                             <span className="text-slate-300 font-mono text-sm bg-slate-700/50 px-2 py-1 rounded">
-                              {student.registration_no}
+                              {student.roll_number}
                             </span>
                           </td>
                           <td className="py-4 px-4">
-                            <span className="text-slate-300 bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-sm">
-                              {student.class?.name || `Class ${student.class_id}`}
-                            </span>
+                            {student.class ? (
+                              <span className="text-slate-300 bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-sm">
+                                {student.class.name}
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 bg-slate-700/50 px-2 py-1 rounded text-sm">
+                                Unassigned
+                              </span>
+                            )}
                           </td>
                           <td className="py-4 px-4 text-slate-300">{student.father_name}</td>
                           <td className="py-4 px-4">
@@ -700,6 +709,19 @@ export default function StudentsListPage() {
                               </div>
                             ) : (
                               <span className="text-slate-500 text-sm">Not provided</span>
+                            )}
+                          </td>
+                          <td className="py-4 px-4">
+                            {student.class_id ? (
+                              <span className="inline-flex items-center gap-1 bg-green-500/20 text-green-300 px-2 py-1 rounded text-sm">
+                                <UserCheck size={14} />
+                                Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 bg-orange-500/20 text-orange-300 px-2 py-1 rounded text-sm">
+                                <UserX size={14} />
+                                Inactive
+                              </span>
                             )}
                           </td>
                           <td className="py-4 px-4 text-slate-400 text-sm">
@@ -747,11 +769,11 @@ export default function StudentsListPage() {
                   <Users className="mx-auto text-slate-400 mb-4" size={48} />
                   <h3 className="text-xl text-white mb-2">No students found</h3>
                   <p className="text-slate-300 mb-6">
-                    {searchTerm || selectedClass !== "all" 
+                    {searchTerm || selectedClass !== "all" || activeStatus !== "all" 
                       ? "No students match your search criteria" 
                       : "Get started by adding your first student"}
                   </p>
-                  {!searchTerm && selectedClass === "all" && (
+                  {!searchTerm && selectedClass === "all" && activeStatus === "all" && (
                     <Button 
                       onClick={handleAddStudent}
                       className="emerald-gradient hover:shadow-lg transition-all duration-200"
