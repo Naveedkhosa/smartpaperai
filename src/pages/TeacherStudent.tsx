@@ -2,21 +2,21 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import TeacherSidebar from '@/components/TeacherSidebar';
-import GlassmorphismLayout from "@/components/GlassmorphismLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import TeacherSidebar from '../components/TeacherSidebar';
+import GlassmorphismLayout from "../components/GlassmorphismLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+} from "../components/ui/select";
+import { Label } from "../components/ui/label";
+import { useToast } from "../hooks/use-toast";
+import { queryClient } from "../lib/queryClient";
 import {
   Plus,
   Search,
@@ -40,6 +40,16 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
+
+// Add these imports at the top with other imports
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
 
 // Import the API instance
 import api from '../lib/axios';
@@ -80,6 +90,16 @@ interface StudentsStats {
   inactive: number;
   withEmail: number;
   withPhone: number;
+}
+
+interface StudentsResponse {
+  data: {
+    students: {
+      data: Student[];
+      current_page: number;
+      total: number;
+    } | Student[];
+  };
 }
 
 // Edit Student Dialog Component
@@ -346,6 +366,23 @@ const DialogFooter = ({ children }: any) => (
   <div className="flex justify-end gap-2">{children}</div>
 );
 
+// Custom hook for debounced search
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 // Students List Page Component
 export default function StudentsListPage() {
   const { user, token } = useAuth();
@@ -357,8 +394,76 @@ export default function StudentsListPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
+  
+  // Debounced search term for API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Calculate students statistics
+  // Build query parameters for API call
+  const buildQueryParams = () => {
+    const params: any = {};
+    
+    if (debouncedSearchTerm) {
+      params.search = debouncedSearchTerm;
+    }
+    
+    if (selectedClass !== "all") {
+      if (selectedClass === "unassigned") {
+        params.unassigned = true;
+      } else {
+        params.class_id = selectedClass;
+      }
+    }
+    
+    if (activeStatus !== "all") {
+      if (activeStatus === "active") {
+        params.assigned = true;
+      } else if (activeStatus === "inactive") {
+        params.unassigned = true;
+      }
+    }
+    
+    return params;
+  };
+
+  // Fetch students with filters
+  const { data: studentsResponse, isLoading: studentsLoading, error } = useQuery({
+    queryKey: ['students', debouncedSearchTerm, selectedClass, activeStatus],
+    queryFn: async () => {
+      const params = buildQueryParams();
+      const response = await api.get('/user/students', { params });
+      return response.data;
+    },
+    enabled: !!token,
+  });
+
+  // Fetch classes for filter
+  const { data: classes } = useQuery({
+    queryKey: ['classes'],
+    queryFn: async () => {
+      const response = await api.get('/user/classes');
+      return response.data.data.classes;
+    },
+    enabled: !!token,
+  });
+
+  // Get students from response - handle both array and paginated response
+  const getStudentsFromResponse = (response: StudentsResponse): Student[] => {
+    if (!response?.data?.students) return [];
+    
+    // Check if students is an array or has a data property (pagination)
+    if (Array.isArray(response.data.students)) {
+      return response.data.students;
+    } else if (response.data.students.data && Array.isArray(response.data.students.data)) {
+      return response.data.students.data;
+    }
+    
+    return [];
+  };
+
+  const students: Student[] = getStudentsFromResponse(studentsResponse);
+  const totalStudents = studentsResponse?.data?.students?.total || students.length;
+
+  // Calculate students statistics from current filtered data
   const calculateStats = (students: Student[]): StudentsStats => {
     const total = students.length;
     const withEmail = students.filter(student => student.email && student.email.length > 0).length;
@@ -378,46 +483,7 @@ export default function StudentsListPage() {
     };
   };
 
-  // Fetch students
-  const { data: studentsResponse, isLoading: studentsLoading, error } = useQuery({
-    queryKey: ['students'],
-    queryFn: async () => {
-      const response = await api.get('/user/students');
-      return response.data;
-    },
-    enabled: !!token,
-  });
-
-  // Fetch classes for filter
-  const { data: classes } = useQuery({
-    queryKey: ['classes'],
-    queryFn: async () => {
-      const response = await api.get('/user/classes');
-      return response.data.data.classes;
-    },
-    enabled: !!token,
-  });
-
-  const students: Student[] = studentsResponse?.data?.students?.data || studentsResponse?.data?.students || [];
   const stats = calculateStats(students);
-
-  // Filter students based on search, class, and active status
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.roll_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (student.phone_number && student.phone_number.includes(searchTerm));
-    
-    const matchesClass = selectedClass === "all" || 
-                        (selectedClass === "unassigned" && !student.class_id) ||
-                        student.class_id?.toString() === selectedClass;
-    
-    const matchesActiveStatus = activeStatus === "all" ||
-                              (activeStatus === "active" && student.class_id) ||
-                              (activeStatus === "inactive" && !student.class_id);
-    
-    return matchesSearch && matchesClass && matchesActiveStatus;
-  });
 
   // Delete student mutation
   const deleteStudentMutation = useMutation({
@@ -463,6 +529,9 @@ export default function StudentsListPage() {
     setSelectedClass("all");
     setActiveStatus("all");
   };
+
+  // Check if any filter is active
+  const hasActiveFilters = searchTerm || selectedClass !== "all" || activeStatus !== "all";
 
   return (
     <GlassmorphismLayout>
@@ -510,6 +579,9 @@ export default function StudentsListPage() {
                   <div>
                     <p className="text-slate-300 text-sm">Total Students</p>
                     <h3 className="text-2xl font-bold text-white">{stats.total}</h3>
+                    {hasActiveFilters && (
+                      <p className="text-slate-400 text-xs mt-1">Filtered results</p>
+                    )}
                   </div>
                   <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                     <Users className="text-emerald-300" size={24} />
@@ -557,7 +629,9 @@ export default function StudentsListPage() {
                   <div>
                     <p className="text-slate-300 text-sm">With Email</p>
                     <h3 className="text-2xl font-bold text-white">{stats.withEmail}</h3>
-                    <p className="text-slate-400 text-xs mt-1">{((stats.withEmail / stats.total) * 100).toFixed(1)}% of total</p>
+                    <p className="text-slate-400 text-xs mt-1">
+                      {stats.total > 0 ? ((stats.withEmail / stats.total) * 100).toFixed(1) : 0}% of filtered
+                    </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
                     <Mail className="text-purple-300" size={24} />
@@ -572,7 +646,7 @@ export default function StudentsListPage() {
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle className="text-white text-xl bg-gradient-to-r from-white to-emerald-200 bg-clip-text text-transparent">
-                  All Students ({filteredStudents.length})
+                  Students {hasActiveFilters ? `(${students.length} filtered)` : `(${totalStudents} total)`}
                 </CardTitle>
                 
                 {/* Search and Filters */}
@@ -587,6 +661,9 @@ export default function StudentsListPage() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="glass-input pl-10 w-full sm:w-64 focus:ring-2 focus:ring-emerald-400/50"
                       />
+                      {studentsLoading && (
+                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-emerald-300 animate-spin" size={16} />
+                      )}
                     </div>
                     
                     {/* Class Filter */}
@@ -618,11 +695,12 @@ export default function StudentsListPage() {
                     </Select>
 
                     {/* Reset Filters Button */}
-                    {(searchTerm || selectedClass !== "all" || activeStatus !== "all") && (
+                    {hasActiveFilters && (
                       <Button 
                         variant="outline" 
                         onClick={handleResetFilters}
                         className="border-white/20 text-white hover:bg-white/10 transition-colors"
+                        disabled={studentsLoading}
                       >
                         <X className="mr-2" size={16} />
                         Reset
@@ -636,7 +714,10 @@ export default function StudentsListPage() {
             <CardContent>
               {studentsLoading ? (
                 <div className="flex justify-center items-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
+                  <div className="text-center">
+                    <Loader2 className="mx-auto animate-spin text-emerald-300 mb-4" size={32} />
+                    <p className="text-slate-300">Loading students...</p>
+                  </div>
                 </div>
               ) : error ? (
                 <div className="text-center py-12">
@@ -653,9 +734,9 @@ export default function StudentsListPage() {
                     Retry
                   </Button>
                 </div>
-              ) : filteredStudents.length > 0 ? (
+              ) : students.length > 0 ? (
                 <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full">
+                  <table className="w-full min-w-[1000px]">
                     <thead>
                       <tr className="border-b border-white/20">
                         <th className="text-left py-4 px-4 text-slate-300 font-semibold">Student</th>
@@ -669,7 +750,7 @@ export default function StudentsListPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredStudents.map((student) => (
+                      {students.map((student) => (
                         <tr key={student.id} className="border-b border-white/10 hover:bg-white/5 transition-colors group">
                           <td className="py-4 px-4">
                             <div className="flex items-center gap-3">
@@ -769,11 +850,11 @@ export default function StudentsListPage() {
                   <Users className="mx-auto text-slate-400 mb-4" size={48} />
                   <h3 className="text-xl text-white mb-2">No students found</h3>
                   <p className="text-slate-300 mb-6">
-                    {searchTerm || selectedClass !== "all" || activeStatus !== "all" 
+                    {hasActiveFilters 
                       ? "No students match your search criteria" 
                       : "Get started by adding your first student"}
                   </p>
-                  {!searchTerm && selectedClass === "all" && activeStatus === "all" && (
+                  {!hasActiveFilters && (
                     <Button 
                       onClick={handleAddStudent}
                       className="emerald-gradient hover:shadow-lg transition-all duration-200"
