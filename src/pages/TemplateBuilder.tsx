@@ -26,7 +26,7 @@ const Button = ({ children, onClick, className = "", variant = "default", size =
                             ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700 shadow-lg hover:shadow-xl'
                             : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
             }
-      ${size === 'sm' ? 'px-3 py-2 text-sm min-h-[36px]' : size === 'lg' ? 'px-6 py-4 text-lg min-h-[56px]' : 'px-4 py-3 min-h-[44px]'}
+      ${size === 'sm' ? 'px-2 py-2 text-sm min-h-[36px]' : size === 'lg' ? 'px-6 py-4 text-lg min-h-[56px]' : 'px-4 py-3 min-h-[44px]'}
       ${size === 'sm' ? 'text-xs' : size === 'lg' ? 'text-base' : 'text-sm'}
       ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       ${className}
@@ -156,7 +156,7 @@ interface QuestionGroup {
     optionsCount?: number;
 }
 
-// Paper Preview Modal Component
+// Paper Preview Modal Component - FIXED for True/False and Conditional
 const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
     const [isPrinting, setIsPrinting] = useState(false);
     const [generatedPaper, setGeneratedPaper] = useState(null);
@@ -191,20 +191,62 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                         slug: group.type,
                         name: getQuestionTypeName(group.type)
                     },
-                    questions: Array.from({ length: group.questionsCount }, (_, qIndex) => ({
-                        id: `question-${sIndex}-${gIndex}-${qIndex}`,
-                        question_text: generateRandomQuestion(group.type, qIndex + 1),
-                        marks: group.marksPerQuestion,
-                        options: group.type === 'mcq' ? 
-                            Array.from({ length: group.optionsCount || 4 }, (_, optIndex) => ({
-                                id: `opt-${sIndex}-${gIndex}-${qIndex}-${optIndex}`,
-                                option_text: generateRandomOption(optIndex)
-                            })) : []
-                    }))
+                    questions: generateQuestionsForGroup(group, sIndex, gIndex)
                 }))
             }))
         };
         setGeneratedPaper(randomPaper);
+    };
+
+    const generateQuestionsForGroup = (group, sIndex, gIndex) => {
+        switch (group.type) {
+            case 'true-false':
+                return Array.from({ length: group.questionsCount }, (_, qIndex) => ({
+                    id: `question-${sIndex}-${gIndex}-${qIndex}`,
+                    question_text: generateRandomQuestion(group.type, qIndex + 1),
+                    marks: group.marksPerQuestion,
+                    options: [
+                        { id: `opt-${sIndex}-${gIndex}-${qIndex}-0`, option_text: 'True', is_correct: Math.random() > 0.5 },
+                        { id: `opt-${sIndex}-${gIndex}-${qIndex}-1`, option_text: 'False', is_correct: Math.random() > 0.5 }
+                    ]
+                }));
+            
+            case 'conditional':
+                return [{
+                    id: `question-${sIndex}-${gIndex}-0`,
+                    question_text: group.instruction || "Answer the following questions as per instructions:",
+                    marks: group.questionsCount * group.marksPerQuestion,
+                    sub_questions: Array.from({ length: group.questionsCount }, (_, qIndex) => ({
+                        id: `sub-${sIndex}-${gIndex}-${qIndex}`,
+                        question_text: `Question ${qIndex + 1}: ${generateRandomQuestion('short-answer', qIndex + 1)}`,
+                        marks: group.marksPerQuestion
+                    }))
+                }];
+            
+            case 'paragraph':
+                return [{
+                    id: `question-${sIndex}-${gIndex}-0`,
+                    paragraph_text: generateRandomParagraph(),
+                    marks: group.questionsCount * group.marksPerQuestion,
+                    sub_questions: Array.from({ length: group.questionsCount }, (_, qIndex) => ({
+                        id: `sub-${sIndex}-${gIndex}-${qIndex}`,
+                        question_text: `Question ${qIndex + 1}: ${generateRandomQuestion('short-answer', qIndex + 1)}`,
+                        marks: group.marksPerQuestion
+                    }))
+                }];
+            
+            default:
+                return Array.from({ length: group.questionsCount }, (_, qIndex) => ({
+                    id: `question-${sIndex}-${gIndex}-${qIndex}`,
+                    question_text: generateRandomQuestion(group.type, qIndex + 1),
+                    marks: group.marksPerQuestion,
+                    options: group.type === 'mcq' ? 
+                        Array.from({ length: group.optionsCount || 4 }, (_, optIndex) => ({
+                            id: `opt-${sIndex}-${gIndex}-${qIndex}-${optIndex}`,
+                            option_text: generateRandomOption(optIndex)
+                        })) : []
+                }));
+        }
     };
 
     const getQuestionTypeName = (type) => {
@@ -256,20 +298,19 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                 `The chemical formula for water is __________.`,
                 `The largest ocean on Earth is the __________ Ocean.`,
                 `The force that pulls objects toward the center of the Earth is called __________.`
-            ],
-            'paragraph': [
-                `Read the following passage carefully and answer the questions that follow: "The Industrial Revolution marked a major turning point in history. Almost every aspect of daily life was influenced in some way..."`,
-                `Study the given paragraph and respond to the questions: "Climate change refers to long-term shifts in temperatures and weather patterns. These shifts may be natural, but since the 1800s..."`,
-                `Analyze the following text: "The Renaissance was a period in European history marking the transition from the Middle Ages to modernity and covering the 15th and 16th centuries..."`
-            ],
-            'conditional': [
-                `Answer any 3 out of the following 5 questions.`,
-                `Choose 2 questions from Part A and 3 questions from Part B.`,
-                `Attempt any four questions, with at least one from each section.`
             ]
         };
         const typeQuestions = questions[type] || questions['short-answer'];
         return typeQuestions[Math.floor(Math.random() * typeQuestions.length)];
+    };
+
+    const generateRandomParagraph = () => {
+        const paragraphs = [
+            `Global warming refers to the long-term rise in the average temperature of the Earth's climate system. It is a major aspect of climate change and has been demonstrated by direct temperature measurements and by measurements of various effects of the warming.`,
+            `The Industrial Revolution marked a major turning point in Earth's ecology and humans' relationship with their environment. It changed the way goods were produced and had profound effects on society and the environment.`,
+            `Photosynthesis is the process used by plants, algae and certain bacteria to harness energy from sunlight and turn it into chemical energy. The process creates oxygen as a byproduct, which is essential for most life on Earth.`
+        ];
+        return paragraphs[Math.floor(Math.random() * paragraphs.length)];
     };
 
     const generateRandomOption = (index) => {
@@ -295,6 +336,133 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
             count += generatedPaper.sections[sectionIndex].section_groups[g].questions.length;
         }
         return count + questionIndex;
+    };
+
+    const renderQuestionContent = (question, group, qNumber) => {
+        switch (group.question_type?.slug) {
+            case 'true-false':
+                return (
+                    <div className="mb-4">
+                        <div className="flex justify-between items-start gap-2">
+                            <p className="text-sm sm:text-[16px] leading-snug flex-1">
+                                <strong>Q{qNumber}.</strong> {question.question_text}
+                            </p>
+                            {question.marks > 0 && (
+                                <span className="text-xs sm:text-[14px] font-semibold text-gray-700 flex-shrink-0">
+                                    ({question.marks})
+                                </span>
+                            )}
+                        </div>
+                        <div className="ml-4 sm:ml-8 mt-2 text-sm sm:text-[15px]">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center">
+                                    <span className="font-semibold mr-2">A.</span>
+                                    <span>True</span>
+                                </div>
+                                <div className="flex items-center">
+                                    <span className="font-semibold mr-2">B.</span>
+                                    <span>False</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            case 'conditional':
+                return (
+                    <div className="mb-4">
+                        <div className="flex justify-between items-start gap-2">
+                            <p className="text-sm sm:text-[16px] leading-snug flex-1">
+                                <strong>Q{qNumber}.</strong> {question.question_text}
+                            </p>
+                            {question.marks > 0 && (
+                                <span className="text-xs sm:text-[14px] font-semibold text-gray-700 flex-shrink-0">
+                                    ({question.marks})
+                                </span>
+                            )}
+                        </div>
+                        {question.sub_questions && question.sub_questions.map((subQ, subIndex) => (
+                            <div key={subQ.id} className="ml-4 sm:ml-8 mt-3">
+                                <div className="flex justify-between items-start gap-2">
+                                    <p className="text-sm sm:text-[15px] leading-snug flex-1">
+                                        <strong>({subIndex + 1})</strong> {subQ.question_text}
+                                    </p>
+                                    {subQ.marks > 0 && (
+                                        <span className="text-xs sm:text-[14px] font-semibold text-gray-700 flex-shrink-0">
+                                            ({subQ.marks})
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                );
+
+            case 'paragraph':
+                return (
+                    <div className="mb-4">
+                        <div className="flex justify-between items-start gap-2 mb-3">
+                            <p className="text-sm sm:text-[16px] leading-snug flex-1">
+                                <strong>Q{qNumber}.</strong> Read the following passage and answer the questions below:
+                            </p>
+                            {question.marks > 0 && (
+                                <span className="text-xs sm:text-[14px] font-semibold text-gray-700 flex-shrink-0">
+                                    ({question.marks})
+                                </span>
+                            )}
+                        </div>
+                        <div className="ml-4 sm:ml-8 mb-3 p-3 bg-gray-50 rounded border-l-4 border-blue-500">
+                            <p className="text-sm sm:text-[15px] italic text-gray-700">
+                                {question.paragraph_text}
+                            </p>
+                        </div>
+                        {question.sub_questions && question.sub_questions.map((subQ, subIndex) => (
+                            <div key={subQ.id} className="ml-4 sm:ml-8 mt-3">
+                                <div className="flex justify-between items-start gap-2">
+                                    <p className="text-sm sm:text-[15px] leading-snug flex-1">
+                                        <strong>({subIndex + 1})</strong> {subQ.question_text}
+                                    </p>
+                                    {subQ.marks > 0 && (
+                                        <span className="text-xs sm:text-[14px] font-semibold text-gray-700 flex-shrink-0">
+                                            ({subQ.marks})
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                );
+
+            default:
+                return (
+                    <div className="mb-4">
+                        <div className="flex justify-between items-start gap-2">
+                            <p className="text-sm sm:text-[16px] leading-snug flex-1">
+                                <strong>Q{qNumber}.</strong> {question.question_text}
+                            </p>
+                            {question.marks > 0 && (
+                                <span className="text-xs sm:text-[14px] font-semibold text-gray-700 flex-shrink-0">
+                                    ({question.marks})
+                                </span>
+                            )}
+                        </div>
+
+                        {/* MCQs */}
+                        {group.question_type?.slug === "mcq" && (
+                            <div className="ml-4 sm:ml-8 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-10 gap-y-1 text-sm sm:text-[15px]">
+                                {question.options.map((opt: any, i: number) => (
+                                    <div key={opt.id} className="flex items-center">
+                                        <span className="font-semibold mr-2">
+                                            {String.fromCharCode(65 + i)}.
+                                        </span>
+                                        <span>{opt.option_text}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+        }
     };
 
     const handlePrint = () => {
@@ -381,7 +549,18 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2">
-                        
+                        <Button
+                            onClick={handlePrint}
+                            disabled={isPrinting}
+                            className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                            size="sm"
+                        >
+                            {isPrinting ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <Printer size={16} className="sm:w-4 sm:h-4" />
+                            )}
+                        </Button>
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-white/10 rounded-full text-white"
@@ -427,31 +606,8 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                                             {group.questions.map((question: any, qIndex: number) => {
                                                 const qNumber = getQuestionNumber(sIndex, gIndex, qIndex);
                                                 return (
-                                                    <div key={question.id} className="mb-4">
-                                                        <div className="flex justify-between items-start gap-2">
-                                                            <p className="text-sm sm:text-[16px] leading-snug flex-1">
-                                                                <strong>Q{qNumber}.</strong> {question.question_text}
-                                                            </p>
-                                                            {question.marks > 0 && (
-                                                                <span className="text-xs sm:text-[14px] font-semibold text-gray-700 flex-shrink-0">
-                                                                    ({question.marks})
-                                                                </span>
-                                                            )}
-                                                        </div>
-
-                                                        {/* MCQs */}
-                                                        {group.question_type?.slug === "mcq" && (
-                                                            <div className="ml-4 sm:ml-8 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-10 gap-y-1 text-sm sm:text-[15px]">
-                                                                {question.options.map((opt: any, i: number) => (
-                                                                    <div key={opt.id} className="flex items-center">
-                                                                        <span className="font-semibold mr-2">
-                                                                            {String.fromCharCode(65 + i)}.
-                                                                        </span>
-                                                                        <span>{opt.option_text}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                    <div key={question.id}>
+                                                        {renderQuestionContent(question, group, qNumber)}
                                                     </div>
                                                 );
                                             })}
@@ -483,7 +639,23 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                         <Button variant="outline" onClick={onClose} size="sm">
                             Close
                         </Button>
-                      
+                        <Button 
+                            onClick={handlePrint}
+                            disabled={isPrinting}
+                            size="sm"
+                        >
+                            {isPrinting ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    Printing...
+                                </>
+                            ) : (
+                                <>
+                                    <Printer size={16} className="mr-2" />
+                                    Print
+                                </>
+                            )}
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -491,7 +663,7 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
     );
 };
 
-// Mobile-Optimized Collapsible Question Group Component
+// Mobile-Optimized Collapsible Question Group Component - FIXED arrow visibility
 const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, onDelete, onMoveUp, onMoveDown }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -546,19 +718,19 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                 <div className="flex items-center justify-between gap-2 sm:gap-3">
                     {/* Left Side - Group Info */}
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                        {/* Order Controls */}
-                        <div className="flex flex-col gap-1">
+                        {/* Order Controls - FIXED: Made arrows more visible */}
+                        <div className="flex flex-col gap-1 rounded-lg p-1">
                             <Button
                                 variant="ghost"
-                                size="lg"
+                                size="sm"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onMoveUp(groupIndex);
                                 }}
                                 disabled={groupIndex === 0}
-                                className="p-1 min-h-[20px] w-10 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                className="p-1 min-h-[20px] w-8 h-8 text-gray-700 hover:text-blue-600 hover:bg-blue-50 border border-gray-300"
                             >
-                                <ArrowUp size={12} />
+                                <ArrowUp size={16} className="text-current" />
                             </Button>
                             <Button
                                 variant="ghost"
@@ -568,9 +740,9 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                                     onMoveDown(groupIndex);
                                 }}
                                 disabled={groupIndex === sectionGroups.length - 1}
-                                className="p-1 min-h-[20px] w-10 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                className="p-1 min-h-[20px] w-8 h-8 text-gray-700 hover:text-blue-600 hover:bg-blue-50 border border-gray-300"
                             >
-                                <ArrowDown size={12} />
+                                <ArrowDown size={16} className="text-current" />
                             </Button>
                         </div>
 
@@ -732,7 +904,7 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
     );
 };
 
-// Mobile-Optimized Section Component with Order Controls
+// Mobile-Optimized Section Component with Order Controls - FIXED arrow visibility
 const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onAddGroup, onMoveUp, onMoveDown }) => {
     const [isExpanded, setIsExpanded] = useState(true);
 
@@ -758,7 +930,7 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
 
     return (
         <Card className="mb-4 sm:mb-6 overflow-hidden">
-            {/* Mobile-First Section Header with Order Controls */}
+            {/* Mobile-First Section Header with Order Controls - FIXED: Made arrows more visible */}
             <div
                 className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-4 border-b border-gray-200 cursor-pointer hover:bg-blue-100/50 transition-colors touch-manipulation"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -766,8 +938,8 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
                 <div className="flex items-center justify-between gap-2 sm:gap-3">
                     {/* Left Side - Section Info */}
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                        {/* Order Controls */}
-                        <div className="flex flex-col gap-1">
+                        {/* Order Controls - FIXED: Added background and border for better visibility */}
+                        <div className="flex flex-col gap-1  rounded-lg p-1">
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -776,9 +948,9 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
                                     onMoveUp(index);
                                 }}
                                 disabled={index === 0}
-                                className="p-1 min-h-[20px] w-10 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                className="p-0 min-h-[20px] w-8 h-8 text-gray-700 hover:text-blue-600 hover:bg-blue-50 border border-gray-300"
                             >
-                                <ArrowUp size={12} />
+                                <ArrowUp size={16} className="text-current" />
                             </Button>
                             <Button
                                 variant="ghost"
@@ -788,9 +960,9 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
                                     onMoveDown(index);
                                 }}
                                 disabled={index === totalSections - 1}
-                                className="p-1 min-h-[20px] w-10 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                className="p-0 min-h-[20px] w-8 h-8 text-gray-700 hover:text-blue-600 hover:bg-blue-50 border border-gray-300"
                             >
-                                <ArrowDown size={12} />
+                                <ArrowDown size={16} className="text-current" />
                             </Button>
                         </div>
 
@@ -960,7 +1132,6 @@ const TemplateBuilder = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [templateData, setTemplateData] = useState(null);
-    const [showViewButton, setShowViewButton] = useState(false);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
 
     // Fetch template data if editing
@@ -1116,12 +1287,6 @@ const TemplateBuilder = () => {
         setShowPreviewModal(true);
     };
 
-    const handleViewPaper = () => {
-        if (templateId) {
-            navigate(`../teacher/paper-viewer/${templateId}`);
-        }
-    };
-
     const saveTemplate = async () => {
         if (!templateId) {
             alert('No template ID found. Please create a template first.');
@@ -1173,7 +1338,6 @@ const TemplateBuilder = () => {
 
             if (response.status) {
                 alert('Template saved successfully!');
-                setShowViewButton(true);
                 fetchTemplateData();
             } else {
                 throw new Error(response.message || 'Failed to save template');
@@ -1214,17 +1378,16 @@ const TemplateBuilder = () => {
                                 </Button>
 
                                 <div className="flex items-center gap-1 sm:gap-2">
-                                    {/* Preview Button - Only show after saving */}
-                                    {showViewButton && templateId && (
-                                        <Button
-                                            onClick={handlePreviewPaper}
-                                            className="bg-white/10 border-white/30 text-white hover:bg-white/20 shadow-lg"
-                                            size="sm"
-                                        >
-                                            <Eye size={14} className="mr-1 sm:mr-2 sm:w-4 sm:h-4" />
-                                            <span className="hidden sm:inline">Preview</span>
-                                        </Button>
-                                    )}
+                                    {/* Preview Button - ALWAYS SHOW (Task 2) */}
+                                    <Button
+                                        onClick={handlePreviewPaper}
+                                        className="bg-white/10 border-white/30 text-white hover:bg-white/20 shadow-lg"
+                                        size="sm"
+                                        disabled={sections.length === 0}
+                                    >
+                                        <Eye size={14} className="mr-1 sm:mr-2 sm:w-4 sm:h-4" />
+                                        <span className="hidden sm:inline">Preview</span>
+                                    </Button>
                                     
                                     <Button
                                         onClick={saveTemplate}
@@ -1346,38 +1509,36 @@ const TemplateBuilder = () => {
                     </div>
                 )}
 
-                {/* Bottom Save Button with View Option */}
+                {/* Bottom Save Button with Preview Option */}
                 {sections.length > 0 && (
                     <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-gray-200">
                         <div className="flex flex-col items-center space-y-3 sm:space-y-4">
                             <div className="text-center">
                                 <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
-                                    {showViewButton ? 'Template Saved Successfully!' : 'Ready to Save Your Template?'}
+                                    Ready to Save Your Template?
                                 </h3>
                                 <p className="text-gray-600 text-sm">
                                     Your template contains {sections.length} section{sections.length !== 1 ? 's' : ''} with {totals.totalQuestions} questions totaling {totals.totalMarks} marks.
                                 </p>
                             </div>
 
-                            <div className="flex flex-row gap-2 sm:flex-row items-center space-y-0 sm:space-y-0 sm:space-x-4">
-                                {/* Preview Paper Button - Bottom Section */}
-                                {showViewButton && templateId && (
-                                    <Button 
-                                        onClick={handlePreviewPaper}
-                                        variant="outline" 
-                                        size="lg" 
-                                        className="w-full sm:w-auto min-w-[100px] border-blue-600 text-blue-600 hover:bg-blue-50"
-                                    >
-                                        <Eye className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                                        Preview
-                                    </Button>
-                                )}
+                            <div className="flex flex-col sm:flex-row gap-3 items-center">
+                                {/* Preview Paper Button - ALWAYS SHOW (Task 2) */}
+                                <Button 
+                                    onClick={handlePreviewPaper}
+                                    variant="outline" 
+                                    size="lg" 
+                                    className="w-full sm:w-auto min-w-[120px] border-blue-600 text-blue-600 hover:bg-blue-50"
+                                >
+                                    <Eye className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                                    Preview Paper
+                                </Button>
                                 
                                 <Button 
                                     onClick={saveTemplate} 
                                     variant="primary" 
                                     size="lg" 
-                                    className="w-full sm:w-auto min-w-[100px]"
+                                    className="w-full sm:w-auto min-w-[120px]"
                                     disabled={isSaving}
                                 >
                                     {isSaving ? (
@@ -1388,24 +1549,22 @@ const TemplateBuilder = () => {
                                     ) : (
                                         <>
                                             <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                                            {showViewButton ? 'Update' : 'Save'}
+                                            Save Template
                                         </>
                                     )}
                                 </Button>
                             </div>
 
                             {/* Preview Paper Info */}
-                            {showViewButton && (
-                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-3 sm:p-4 border border-green-200 text-center max-w-md">
-                                    <div className="flex items-center justify-center gap-2 text-green-700 mb-2">
-                                        <Eye size={16} className="sm:w-5 sm:h-5" />
-                                        <span className="font-semibold text-sm sm:text-base">Paper Ready to Preview</span>
-                                    </div>
-                                    <p className="text-green-600 text-xs sm:text-sm">
-                                        Click "Preview Paper" to see randomly generated questions based on your template specifications.
-                                    </p>
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-3 sm:p-4 border border-blue-200 text-center max-w-md">
+                                <div className="flex items-center justify-center gap-2 text-blue-700 mb-2">
+                                    <Eye size={16} className="sm:w-5 sm:h-5" />
+                                    <span className="font-semibold text-sm sm:text-base">Preview Available</span>
                                 </div>
-                            )}
+                                <p className="text-blue-600 text-xs sm:text-sm">
+                                    Click "Preview Paper" to see randomly generated questions based on your template specifications.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 )}

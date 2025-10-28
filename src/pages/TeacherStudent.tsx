@@ -39,17 +39,9 @@ import {
   Mail,
   UserCheck,
   UserX,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-
-// Add these imports at the top with other imports
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table";
 
 // Import the API instance
 import api from '../lib/axios';
@@ -61,7 +53,7 @@ interface Student {
   email: string;
   phone_number?: string;
   father_name: string;
-  class_id: number;
+  class_id: number | null;
   class?: {
     id: number;
     name: string;
@@ -98,8 +90,17 @@ interface StudentsResponse {
       data: Student[];
       current_page: number;
       total: number;
-    } | Student[];
+      last_page: number;
+      per_page: number;
+    };
   };
+}
+
+interface PaginationInfo {
+  current_page: number;
+  total: number;
+  last_page: number;
+  per_page: number;
 }
 
 // Edit Student Dialog Component
@@ -142,7 +143,7 @@ function EditStudentDialog({
         email: student.email,
         phone_number: student.phone_number || '',
         father_name: student.father_name,
-        class_id: student.class_id.toString(),
+        class_id: student.class_id ? student.class_id.toString() : '',
       });
     }
   }, [student]);
@@ -150,13 +151,23 @@ function EditStudentDialog({
   // Update student mutation
   const updateStudentMutation = useMutation({
     mutationFn: async (studentData: StudentFormData) => {
-      const response = await api.put(`/user/students/${student?.id}`, {
+      const updateData: any = {
         full_name: studentData.full_name,
         email: studentData.email,
-        phone_number: studentData.phone_number || null,
         father_name: studentData.father_name,
-        class_id: parseInt(studentData.class_id),
-      });
+      };
+
+      // Only include phone_number if it's provided
+      if (studentData.phone_number) {
+        updateData.phone_number = studentData.phone_number;
+      }
+
+      // Only include class_id if it's selected (not empty)
+      if (studentData.class_id) {
+        updateData.class_id = parseInt(studentData.class_id);
+      }
+
+      const response = await api.put(`/user/students/${student?.id}`, updateData);
       return response.data;
     },
     onSuccess: () => {
@@ -181,7 +192,7 @@ function EditStudentDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.full_name || !formData.email || !formData.father_name || !formData.class_id) {
+    if (!formData.full_name || !formData.email || !formData.father_name) {
       toast({
         title: 'Error',
         description: 'Please fill all required fields',
@@ -278,16 +289,17 @@ function EditStudentDialog({
 
             <div className="space-y-2">
               <Label htmlFor="edit_class" className="text-white/80 flex items-center gap-1">
-                Class <span className="text-red-400">*</span>
+                Class
               </Label>
               <Select
                 value={formData.class_id}
                 onValueChange={(value) => updateFormField('class_id', value)}
               >
                 <SelectTrigger className="glass-input">
-                  <SelectValue placeholder="Select class" />
+                  <SelectValue placeholder="Select class (optional)" />
                 </SelectTrigger>
                 <SelectContent className="glassmorphism-strong border-white/30 custom-scrollbar">
+                  <SelectItem value="">No Class</SelectItem>
                   {classesLoading ? (
                     <div className="flex items-center justify-center py-4">
                       <Loader2 className="animate-spin text-emerald-300" size={16} />
@@ -394,13 +406,18 @@ export default function StudentsListPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   
   // Debounced search term for API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   // Build query parameters for API call
   const buildQueryParams = () => {
-    const params: any = {};
+    const params: any = {
+      page: currentPage,
+      per_page: pageSize
+    };
     
     if (debouncedSearchTerm) {
       params.search = debouncedSearchTerm;
@@ -425,12 +442,29 @@ export default function StudentsListPage() {
     return params;
   };
 
-  // Fetch students with filters
-  const { data: studentsResponse, isLoading: studentsLoading, error } = useQuery({
-    queryKey: ['students', debouncedSearchTerm, selectedClass, activeStatus],
+  // Fetch students with filters and pagination
+  const { 
+    data: studentsResponse, 
+    isLoading: studentsLoading, 
+    error,
+    refetch 
+  } = useQuery({
+    queryKey: ['students', debouncedSearchTerm, selectedClass, activeStatus, currentPage, pageSize],
     queryFn: async () => {
       const params = buildQueryParams();
       const response = await api.get('/user/students', { params });
+      return response.data;
+    },
+    enabled: !!token,
+  });
+
+  // Fetch ALL students for dashboard stats (without pagination)
+  const { data: allStudentsResponse } = useQuery({
+    queryKey: ['all-students-stats'],
+    queryFn: async () => {
+      const response = await api.get('/user/students', { 
+        params: { per_page: 10000 } // Large number to get all students
+      });
       return response.data;
     },
     enabled: !!token,
@@ -446,33 +480,35 @@ export default function StudentsListPage() {
     enabled: !!token,
   });
 
-  // Get students from response - handle both array and paginated response
-  const getStudentsFromResponse = (response: StudentsResponse): Student[] => {
-    if (!response?.data?.students) return [];
-    
-    // Check if students is an array or has a data property (pagination)
-    if (Array.isArray(response.data.students)) {
-      return response.data.students;
-    } else if (response.data.students.data && Array.isArray(response.data.students.data)) {
-      return response.data.students.data;
+  // Get students and pagination info from response
+  const getStudentsAndPagination = (response: StudentsResponse) => {
+    if (!response?.data?.students) {
+      return { students: [], pagination: null };
     }
     
-    return [];
+    const students = response.data.students.data || [];
+    const pagination: PaginationInfo = {
+      current_page: response.data.students.current_page,
+      total: response.data.students.total,
+      last_page: response.data.students.last_page,
+      per_page: response.data.students.per_page
+    };
+    
+    return { students, pagination };
   };
 
-  const students: Student[] = getStudentsFromResponse(studentsResponse);
-  const totalStudents = studentsResponse?.data?.students?.total || students.length;
+  const { students, pagination } = getStudentsAndPagination(studentsResponse);
+  const { students: allStudents } = getStudentsAndPagination(allStudentsResponse);
 
-  // Calculate students statistics from current filtered data
+  // Calculate students statistics from ALL students data
   const calculateStats = (students: Student[]): StudentsStats => {
     const total = students.length;
     const withEmail = students.filter(student => student.email && student.email.length > 0).length;
     const withPhone = students.filter(student => student.phone_number && student.phone_number.length > 0).length;
     
-    // Since the API doesn't have explicit active/inactive status,
-    // we'll consider students with class assigned as active and without class as inactive
-    const active = students.filter(student => student.class_id).length;
-    const inactive = students.filter(student => !student.class_id).length;
+    // Students with class assigned are active, without class are inactive
+    const active = students.filter(student => student.class_id !== null).length;
+    const inactive = students.filter(student => student.class_id === null).length;
 
     return {
       total,
@@ -483,7 +519,7 @@ export default function StudentsListPage() {
     };
   };
 
-  const stats = calculateStats(students);
+  const stats = calculateStats(allStudents);
 
   // Delete student mutation
   const deleteStudentMutation = useMutation({
@@ -493,6 +529,7 @@ export default function StudentsListPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['all-students-stats'] });
       toast({
         title: 'Success',
         description: 'Student deleted successfully',
@@ -528,10 +565,53 @@ export default function StudentsListPage() {
     setSearchTerm("");
     setSelectedClass("all");
     setActiveStatus("all");
+    setCurrentPage(1);
   };
 
   // Check if any filter is active
   const hasActiveFilters = searchTerm || selectedClass !== "all" || activeStatus !== "all";
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    if (!pagination) return [];
+    
+    const pages = [];
+    const totalPages = pagination.last_page;
+    const current = pagination.current_page;
+    
+    // Always show first page
+    pages.push(1);
+    
+    // Calculate range around current page
+    let start = Math.max(2, current - 1);
+    let end = Math.min(totalPages - 1, current + 1);
+    
+    // Add ellipsis if needed
+    if (start > 2) pages.push('...');
+    
+    // Add pages around current
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    
+    // Add ellipsis if needed
+    if (end < totalPages - 1) pages.push('...');
+    
+    // Always show last page if there is more than one page
+    if (totalPages > 1) pages.push(totalPages);
+    
+    return pages;
+  };
 
   return (
     <GlassmorphismLayout>
@@ -570,7 +650,7 @@ export default function StudentsListPage() {
             </div>
           </div>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - Using ALL students data */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             {/* Total Students Card */}
             <Card className="glassmorphism-strong border-white/30 hover:border-emerald-400/30 transition-all duration-200">
@@ -579,9 +659,7 @@ export default function StudentsListPage() {
                   <div>
                     <p className="text-slate-300 text-sm">Total Students</p>
                     <h3 className="text-2xl font-bold text-white">{stats.total}</h3>
-                    {hasActiveFilters && (
-                      <p className="text-slate-400 text-xs mt-1">Filtered results</p>
-                    )}
+                    <p className="text-slate-400 text-xs mt-1">All registered students</p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
                     <Users className="text-emerald-300" size={24} />
@@ -630,7 +708,7 @@ export default function StudentsListPage() {
                     <p className="text-slate-300 text-sm">With Email</p>
                     <h3 className="text-2xl font-bold text-white">{stats.withEmail}</h3>
                     <p className="text-slate-400 text-xs mt-1">
-                      {stats.total > 0 ? ((stats.withEmail / stats.total) * 100).toFixed(1) : 0}% of filtered
+                      {stats.total > 0 ? ((stats.withEmail / stats.total) * 100).toFixed(1) : 0}% of total
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
@@ -646,7 +724,7 @@ export default function StudentsListPage() {
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle className="text-white text-xl bg-gradient-to-r from-white to-emerald-200 bg-clip-text text-transparent">
-                  Students {hasActiveFilters ? `(${students.length} filtered)` : `(${totalStudents} total)`}
+                  {hasActiveFilters ? `Filtered Students (${students.length})` : `All Students (${pagination?.total || 0})`}
                 </CardTitle>
                 
                 {/* Search and Filters */}
@@ -727,7 +805,7 @@ export default function StudentsListPage() {
                     {error instanceof Error ? error.message : 'An error occurred while fetching students'}
                   </p>
                   <Button 
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ['students'] })}
+                    onClick={() => refetch()}
                     className="emerald-gradient hover:shadow-lg transition-all duration-200"
                   >
                     <Loader2 className="mr-2" size={20} />
@@ -735,116 +813,178 @@ export default function StudentsListPage() {
                   </Button>
                 </div>
               ) : students.length > 0 ? (
-                <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full min-w-[1000px]">
-                    <thead>
-                      <tr className="border-b border-white/20">
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Student</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Roll Number</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Class</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Father's Name</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Phone</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Status</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Joined</th>
-                        <th className="text-left py-4 px-4 text-slate-300 font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.map((student) => (
-                        <tr key={student.id} className="border-b border-white/10 hover:bg-white/5 transition-colors group">
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg group-hover:shadow-emerald-500/25 transition-shadow">
-                                <span className="text-white font-semibold text-sm">
-                                  {student.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                                </span>
-                              </div>
-                              <div>
-                                <div className="text-white font-medium">{student.full_name}</div>
-                                <div className="text-slate-400 text-sm">{student.email}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className="text-slate-300 font-mono text-sm bg-slate-700/50 px-2 py-1 rounded">
-                              {student.roll_number}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            {student.class ? (
-                              <span className="text-slate-300 bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-sm">
-                                {student.class.name}
-                              </span>
-                            ) : (
-                              <span className="text-slate-500 bg-slate-700/50 px-2 py-1 rounded text-sm">
-                                Unassigned
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4 text-slate-300">{student.father_name}</td>
-                          <td className="py-4 px-4">
-                            {student.phone_number ? (
-                              <div className="flex items-center gap-2 text-slate-300">
-                                <Phone size={14} className="text-emerald-400" />
-                                {student.phone_number}
-                              </div>
-                            ) : (
-                              <span className="text-slate-500 text-sm">Not provided</span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4">
-                            {student.class_id ? (
-                              <span className="inline-flex items-center gap-1 bg-green-500/20 text-green-300 px-2 py-1 rounded text-sm">
-                                <UserCheck size={14} />
-                                Active
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 bg-orange-500/20 text-orange-300 px-2 py-1 rounded text-sm">
-                                <UserX size={14} />
-                                Inactive
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4 text-slate-400 text-sm">
-                            {new Date(student.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 transition-colors rounded-full w-8 h-8 p-0"
-                              >
-                                <Eye size={16} />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditStudent(student)}
-                                className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10 transition-colors rounded-full w-8 h-8 p-0"
-                              >
-                                <Edit size={16} />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteStudent(student.id, student.full_name)}
-                                disabled={deleteStudentMutation.isPending}
-                                className="text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors rounded-full w-8 h-8 p-0"
-                              >
-                                {deleteStudentMutation.isPending ? (
-                                  <Loader2 className="animate-spin" size={16} />
-                                ) : (
-                                  <Trash2 size={16} />
-                                )}
-                              </Button>
-                            </div>
-                          </td>
+                <>
+                  <div className="overflow-x-auto custom-scrollbar mb-6">
+                    <table className="w-full min-w-[1000px]">
+                      <thead>
+                        <tr className="border-b border-white/20">
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Student</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Roll Number</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Class</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Father's Name</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Phone</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Status</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Joined</th>
+                          <th className="text-left py-4 px-4 text-slate-300 font-semibold">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {students.map((student) => (
+                          <tr key={student.id} className="border-b border-white/10 hover:bg-white/5 transition-colors group">
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg group-hover:shadow-emerald-500/25 transition-shadow">
+                                  <span className="text-white font-semibold text-sm">
+                                    {student.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <div className="text-white font-medium">{student.full_name}</div>
+                                  <div className="text-slate-400 text-sm">{student.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className="text-slate-300 font-mono text-sm bg-slate-700/50 px-2 py-1 rounded">
+                                {student.roll_number}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4">
+                              {student.class ? (
+                                <span className="text-slate-300 bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-sm">
+                                  {student.class.name}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 bg-slate-700/50 px-2 py-1 rounded text-sm">
+                                  Unassigned
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4 text-slate-300">{student.father_name}</td>
+                            <td className="py-4 px-4">
+                              {student.phone_number ? (
+                                <div className="flex items-center gap-2 text-slate-300">
+                                  <Phone size={14} className="text-emerald-400" />
+                                  {student.phone_number}
+                                </div>
+                              ) : (
+                                <span className="text-slate-500 text-sm">Not provided</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4">
+                              {student.class_id ? (
+                                <span className="inline-flex items-center gap-1 bg-green-500/20 text-green-300 px-2 py-1 rounded text-sm">
+                                  <UserCheck size={14} />
+                                  Active
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 bg-orange-500/20 text-orange-300 px-2 py-1 rounded text-sm">
+                                  <UserX size={14} />
+                                  Inactive
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4 text-slate-400 text-sm">
+                              {new Date(student.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditStudent(student)}
+                                  className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10 transition-colors rounded-full w-8 h-8 p-0"
+                                >
+                                  <Edit size={16} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteStudent(student.id, student.full_name)}
+                                  disabled={deleteStudentMutation.isPending}
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors rounded-full w-8 h-8 p-0"
+                                >
+                                  {deleteStudentMutation.isPending ? (
+                                    <Loader2 className="animate-spin" size={16} />
+                                  ) : (
+                                    <Trash2 size={16} />
+                                  )}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {pagination && pagination.last_page > 1 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-white/20">
+                      <div className="text-slate-300 text-sm">
+                        Showing {((pagination.current_page - 1) * pagination.per_page) + 1} to {Math.min(pagination.current_page * pagination.per_page, pagination.total)} of {pagination.total} entries
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {/* Page Size Selector */}
+                        <Select
+                          value={pageSize.toString()}
+                          onValueChange={(value) => handlePageSizeChange(parseInt(value))}
+                        >
+                          <SelectTrigger className="glass-input w-20">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="glassmorphism-strong border-white/30">
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="25">25</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        {/* Pagination Controls */}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePageChange(pagination.current_page - 1)}
+                            disabled={pagination.current_page === 1}
+                            className="border-white/20 text-white hover:bg-white/10 transition-colors"
+                          >
+                            <ChevronLeft size={16} />
+                          </Button>
+
+                          {getPageNumbers().map((page, index) => (
+                            <Button
+                              key={index}
+                              variant={page === pagination.current_page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+                              disabled={page === '...'}
+                              className={
+                                page === pagination.current_page 
+                                  ? "emerald-gradient text-white" 
+                                  : "border-white/20 text-white hover:bg-white/10 transition-colors"
+                              }
+                            >
+                              {page}
+                            </Button>
+                          ))}
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePageChange(pagination.current_page + 1)}
+                            disabled={pagination.current_page === pagination.last_page}
+                            className="border-white/20 text-white hover:bg-white/10 transition-colors"
+                          >
+                            <ChevronRight size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <Users className="mx-auto text-slate-400 mb-4" size={48} />
