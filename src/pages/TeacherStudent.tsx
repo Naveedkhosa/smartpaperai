@@ -24,14 +24,9 @@ import {
   MoreVertical,
   Edit,
   Trash2,
-  Eye,
-  Download,
-  Upload,
   Users,
   UserPlus,
   ArrowLeft,
-  ChevronDown,
-  ChevronUp,
   X,
   Loader2,
   Phone,
@@ -41,11 +36,14 @@ import {
   UserX,
   ChevronLeft,
   ChevronRight,
+  User, // New icon for Full Name
+  Briefcase, // New icon for Father's Name (or similar)
 } from "lucide-react";
 
 // Import the API instance
 import api from '../lib/axios';
 
+// --- Interface Definitions ---
 interface Student {
   id: number;
   roll_number: string;
@@ -102,244 +100,23 @@ interface PaginationInfo {
   last_page: number;
   per_page: number;
 }
+// --- End Interface Definitions ---
 
-// Edit Student Dialog Component
-function EditStudentDialog({ 
-  student, 
-  open, 
-  onOpenChange,
-  onSuccess 
-}: {
-  student: Student | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-}) {
-  const { token } = useAuth();
-  const { toast } = useToast();
-  const [formData, setFormData] = useState<StudentFormData>({
-    full_name: '',
-    email: '',
-    phone_number: '',
-    father_name: '',
-    class_id: '',
-  });
+// Custom hook for debounced search
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
-  // Fetch classes
-  const { data: classes, isLoading: classesLoading } = useQuery({
-    queryKey: ['classes'],
-    queryFn: async () => {
-      const response = await api.get('/user/classes');
-      return response.data.data.classes;
-    },
-    enabled: !!token,
-  });
-
-  // Update form when student changes
   useEffect(() => {
-    if (student) {
-      setFormData({
-        full_name: student.full_name,
-        email: student.email,
-        phone_number: student.phone_number || '',
-        father_name: student.father_name,
-        class_id: student.class_id ? student.class_id.toString() : '',
-      });
-    }
-  }, [student]);
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
 
-  // Update student mutation
-  const updateStudentMutation = useMutation({
-    mutationFn: async (studentData: StudentFormData) => {
-      const updateData: any = {
-        full_name: studentData.full_name,
-        email: studentData.email,
-        father_name: studentData.father_name,
-      };
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
 
-      // Only include phone_number if it's provided
-      if (studentData.phone_number) {
-        updateData.phone_number = studentData.phone_number;
-      }
-
-      // Only include class_id if it's selected (not empty)
-      if (studentData.class_id) {
-        updateData.class_id = parseInt(studentData.class_id);
-      }
-
-      const response = await api.put(`/user/students/${student?.id}`, updateData);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['students'] });
-      onOpenChange(false);
-      onSuccess();
-      toast({
-        title: 'Success',
-        description: 'Student updated successfully',
-        variant: 'success',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to update student',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.full_name || !formData.email || !formData.father_name) {
-      toast({
-        title: 'Error',
-        description: 'Please fill all required fields',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    updateStudentMutation.mutate(formData);
-  };
-
-  const updateFormField = (field: keyof StudentFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glassmorphism-strong border-white/30 text-white max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-center">
-            <Edit className="text-emerald-300" size={24} />
-            Edit Student
-          </DialogTitle>
-          <DialogDescription className="text-slate-300">
-            Update student information
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit_full_name" className="text-white/80 flex items-center gap-1">
-                  Full Name <span className="text-red-400">*</span>
-                </Label>
-                <Input
-                  id="edit_full_name"
-                  value={formData.full_name}
-                  onChange={(e) => updateFormField('full_name', e.target.value)}
-                  className="glass-input focus:ring-2 focus:ring-emerald-400/50"
-                  placeholder="Enter full name"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit_father_name" className="text-white/80 flex items-center gap-1">
-                  Father's Name <span className="text-red-400">*</span>
-                </Label>
-                <Input
-                  id="edit_father_name"
-                  value={formData.father_name}
-                  onChange={(e) => updateFormField('father_name', e.target.value)}
-                  className="glass-input focus:ring-2 focus:ring-emerald-400/50"
-                  placeholder="Enter father's name"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit_email" className="text-white/80 flex items-center gap-1">
-                  Email Address <span className="text-red-400">*</span>
-                </Label>
-                <Input
-                  id="edit_email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => updateFormField('email', e.target.value)}
-                  className="glass-input focus:ring-2 focus:ring-emerald-400/50"
-                  placeholder="Enter email address"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit_phone" className="text-white/80 flex items-center gap-1">
-                  Phone Number
-                </Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
-                  <Input
-                    id="edit_phone"
-                    type="tel"
-                    value={formData.phone_number}
-                    onChange={(e) => updateFormField('phone_number', e.target.value)}
-                    className="glass-input focus:ring-2 focus:ring-emerald-400/50 pl-10"
-                    placeholder="Enter phone number"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit_class" className="text-white/80 flex items-center gap-1">
-                Class
-              </Label>
-              <Select
-                value={formData.class_id}
-                onValueChange={(value) => updateFormField('class_id', value)}
-              >
-                <SelectTrigger className="glass-input">
-                  <SelectValue placeholder="Select class (optional)" />
-                </SelectTrigger>
-                <SelectContent className="glassmorphism-strong border-white/30 custom-scrollbar">
-                  <SelectItem value="">No Class</SelectItem>
-                  {classesLoading ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="animate-spin text-emerald-300" size={16} />
-                    </div>
-                  ) : (
-                    classes?.map((classItem: Class) => (
-                      <SelectItem key={classItem.id} value={classItem.id.toString()}>
-                        {classItem.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter className="flex gap-2 pt-6 border-t border-white/20 mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="border-white/20 text-white hover:bg-white/10 transition-colors"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={updateStudentMutation.isPending}
-              className="emerald-gradient hover:shadow-lg transition-all duration-200"
-            >
-              {updateStudentMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Update Student
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
+  return debouncedValue;
 }
 
 // Dialog component
@@ -355,7 +132,8 @@ const Dialog = ({ open, onOpenChange, children }: any) => {
 };
 
 const DialogContent = ({ children, className }: any) => (
-  <div className={`bg-slate-800/95 backdrop-blur-xl rounded-2xl p-6 w-full shadow-2xl border ${className}`}>
+  // Updated dialog background and border style
+  <div className={`bg-slate-900/90 backdrop-blur-xl rounded-2xl p-6 w-full shadow-2xl border border-emerald-400/30 ${className}`}>
     {children}
   </div>
 );
@@ -378,24 +156,276 @@ const DialogFooter = ({ children }: any) => (
   <div className="flex justify-end gap-2">{children}</div>
 );
 
-// Custom hook for debounced search
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+// --- Edit Student Dialog Component (Major Design Update) ---
+function EditStudentDialog({ 
+  student, 
+  open, 
+  onOpenChange,
+  onSuccess 
+}: {
+  student: Student | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}) {
+  const { token } = useAuth();
+  const { toast } = useToast();
+  const [formData, setFormData] = useState<StudentFormData>({
+    full_name: '',
+    email: '',
+    phone_number: '',
+    father_name: '',
+    class_id: '',
+  });
 
+  // Fetch classes
+  const { data: classes, isLoading: classesLoading } = useQuery<Class[]>({
+    queryKey: ['classes'],
+    queryFn: async () => {
+      const response = await api.get('/user/classes');
+      return response.data.data.classes;
+    },
+    enabled: !!token && open,
+  });
+
+  // Update form when student changes
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
+    if (student) {
+      setFormData({
+        full_name: student.full_name,
+        email: student.email,
+        phone_number: student.phone_number || '',
+        father_name: student.father_name,
+        class_id: student.class_id ? student.class_id.toString() : '', 
+      });
+    }
+  }, [student]);
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
+  // Update student mutation
+  const updateStudentMutation = useMutation({
+    mutationFn: async (studentData: StudentFormData) => {
+      const updateData: any = {
+        // REQUIRED fields
+        full_name: studentData.full_name,
+        // REQUIRED field, converting string ID to integer or null for "No Class"
+        class_id: studentData.class_id ? parseInt(studentData.class_id) : null,
+        // OPTIONAL fields
+        email: studentData.email || null,
+        father_name: studentData.father_name || null,
+        phone_number: studentData.phone_number.trim() || null,
+      };
 
-  return debouncedValue;
+      const response = await api.put(`/user/students/${student?.id}`, updateData);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['all-students-stats'] }); 
+      onOpenChange(false);
+      onSuccess();
+      toast({
+        title: 'Success',
+        description: `Student ${student?.full_name} updated successfully.`,
+        variant: 'success',
+      });
+    },
+    onError: (error: any) => {
+      const validationErrors = error.response?.data?.data?.errors;
+      let errorMessage = error.response?.data?.message || 'Failed to update student.';
+      
+      if (validationErrors) {
+        if (validationErrors.full_name) errorMessage = validationErrors.full_name[0];
+        else if (validationErrors.class_id) errorMessage = 'Class is required: ' + validationErrors.class_id[0];
+        else if (validationErrors.email) errorMessage = 'Email Error: ' + validationErrors.email[0];
+        else if (validationErrors.father_name) errorMessage = 'Father\'s Name Error: ' + validationErrors.father_name[0];
+      }
+
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Client-side validation for required fields (Full Name and Class)
+    if (!formData.full_name.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Full Name is a required field.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.class_id) {
+        toast({
+            title: 'Validation Error',
+            description: 'Class is a required field. Please assign a class.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    
+    updateStudentMutation.mutate(formData);
+  };
+
+  const updateFormField = (field: keyof StudentFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Edit className="text-emerald-400" size={24} />
+            Update Student Details
+          </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            Editing student: **{student?.full_name}** (Roll No: **{student?.roll_number}**)
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-6">
+            
+            {/* --- REQUIRED FIELDS SECTION --- */}
+            <h3 className="text-lg font-semibold text-emerald-300 border-b border-white/10 pb-2 flex items-center gap-2">
+                <Hash size={18} /> Required Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit_full_name" className="text-white/80 flex items-center gap-2 font-medium">
+                  <User size={16} className="text-emerald-400" />
+                  Full Name <span className="text-red-400 font-bold text-xs">(Required)</span>
+                </Label>
+                <Input
+                  id="edit_full_name"
+                  value={formData.full_name}
+                  onChange={(e) => updateFormField('full_name', e.target.value)}
+                  className="glass-input focus:ring-2 focus:ring-emerald-400/50"
+                  placeholder="Enter full name"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit_class" className="text-white/80 flex items-center gap-2 font-medium">
+                    <UserCheck size={16} className="text-emerald-400" />
+                    Class Assignment <span className="text-red-400 font-bold text-xs">(Required)</span>
+                </Label>
+                <Select
+                  value={formData.class_id}
+                  onValueChange={(value) => updateFormField('class_id', value)}
+                  required
+                >
+                  <SelectTrigger className="glass-input focus:ring-2 focus:ring-emerald-400/50">
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent className="glassmorphism-strong border-white/30 custom-scrollbar">
+                    {classesLoading ? (
+                      <div className="flex items-center justify-center py-4 text-emerald-300">
+                        <Loader2 className="animate-spin" size={16} /> <span className="ml-2">Loading Classes...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {classes?.map((classItem: Class) => (
+                          <SelectItem key={classItem.id} value={classItem.id.toString()}>
+                            {classItem.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* --- OPTIONAL FIELDS SECTION --- */}
+            <h3 className="text-lg font-semibold text-slate-300 border-b border-white/10 pb-2 mt-4 flex items-center gap-2">
+                <Edit size={16} /> Optional Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div className="space-y-2">
+                <Label htmlFor="edit_father_name" className="text-white/80 flex items-center gap-2">
+                  <Briefcase size={16} className="text-slate-400" />
+                  Father's Name 
+                </Label>
+                <Input
+                  id="edit_father_name"
+                  value={formData.father_name}
+                  onChange={(e) => updateFormField('father_name', e.target.value)}
+                  className="glass-input focus:ring-2 focus:ring-blue-400/50"
+                  placeholder="Enter father's name"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit_email" className="text-white/80 flex items-center gap-2">
+                  <Mail size={16} className="text-slate-400" />
+                  Email Address 
+                </Label>
+                <Input
+                  id="edit_email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => updateFormField('email', e.target.value)}
+                  className="glass-input focus:ring-2 focus:ring-blue-400/50"
+                  placeholder="Enter email address"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit_phone" className="text-white/80 flex items-center gap-2">
+                  <Phone size={16} className="text-slate-400" />
+                  Phone Number 
+                </Label>
+                <Input
+                  id="edit_phone"
+                  type="tel"
+                  value={formData.phone_number}
+                  onChange={(e) => updateFormField('phone_number', e.target.value)}
+                  className="glass-input focus:ring-2 focus:ring-blue-400/50"
+                  placeholder="Enter phone number"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-8 mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="border-white/20 text-white hover:bg-white/10 transition-colors"
+              disabled={updateStudentMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={updateStudentMutation.isPending}
+              className="emerald-gradient hover:shadow-lg transition-all duration-200 min-w-[150px]"
+            >
+              {updateStudentMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
-// Students List Page Component
+// --- Students List Page Component (Kept functionality from last update) ---
 export default function StudentsListPage() {
   const { user, token } = useAuth();
   const { toast } = useToast();
@@ -409,26 +439,24 @@ export default function StudentsListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   
-  // Debounced search term for API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // Build query parameters for API call
-  const buildQueryParams = () => {
-    const params: any = {
-      page: currentPage,
-      per_page: pageSize
-    };
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, selectedClass, activeStatus]);
+
+  const buildQueryParams = (isStatsFetch: boolean = false) => {
+    const params: any = {};
+    
+    if (!isStatsFetch) {
+        params.page = currentPage;
+        params.per_page = pageSize;
+    } else {
+        params.per_page = 10000;
+    }
     
     if (debouncedSearchTerm) {
       params.search = debouncedSearchTerm;
-    }
-    
-    if (selectedClass !== "all") {
-      if (selectedClass === "unassigned") {
-        params.unassigned = true;
-      } else {
-        params.class_id = selectedClass;
-      }
     }
     
     if (activeStatus !== "all") {
@@ -438,40 +466,48 @@ export default function StudentsListPage() {
         params.unassigned = true;
       }
     }
+
+    if (selectedClass !== "all") {
+        if (selectedClass === "unassigned") {
+            params.unassigned = true;
+        } else {
+            params.class_id = selectedClass;
+        }
+    }
     
     return params;
   };
 
-  // Fetch students with filters and pagination
+
+  // Fetch students for the paginated table view
   const { 
     data: studentsResponse, 
     isLoading: studentsLoading, 
     error,
     refetch 
-  } = useQuery({
+  } = useQuery<StudentsResponse>({
     queryKey: ['students', debouncedSearchTerm, selectedClass, activeStatus, currentPage, pageSize],
     queryFn: async () => {
-      const params = buildQueryParams();
+      const params = buildQueryParams(false);
       const response = await api.get('/user/students', { params });
       return response.data;
     },
     enabled: !!token,
   });
 
-  // Fetch ALL students for dashboard stats (without pagination)
-  const { data: allStudentsResponse } = useQuery({
+  // Fetch ALL students for dashboard stats 
+  const { data: allStudentsResponse, isLoading: allStudentsLoading } = useQuery<StudentsResponse>({
     queryKey: ['all-students-stats'],
     queryFn: async () => {
-      const response = await api.get('/user/students', { 
-        params: { per_page: 10000 } // Large number to get all students
-      });
+      const params = buildQueryParams(true);
+      const response = await api.get('/user/students', { params });
       return response.data;
     },
     enabled: !!token,
   });
 
   // Fetch classes for filter
-  const { data: classes } = useQuery({
+  const { data: classes, isLoading: classesLoading } = useQuery<Class[]>({
     queryKey: ['classes'],
     queryFn: async () => {
       const response = await api.get('/user/classes');
@@ -481,7 +517,7 @@ export default function StudentsListPage() {
   });
 
   // Get students and pagination info from response
-  const getStudentsAndPagination = (response: StudentsResponse) => {
+  const getStudentsAndPagination = (response: StudentsResponse | undefined) => {
     if (!response?.data?.students) {
       return { students: [], pagination: null };
     }
@@ -506,7 +542,6 @@ export default function StudentsListPage() {
     const withEmail = students.filter(student => student.email && student.email.length > 0).length;
     const withPhone = students.filter(student => student.phone_number && student.phone_number.length > 0).length;
     
-    // Students with class assigned are active, without class are inactive
     const active = students.filter(student => student.class_id !== null).length;
     const inactive = students.filter(student => student.class_id === null).length;
 
@@ -519,7 +554,7 @@ export default function StudentsListPage() {
     };
   };
 
-  const stats = calculateStats(allStudents);
+  const stats = calculateStats(allStudents || []);
 
   // Delete student mutation
   const deleteStudentMutation = useMutation({
@@ -585,32 +620,47 @@ export default function StudentsListPage() {
   const getPageNumbers = () => {
     if (!pagination) return [];
     
-    const pages = [];
+    const pages: (number | '...')[] = [];
     const totalPages = pagination.last_page;
     const current = pagination.current_page;
     
-    // Always show first page
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) {
+            pages.push(i);
+        }
+        return pages;
+    }
+
     pages.push(1);
-    
-    // Calculate range around current page
-    let start = Math.max(2, current - 1);
-    let end = Math.min(totalPages - 1, current + 1);
-    
-    // Add ellipsis if needed
-    if (start > 2) pages.push('...');
-    
-    // Add pages around current
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
+
+    if (current > 3) {
+        pages.push('...');
     }
     
-    // Add ellipsis if needed
-    if (end < totalPages - 1) pages.push('...');
+    let start = Math.max(2, current - 1);
+    let end = Math.min(totalPages - 1, current + 1);
+
+    if (current <= 3) {
+        end = Math.min(totalPages - 1, 3);
+    } else if (current >= totalPages - 2) {
+        start = Math.max(2, totalPages - 3);
+    }
+
+    for (let i = start; i <= end; i++) {
+        if (i > 1 && i < totalPages) {
+            pages.push(i);
+        }
+    }
     
-    // Always show last page if there is more than one page
-    if (totalPages > 1) pages.push(totalPages);
+    if (current < totalPages - 2) {
+        pages.push('...');
+    }
+
+    if (totalPages > 1 && !pages.includes(totalPages)) pages.push(totalPages);
     
-    return pages;
+    return pages.filter((value, index, self) => 
+        (typeof value === 'number' && index > 0 && self[index - 1] === '...' && self[index] === 1) ? false : self.indexOf(value) === index
+    );
   };
 
   return (
@@ -618,7 +668,7 @@ export default function StudentsListPage() {
       <div className="flex">
         <TeacherSidebar />
         {/* Main Content */}
-        <div className="flex-1 ml-0 lg:ml-0 min-h-screen">
+        <div className="flex-1 ml-0 lg:ml-0 min-h-screen p-4 lg:p-8">
           {/* Header */}
           <div className="glassmorphism-strong rounded-2xl p-6 mb-6 animate-fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -650,73 +700,39 @@ export default function StudentsListPage() {
             </div>
           </div>
 
-          {/* Stats Cards - Using ALL students data */}
+          {/* Stats Cards - Updated for Task 2 Loading */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            {/* Total Students Card */}
-            <Card className="glassmorphism-strong border-white/30 hover:border-emerald-400/30 transition-all duration-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-300 text-sm">Total Students</p>
-                    <h3 className="text-2xl font-bold text-white">{stats.total}</h3>
-                    <p className="text-slate-400 text-xs mt-1">All registered students</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <Users className="text-emerald-300" size={24} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Active Students Card */}
-            <Card className="glassmorphism-strong border-white/30 hover:border-blue-400/30 transition-all duration-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-300 text-sm">Active Students</p>
-                    <h3 className="text-2xl font-bold text-white">{stats.active}</h3>
-                    <p className="text-slate-400 text-xs mt-1">With class assigned</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <UserCheck className="text-blue-300" size={24} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Inactive Students Card */}
-            <Card className="glassmorphism-strong border-white/30 hover:border-orange-400/30 transition-all duration-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-300 text-sm">Inactive Students</p>
-                    <h3 className="text-2xl font-bold text-white">{stats.inactive}</h3>
-                    <p className="text-slate-400 text-xs mt-1">No class assigned</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center">
-                    <UserX className="text-orange-300" size={24} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Students with Email Card */}
-            <Card className="glassmorphism-strong border-white/30 hover:border-purple-400/30 transition-all duration-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-slate-300 text-sm">With Email</p>
-                    <h3 className="text-2xl font-bold text-white">{stats.withEmail}</h3>
-                    <p className="text-slate-400 text-xs mt-1">
-                      {stats.total > 0 ? ((stats.withEmail / stats.total) * 100).toFixed(1) : 0}% of total
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Mail className="text-purple-300" size={24} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            
+            {([
+              { title: "Total Students", value: stats.total, subtext: "All registered students", icon: Users, color: "emerald", loading: allStudentsLoading },
+              { title: "Active Students", value: stats.active, subtext: "With class assigned", icon: UserCheck, color: "blue", loading: allStudentsLoading },
+              { title: "Inactive Students", value: stats.inactive, subtext: "No class assigned", icon: UserX, color: "orange", loading: allStudentsLoading },
+              { title: "With Email", value: stats.withEmail, subtext: `${stats.total > 0 ? ((stats.withEmail / stats.total) * 100).toFixed(1) : 0}% of total`, icon: Mail, color: "purple", loading: allStudentsLoading },
+            ] as const).map((item, index) => (
+                <Card 
+                    key={index} 
+                    className={`glassmorphism-strong border-white/30 hover:border-${item.color}-400/30 transition-all duration-200`}
+                >
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-slate-300 text-sm">{item.title}</p>
+                                <h3 className="text-2xl font-bold text-white flex items-center">
+                                    {item.loading ? (
+                                        <Loader2 className={`animate-spin text-${item.color}-300 h-6 w-6`} />
+                                    ) : (
+                                        item.value
+                                    )}
+                                </h3>
+                                <p className="text-slate-400 text-xs mt-1">{item.subtext}</p>
+                            </div>
+                            <div className={`w-12 h-12 rounded-full bg-${item.color}-500/20 flex items-center justify-center`}>
+                                <item.icon className={`text-${item.color}-300`} size={24} />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
           </div>
 
           {/* Students Table */}
@@ -724,7 +740,7 @@ export default function StudentsListPage() {
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle className="text-white text-xl bg-gradient-to-r from-white to-emerald-200 bg-clip-text text-transparent">
-                  {hasActiveFilters ? `Filtered Students (${students.length})` : `All Students (${pagination?.total || 0})`}
+                  {hasActiveFilters ? `Filtered Students (${pagination?.total || 0})` : `All Students (${pagination?.total || 0})`}
                 </CardTitle>
                 
                 {/* Search and Filters */}
@@ -747,16 +763,25 @@ export default function StudentsListPage() {
                     {/* Class Filter */}
                     <Select value={selectedClass} onValueChange={setSelectedClass}>
                       <SelectTrigger className="glass-input w-full sm:w-40 focus:ring-2 focus:ring-emerald-400/50">
-                        <SelectValue placeholder="All Classes" />
+                        {/* Task 2: Loading animation for dropdown label */}
+                        {classesLoading ? <Loader2 className="animate-spin text-emerald-300 mr-2" size={16} /> : <SelectValue placeholder="All Classes" />}
                       </SelectTrigger>
                       <SelectContent className="glassmorphism-strong border-white/30 custom-scrollbar">
-                        <SelectItem value="all">All Classes</SelectItem>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {classes?.map((cls: Class) => (
-                          <SelectItem key={cls.id} value={cls.id.toString()}>
-                            {cls.name}
-                          </SelectItem>
-                        ))}
+                        {classesLoading ? (
+                          <div className="flex items-center justify-center py-4 text-emerald-300">
+                            <Loader2 className="animate-spin" size={16} />
+                          </div>
+                        ) : (
+                          <>
+                            <SelectItem value="all">All Classes</SelectItem>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {classes?.map((cls: Class) => (
+                              <SelectItem key={cls.id} value={cls.id.toString()}>
+                                {cls.name}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
 
@@ -790,6 +815,7 @@ export default function StudentsListPage() {
             </CardHeader>
 
             <CardContent>
+              {/* Main Loading State */}
               {studentsLoading ? (
                 <div className="flex justify-center items-center py-12">
                   <div className="text-center">
