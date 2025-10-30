@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import api from '@/lib/axios';
+import api from '../lib/axios';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,6 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/config';
 
 interface Class {
   id: number;
@@ -41,6 +40,17 @@ interface Class {
   updated_at: string;
   subjects_count?: number;
   student_count?: number;
+}
+
+// Interface for the expected API response data structure
+interface ClassesResponseData {
+  classes: Class[];
+  pagination: {
+    current_page: number;
+    total: number;
+    per_page: number;
+    last_page: number;
+  };
 }
 
 export default function ClassesManagement() {
@@ -56,88 +66,154 @@ export default function ClassesManagement() {
     name: '',
     description: ''
   });
+  // State for current page, managed locally
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  // Debounced state for search term, used for the API call
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const itemsPerPage = 6;
 
-  // Fetch classes
-  const { data: classes, isLoading } = useQuery({
-    queryKey: ['classes'],
+  // --- Search and Pagination Logic ---
+  
+  // Debounce search term and reset page on change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      // IMPORTANT: Reset to the first page when the search term changes
+      setCurrentPage(1); 
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch classes with search and pagination
+  // Note: We use debouncedSearchTerm and currentPage in the queryKey
+  const { data: classesData, isLoading, isFetching } = useQuery<ClassesResponseData>({
+    queryKey: ['classes', debouncedSearchTerm, currentPage],
     queryFn: async () => {
-      const response = await api.get('/user/classes');
-     
+      let url = '/user/classes';
+      const params = new URLSearchParams();
+      
+      // Use the debounced search term in the API request
+      if (debouncedSearchTerm) {
+        params.append('search', debouncedSearchTerm);
+      }
+      
+      // Append pagination parameters
+      params.append('page', currentPage.toString());
+      params.append('per_page', itemsPerPage.toString());
+
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      const response = await api.get(url);
+      
       if (!response.status || response.status !== 200) {
         throw new Error('Failed to fetch classes');
       }
-      return response.data?.data?.classes;
+
+      // Assuming your API returns an object with 'data' which contains 'classes' and 'pagination'
+      // The response structure suggests the data field contains the classes and pagination
+      return response.data?.data;
     },
-    enabled: !!token,
+    // Only enable if the user token is present
+    enabled: !!token, 
   });
 
-  // Create class mutation
-  const createMutation = useMutation({
-    mutationFn: async (newClass: { name: string; description: string }) => {
-      const response = await fetch(`${API_BASE_URL}/user/classes`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(newClass),
-      });
+  // Extract data with fallbacks
+  const classes = classesData?.classes || [];
+  const paginationInfo = classesData?.pagination || {
+    current_page: currentPage, // Use local state for initial current_page
+    total: 0,
+    per_page: itemsPerPage,
+    last_page: 1
+  };
+  
+  // Calculate the last page for navigation, ensure it's at least 1
+  const lastPage = Math.max(paginationInfo.last_page, 1);
+  
+  // Handlers for pagination controls
+  const handleNextPage = () => {
+    if (currentPage < lastPage) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create class');
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  // --- Student Count Logic ---
+  
+  // Fetch students data (assuming this is necessary for the student count display)
+  const { data: studentsData } = useQuery({
+    queryKey: ['students'],
+    queryFn: async () => {
+      // Fetch a large number of students to count against classes locally
+      const response = await api.get('/user/students?per_page=1000'); 
+      
+      if (!response.status || response.status !== 200) {
+        throw new Error('Failed to fetch students');
       }
 
-      return response.json();
+      // Adjust to the correct nested structure for students array
+      return response.data?.data?.students?.data || [];
+    },
+    enabled: !!token && classes.length > 0, // Only fetch if authenticated and we have classes to check against
+    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
+  });
+
+  // Count students per class
+  const getStudentCountForClass = (classId: number) => {
+    if (!studentsData) return 0;
+    // Assuming a student object has a 'class_id' field
+    return studentsData.filter((student: any) => student.class_id === classId).length;
+  };
+
+  // --- Mutators (Create, Update, Delete) ---
+
+  // Create class mutation using axios
+  const createMutation = useMutation({
+    mutationFn: async (newClass: { name: string; description: string }) => {
+      const response = await api.post('/user/classes', newClass);
+      return response.data;
     },
     onSuccess: () => {
+      // Invalidate classes query to refetch the list from the first page, including the new class
       queryClient.invalidateQueries({ queryKey: ['classes'] });
       setIsCreateDialogOpen(false);
       setFormData({ name: '', description: '' });
-      setCurrentPage(1); // Reset to first page after creating a new class
+      setCurrentPage(1); // Reset to first page
       toast({
         title: 'Success',
         description: 'Class created successfully',
         variant: 'default',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.response?.data?.message || 'Failed to create class',
         variant: 'destructive',
       });
     },
   });
 
-  // Update class mutation
+  // Update class mutation using axios
   const updateMutation = useMutation({
     mutationFn: async (updatedClass: { id: number; name: string; description: string }) => {
-      const response = await fetch(`${API_BASE_URL}/user/classes/${updatedClass.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          name: updatedClass.name,
-          description: updatedClass.description
-        }),
+      const response = await api.put(`/user/classes/${updatedClass.id}`, {
+        name: updatedClass.name,
+        description: updatedClass.description
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update class');
-      }
-
-      return response.json();
+      return response.data;
     },
     onSuccess: () => {
+      // Invalidate the relevant queries to update the list and student count (if necessary)
       queryClient.invalidateQueries({ queryKey: ['classes'] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
       setIsEditDialogOpen(false);
       setSelectedClass(null);
       toast({
@@ -146,51 +222,49 @@ export default function ClassesManagement() {
         variant: 'default',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.response?.data?.message || 'Failed to update class',
         variant: 'destructive',
       });
     },
   });
 
-  // Delete class mutation
+  // Delete class mutation using axios
   const deleteMutation = useMutation({
     mutationFn: async (classId: number) => {
-      const response = await fetch(`${API_BASE_URL}/user/classes/${classId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete class');
-      }
-
-      return response.json();
+      const response = await api.delete(`/user/classes/${classId}`);
+      return response.data;
     },
     onSuccess: () => {
+      // Invalidate classes query to refetch the list
       queryClient.invalidateQueries({ queryKey: ['classes'] });
+      queryClient.invalidateQueries({ queryKey: ['students'] }); // Important: Students may be tied to this class
       setIsDeleteDialogOpen(false);
       setSelectedClass(null);
+      
+      // Adjust page if current page is now empty
+      if (classes.length === 1 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+      }
+      
       toast({
         title: 'Success',
         description: 'Class deleted successfully',
         variant: 'default',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.response?.data?.message || 'Failed to delete class',
         variant: 'destructive',
       });
     },
   });
+
+  // --- Handlers for Dialogs and Forms ---
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,36 +316,30 @@ export default function ClassesManagement() {
     setIsDeleteDialogOpen(true);
   };
 
-  const filteredClasses = classes?.filter((classItem: Class) =>
-    classItem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (classItem.description && classItem.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  ) || [];
+  // --- Render ---
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredClasses.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedClasses = filteredClasses.slice(startIndex, startIndex + itemsPerPage);
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
+  // Loading state for initial fetch
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen gradient-bg">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
-      </div>
+      <GlassmorphismLayout>
+        <div className="flex">
+          <TeacherSidebar />
+          <div className="flex-1 ml-0 lg:ml-0 min-h-screen p-0">
+            <div className="container mx-auto">
+              <div className="glassmorphism-strong rounded-2xl p-6 mb-6">
+                <div className="flex items-center justify-center h-64">
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-300"></div>
+                    <p className="text-white text-lg">Loading classes...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </GlassmorphismLayout>
     );
   }
-
 
   return (
     <GlassmorphismLayout>
@@ -306,20 +374,36 @@ export default function ClassesManagement() {
                   type="text"
                   placeholder="Search classes..."
                   value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1); // Reset to first page when searching
-                  }}
+                  // This updates the local searchTerm state
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="glass-input pl-10"
                 />
+                {/* Show fetching indicator while the API call is in progress after debounce */}
+                {isFetching && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-300" />
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Classes Grid */}
-            {paginatedClasses.length > 0 ? (
+            {/* Loading State for Search */}
+            {isFetching && !isLoading && (
+              <div className="glassmorphism-strong rounded-xl p-6 mb-6">
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
+                    <p className="text-slate-300">Updating classes...</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Classes Grid - 6 cards per page */}
+            {classes.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 mb-6">
-                  {paginatedClasses.map((classItem: Class) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                  {classes.map((classItem: Class) => (
                     <Card key={classItem.id} className="glassmorphism-strong border-white/30 hover:border-emerald-400/30 transition-all">
                       <CardHeader className="pb-3">
                         <div className="flex justify-between items-start">
@@ -351,11 +435,12 @@ export default function ClassesManagement() {
                         <div className="flex justify-between items-center text-slate-400 text-sm">
                           <div className="flex items-center">
                             <BookOpen size={16} className="mr-1" />
-                            <span>{classItem.subjects_count || 0} subjects</span>
+                            {/* NOTE: subjects_count is not present in the API response provided, defaulted to 0 */}
+                            <span>{classItem.subjects_count || 0} subjects</span> 
                           </div>
                           <div className="flex items-center">
                             <Users size={16} className="mr-1" />
-                            <span>{classItem.student_count || 0} students</span>
+                            <span>{getStudentCountForClass(classItem.id)} students</span>
                           </div>
                         </div>
                         <div className="mt-4 pt-3 border-t border-white/20 text-xs text-slate-400">
@@ -367,24 +452,24 @@ export default function ClassesManagement() {
                 </div>
 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
+                {lastPage > 1 && (
                   <div className="flex justify-center items-center mt-8 gap-4">
                     <Button
                       variant="outline"
                       onClick={handlePrevPage}
-                      disabled={currentPage === 1}
+                      disabled={currentPage === 1 || isFetching}
                       className="glassmorphism-strong border-white/30 text-white"
                     >
                       <ChevronLeft size={16} className="mr-2" />
                       Previous
                     </Button>
                     <span className="text-white">
-                      Page {currentPage} of {totalPages}
+                      Page {currentPage} of {lastPage}
                     </span>
                     <Button
                       variant="outline"
                       onClick={handleNextPage}
-                      disabled={currentPage === totalPages}
+                      disabled={currentPage === lastPage || isFetching}
                       className="glassmorphism-strong border-white/30 text-white"
                     >
                       Next
@@ -394,6 +479,7 @@ export default function ClassesManagement() {
                 )}
               </>
             ) : (
+              // No Classes Found State
               <div className="glassmorphism-strong rounded-xl p-12 text-center">
                 <GraduationCap size={48} className="mx-auto text-slate-400 mb-4" />
                 <h3 className="text-xl text-white mb-2">No classes found</h3>
@@ -556,6 +642,5 @@ export default function ClassesManagement() {
         </div>
       </div>
     </GlassmorphismLayout>
-
   );
 }
