@@ -7,6 +7,7 @@ import GlassmorphismLayout from "@/components/GlassmorphismLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import api from '@/lib/axios';
 import {
   Select,
   SelectContent,
@@ -661,26 +662,38 @@ export default function CreatePaperPage() {
   // Mutations
   const createPaperMutation = useMutation({
     mutationFn: async (paperData: any) => {
-      const response = await fetch(`${API_BASE_URL}/user/papers`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(paperData),
-      });
+      console.log("paper data : ", paperData);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create paper");
+      let api_endpoint = `${API_BASE_URL}/user/papers`;
+      if (paperData?.created_by === "generate") {
+        api_endpoint = `${API_BASE_URL}/user/papers-ai`;
       }
 
-      return response.json();
+      let response = await api.post(api_endpoint, paperData);
+      return response;
     },
-    onSuccess: (data) => {
+    onSuccess: (data:any) => {
+
       queryClient.invalidateQueries({
         queryKey: ["/user/papers", user?.id],
       });
+
+      console.log("data : ",data);
+
+      
+
+      setSelectedMaterial(null);
+
+      toast({
+        title: "Success",
+        description: data?.message || "Paper created successfully"
+      });
+
+      if (paperForm.creationMethod === "manual") {
+        navigate(`/teacher/paper-builder/${data.data.paper.id}`);
+      }else if (paperForm.creationMethod === "generate") {
+        navigate(`/teacher/paper-builder/${data.data.paper_id}`);
+      }
 
       // Reset form
       setPaperForm({
@@ -696,18 +709,7 @@ export default function CreatePaperPage() {
         template_id: "",
       });
 
-      setSelectedMaterial(null);
 
-      toast({
-        title: "Success",
-        description: data.message || "Paper created successfully"
-      });
-
-      if (paperForm.creationMethod === "manual") {
-        navigate(`/teacher/paper-builder/${data.data.paper.id}`);
-      } else {
-        navigate("/teacher");
-      }
     },
     onError: (error: Error) => {
       toast({
@@ -740,10 +742,10 @@ export default function CreatePaperPage() {
       // Set default generation mode based on selection
       let newGenerationMode = paperForm.generationMode;
       if (isPastPaper) {
-        // Default to asis-pastpapers if past paper is selected
-        newGenerationMode = 'asis-pastpapers';
-      } else if (newGenerationMode === 'asis-pastpapers') {
-        // If current mode is asis-pastpapers, but new selection is not, reset to intelligent/keybook
+        // Default to as-is if past paper is selected
+        newGenerationMode = 'as-is';
+      } else if (newGenerationMode === 'as-is') {
+        // If current mode is as-is, but new selection is not, reset to intelligent/keybook
         newGenerationMode = 'intelligent';
       }
 
@@ -799,8 +801,8 @@ export default function CreatePaperPage() {
       return;
     }
 
-    // Validation for 'asis-pastpapers' mode - must have a past paper selected
-    if (paperForm.generationMode === 'asis-pastpapers' && (!selectedMaterial || !selectedMaterial.type.name.toLowerCase().includes('past paper'))) {
+    // Validation for 'as-is' mode - must have a past paper selected
+    if (paperForm.generationMode === 'as-is' && (!selectedMaterial || !selectedMaterial.type.name.toLowerCase().includes('past paper'))) {
       toast({
         title: "Error",
         description: "To use 'As-Is from Past Papers' mode, you must select a material of type 'Past Paper'.",
@@ -809,8 +811,8 @@ export default function CreatePaperPage() {
       return;
     }
 
-    // Validation for 'asis-keybook' mode - must have a non-past paper material selected
-    if (paperForm.generationMode === 'asis-keybook' && (!selectedMaterial || selectedMaterial.type.name.toLowerCase().includes('past paper'))) {
+    // Validation for 'as-is' mode - must have a non-past paper material selected
+    if (paperForm.generationMode === 'as-is' && (!selectedMaterial || selectedMaterial.type.name.toLowerCase().includes('past paper'))) {
       toast({
         title: "Error",
         description: "To use 'As-Is from Key Book' mode, you must select a material that is not a 'Past Paper'.",
@@ -832,13 +834,9 @@ export default function CreatePaperPage() {
       ...(paperForm.creationMethod === "generate" && {
         data_source: paperForm.sourceType,
         generation_mode: paperForm.generationMode,
-        study_material_ids: selectedMaterial ? [{
-          id: selectedMaterial.id,
-          ...(!selectedMaterial.type.name.toLowerCase().includes('past paper') && {
-            from_page: selectedMaterial.fromPage,
-            to_page: selectedMaterial.toPage
-          })
-        }] : [],
+        study_material: selectedMaterial?.id,
+        study_material_from_page: selectedMaterial?.fromPage,
+        study_material_to_page: selectedMaterial?.toPage
       }),
     };
 
@@ -1066,7 +1064,7 @@ export default function CreatePaperPage() {
                     const isPastPaperOptionHidden =
                       selectedMaterial &&
                       !isPastPaperMaterial;
-                    
+
                     // *** UPDATED LOGIC: Hide Keybook option if a Past Paper is selected ***
                     const isKeyBookOptionHidden =
                       selectedMaterial &&
@@ -1149,11 +1147,10 @@ export default function CreatePaperPage() {
                                     return (
                                       <div
                                         key={material.id}
-                                        className={`relative group overflow-hidden rounded-xl border transition-all bg-slate-900 cursor-pointer ${
-                                          isSelected
-                                            ? 'border-emerald-400 bg-emerald-400/10 ring-2 ring-emerald-400'
-                                            : 'border-white/30 hover:border-emerald-400/40'
-                                        }`}
+                                        className={`relative group overflow-hidden rounded-xl border transition-all bg-slate-900 cursor-pointer ${isSelected
+                                          ? 'border-emerald-400 bg-emerald-400/10 ring-2 ring-emerald-400'
+                                          : 'border-white/30 hover:border-emerald-400/40'
+                                          }`}
                                         onClick={() => handleMaterialSelect(material)}
                                       >
                                         {/* Selection Indicator */}
@@ -1314,11 +1311,10 @@ export default function CreatePaperPage() {
                                       return (
                                         <div
                                           key={material.id}
-                                          className={`relative group overflow-hidden rounded-xl border transition-all bg-slate-900 cursor-pointer ${
-                                            isSelected
-                                              ? 'border-emerald-400 bg-emerald-400/10 ring-2 ring-emerald-400'
-                                              : 'border-white/30 hover:border-emerald-400/40'
-                                          }`}
+                                          className={`relative group overflow-hidden rounded-xl border transition-all bg-slate-900 cursor-pointer ${isSelected
+                                            ? 'border-emerald-400 bg-emerald-400/10 ring-2 ring-emerald-400'
+                                            : 'border-white/30 hover:border-emerald-400/40'
+                                            }`}
                                           onClick={() => handleMaterialSelect(material)}
                                         >
                                           {/* Selection Indicator */}
@@ -1506,9 +1502,9 @@ export default function CreatePaperPage() {
                                   value="intelligent"
                                   id="intelligent"
                                   // Disabled if a specific as-is mode should be forced by material selection
-                                  disabled={selectedMaterial && 
-                                    ((isPastPaperMaterial && paperForm.generationMode !== 'asis-pastpapers') || 
-                                     (!isPastPaperMaterial && paperForm.generationMode !== 'asis-keybook'))
+                                  disabled={selectedMaterial &&
+                                    ((isPastPaperMaterial && paperForm.generationMode !== 'as-is') ||
+                                      (!isPastPaperMaterial && paperForm.generationMode !== 'as-is'))
                                   }
                                 />
                                 <Label
@@ -1530,14 +1526,14 @@ export default function CreatePaperPage() {
                               <div className="glassmorphism p-4 rounded-lg">
                                 <div className="flex items-center space-x-3">
                                   <RadioGroupItem
-                                    data-testid="radio-asis-keybook-mode"
-                                    value="asis-keybook"
-                                    id="asis-keybook"
+                                    data-testid="radio-as-is-mode"
+                                    value="as-is"
+                                    id="as-is"
                                     // Disabled if no material selected or selected material is past paper
                                     disabled={!selectedMaterial || isPastPaperMaterial}
                                   />
                                   <Label
-                                    htmlFor="asis-keybook"
+                                    htmlFor="as-is"
                                     className="text-white cursor-pointer"
                                   >
                                     As-Is from Key Book
@@ -1555,17 +1551,17 @@ export default function CreatePaperPage() {
                               <div className="glassmorphism p-4 rounded-lg">
                                 <div className="flex items-center space-x-3">
                                   <RadioGroupItem
-                                    data-testid="radio-asis-pastpapers-mode"
-                                    value="asis-pastpapers"
-                                    id="asis-pastpapers"
+                                    data-testid="radio-as-is-mode"
+                                    value="as-is"
+                                    id="as-is"
                                     // Disabled if no material selected or selected material is not past paper
                                     disabled={!selectedMaterial || !isPastPaperMaterial}
                                   />
                                   <Label
-                                    htmlFor="asis-pastpapers"
+                                    htmlFor="as-is"
                                     className="text-white cursor-pointer"
                                   >
-                                    As-Is from Past Papers
+                                    As-Is
                                   </Label>
                                 </div>
                                 <p className="text-white/60 text-xs ml-6 mt-1">
@@ -1625,11 +1621,10 @@ export default function CreatePaperPage() {
                                   {templates.map((template: Template) => (
                                     <div
                                       key={template.id}
-                                      className={`relative group overflow-hidden rounded-xl border transition-all bg-slate-900 cursor-pointer ${
-                                        paperForm.template_id === template.id
-                                          ? 'border-emerald-400 bg-emerald-400/10 ring-2 ring-emerald-400'
-                                          : 'border-white/30 hover:border-emerald-400/40'
-                                      } ${!paperForm.template_id ? 'border-red-400/50' : ''}`}
+                                      className={`relative group overflow-hidden rounded-xl border transition-all bg-slate-900 cursor-pointer ${paperForm.template_id === template.id
+                                        ? 'border-emerald-400 bg-emerald-400/10 ring-2 ring-emerald-400'
+                                        : 'border-white/30 hover:border-emerald-400/40'
+                                        } ${!paperForm.template_id ? 'border-red-400/50' : ''}`}
                                       onClick={() => handleTemplateSelect(template.id)}
                                     >
                                       {/* Header */}
@@ -1683,9 +1678,8 @@ export default function CreatePaperPage() {
                                       </div>
 
                                       {/* Hover Overlay */}
-                                      <div className={`absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center ${
-                                        paperForm.template_id === template.id ? 'opacity-100' : ''
-                                      }`}>
+                                      <div className={`absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 text-center ${paperForm.template_id === template.id ? 'opacity-100' : ''
+                                        }`}>
                                         <p className="text-slate-200 text-sm line-clamp-3 mb-4">
                                           {template.class?.name || `Class ${template.class_id}`} - {template.subject?.name || `Subject ${template.subject_id}`}
                                         </p>
