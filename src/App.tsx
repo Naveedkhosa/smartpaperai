@@ -28,6 +28,7 @@ import StudyMaterials from './pages/StudyMaterials';
 import CreatePersonalDb from './pages/CreatePersonalDb';
 import ClassesManagement from './pages/ClassesManagement';
 import SubjectManagement from './pages/SubjectManagement';
+import CreditBuyPage from "./pages/CreditBuyPage"; // Add this import
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole }: { 
@@ -144,23 +145,22 @@ function AppRoutes() {
         } 
       />
       <Route 
-  path="/teacher/papers" 
-  element={
-    <ProtectedRoute requiredRole="teacher">
-      <PapersPage />
-    </ProtectedRoute>
-  } 
-/>
-
+        path="/teacher/papers" 
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <PapersPage />
+          </ProtectedRoute>
+        } 
+      />
       
       <Route 
-  path="/teacher/subjects" 
-  element={
-    <ProtectedRoute requiredRole="teacher">
-      <SubjectManagement />
-    </ProtectedRoute>
-  } 
-/>
+        path="/teacher/subjects" 
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <SubjectManagement />
+          </ProtectedRoute>
+        } 
+      />
       <Route 
         path="/teacher/grade" 
         element={
@@ -193,6 +193,17 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+      
+      {/* Credit Buy Page Route - Added Here */}
+      <Route 
+        path="/teacher/credits" 
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <CreditBuyPage />
+          </ProtectedRoute>
+        } 
+      />
+      
       <Route 
         path="/student" 
         element={
@@ -202,55 +213,53 @@ function AppRoutes() {
         } 
       />
 
- <Route 
-  path="/teacher/study-materials" 
-  element={
-    <ProtectedRoute requiredRole="teacher">
-      <StudyMaterials />
-    </ProtectedRoute>
-  } 
-/>
-    <Route
-  path="/teacher/paper-viewer/:id"
-  element={
-    <ProtectedRoute requiredRole="teacher">
-      <PaperViewer />
-    </ProtectedRoute>
-  }
-/>
-
-
+      <Route 
+        path="/teacher/study-materials" 
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <StudyMaterials />
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route
+        path="/teacher/paper-viewer/:id"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <PaperViewer />
+          </ProtectedRoute>
+        }
+      />
 
       <Route 
-  path="/teacher/classes" 
-  element={
-    <ProtectedRoute requiredRole="teacher">
-      <ClassesManagement />
-    </ProtectedRoute>
-  } 
-/>
+        path="/teacher/classes" 
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <ClassesManagement />
+          </ProtectedRoute>
+        } 
+      />
 
-{/* Templates Routes */}
-<Route 
-  path="/teacher/templates" 
-  element={
-    <ProtectedRoute>
-      <TemplatesPage />
-    </ProtectedRoute>
-  } 
-/>
+      {/* Templates Routes */}
+      <Route 
+        path="/teacher/templates" 
+        element={
+          <ProtectedRoute>
+            <TemplatesPage />
+          </ProtectedRoute>
+        } 
+      />
 
-<Route 
-  path="/templates/builder" 
-  element={
-    <ProtectedRoute>
-      <TemplateBuilder />
-    </ProtectedRoute>
-  } 
-/>
+      <Route 
+        path="/templates/builder" 
+        element={
+          <ProtectedRoute>
+            <TemplateBuilder />
+          </ProtectedRoute>
+        } 
+      />
 
-
-<Route 
+      <Route 
         path="/teacher/paper-builder/:id" 
         element={
           <ProtectedRoute requiredRole="teacher">

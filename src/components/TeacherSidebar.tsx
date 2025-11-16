@@ -157,7 +157,7 @@ export default function TeacherSidebar() {
   };
 
   const handleBuyMore = () => {
-    navigate("/teacher/manage/billing");
+    navigate("/teacher/credits");
   };
 
   return (
