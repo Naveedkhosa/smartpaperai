@@ -482,7 +482,7 @@ const PapersPage = () => {
                                 <span className="text-sm">Download</span>
                               </button>
                               <button
-                                onClick={() => handleDuplicatePaper(paper)}
+                                onClick={() => handleDuplicatePaper(paper?.id)}
                                 className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-300 hover:bg-white/10 transition-colors"
                               >
                                 <Copy size={16} className="text-amber-400" />
