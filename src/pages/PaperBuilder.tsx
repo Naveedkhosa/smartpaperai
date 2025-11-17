@@ -512,7 +512,6 @@ const QuestionForm: React.FC<{
 
         q.marks = marks;
 
-        console.log("question :", q);
 
 
         onSubmit(q, editing?.id);
@@ -1059,12 +1058,10 @@ const PaperGeneratorAdvanced: React.FC = () => {
         api.get(`/user/papers/${id}`).then((response) => {
             const paperData = response?.data?.data?.paper;
             if (paperData) {
-                console.log("loaded paper : ", paperData);
                 const localSections = convertToLocal(paperData);
                 setSections(localSections);
                 // update local storage
                 localStorage.setItem(LS_KEY, JSON.stringify(localSections));
-                console.log("local sections : ",localSections);
             }
         }).catch((error) => {
             if (error.response && error.response.status === 404) {
@@ -1143,7 +1140,7 @@ const PaperGeneratorAdvanced: React.FC = () => {
 
     const loadTypes = () => {
         api.get(`/user/question-types`).then((response) => {
-            setQuestionTypes(response?.data?.question_types);
+            setQuestionTypes(response?.data?.data?.question_types);
         });
     }
     useEffect(() => {
@@ -1320,7 +1317,6 @@ const PaperGeneratorAdvanced: React.FC = () => {
     const [saving, setSaving] = useState(false);
 
     const savePaper = () => {
-        console.log("Sections : ",sections);
         setSaving(true);
         const payload = formatPayload(sections);
         api.post(`/user/paper/${id}/sections`, payload).then((response) => {
