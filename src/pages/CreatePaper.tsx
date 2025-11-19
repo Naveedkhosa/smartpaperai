@@ -538,6 +538,10 @@ export default function CreatePaperPage() {
   const [selectedMaterial, setSelectedMaterial] = useState<SelectedMaterialWithPages | null>(null);
   const [isAddStudyMaterialDialogOpen, setIsAddStudyMaterialDialogOpen] = useState(false);
 
+  // NEW: File upload state for composed papers
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   // Fetch classes
   const { data: classes, isLoading: classesLoading } = useQuery<Class[]>({
     queryKey: ["/user/classes", user?.id],
@@ -659,28 +663,126 @@ export default function CreatePaperPage() {
     }
   });
 
+  // NEW: File upload handler
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Validate file type
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'image/png',
+        'image/jpeg',
+        'image/jpg'
+      ];
+      
+      // Validate file size (10MB max)
+      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload a file in one of these formats: PDF, DOC, DOCX, PPT, PPTX, PNG, JPEG, JPG",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (file.size > maxSize) {
+        toast({
+          title: "File too large",
+          description: "File size must be less than 10MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setUploadedFile(file);
+      toast({
+        title: "File selected",
+        description: `${file.name} has been selected for upload`,
+        variant: "success",
+      });
+    }
+  };
+
+  // NEW: Upload composed paper mutation
+  const uploadComposedPaperMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      setIsUploading(true);
+      try {
+        const response = await api.post('/user/composed/papers-ai', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        return response.data;
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({
+        queryKey: ["/user/papers", user?.id],
+      });
+
+      setUploadedFile(null);
+      
+      toast({
+        title: "Success",
+        description: data?.message || "Paper uploaded successfully"
+      });
+
+      if (data.paper_id) {
+        navigate(`/teacher/paper-builder/${data.paper_id}`);
+      }
+
+      // Reset form
+      setPaperForm({
+        title: "",
+        subject_id: "",
+        class_id: "",
+        creationMethod: "generate",
+        generationMode: "intelligent",
+        duration: 120,
+        sourceType: "public",
+        personalCategory: "All",
+        content: "",
+        template_id: "",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || error.message || "Failed to upload paper",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Mutations
   const createPaperMutation = useMutation({
     mutationFn: async (paperData: any) => {
       let api_endpoint = `${API_BASE_URL}/user/papers`;
       if (paperData?.created_by === "generate") {
         api_endpoint = `${API_BASE_URL}/user/papers-ai`;
-      }else if(paperData?.created_by === "upload"){
+      } else if (paperData?.created_by === "upload") {
         api_endpoint = `${API_BASE_URL}/user/composed/papers-ai`;
       }
 
       let response = await api.post(api_endpoint, paperData);
       return response;
     },
-    onSuccess: (data:any) => {
-
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({
         queryKey: ["/user/papers", user?.id],
       });
 
-      console.log("data : ",data);
-
-      
+      console.log("data : ", data);
 
       setSelectedMaterial(null);
 
@@ -691,7 +793,7 @@ export default function CreatePaperPage() {
 
       if (paperForm.creationMethod === "manual") {
         navigate(`/teacher/paper-builder/${data.data.paper.id}`);
-      }else if (paperForm.creationMethod === "generate") {
+      } else if (paperForm.creationMethod === "generate") {
         navigate(`/teacher/paper-builder/${data.data.paper_id}`);
       }
 
@@ -708,8 +810,6 @@ export default function CreatePaperPage() {
         content: "",
         template_id: "",
       });
-
-
     },
     onError: (error: Error) => {
       toast({
@@ -782,6 +882,36 @@ export default function CreatePaperPage() {
     return `${baseUrl}/storage/${thumbnail}`;
   };
 
+  // NEW: Handle upload composed paper
+  const handleUploadComposedPaper = () => {
+    if (!paperForm.title || !paperForm.class_id || !paperForm.subject_id) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields: Title, Class, and Subject",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!uploadedFile) {
+      toast({
+        title: "Error",
+        description: "Please select a file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('title', paperForm.title);
+    formData.append('class_id', paperForm.class_id);
+    formData.append('subject_id', paperForm.subject_id);
+    formData.append('duration', paperForm.duration.toString());
+    formData.append('paper_file', uploadedFile);
+
+    uploadComposedPaperMutation.mutate(formData);
+  };
+
   const handleCreatePaper = () => {
     if (!paperForm.title || !paperForm.class_id || !paperForm.subject_id) {
       toast({
@@ -789,6 +919,12 @@ export default function CreatePaperPage() {
         description: "Please fill in all required fields",
         variant: "destructive",
       });
+      return;
+    }
+
+    // For upload method, use the new upload handler
+    if (paperForm.creationMethod === "upload") {
+      handleUploadComposedPaper();
       return;
     }
 
@@ -820,7 +956,6 @@ export default function CreatePaperPage() {
       });
       return;
     }
-
 
     const paperData = {
       title: paperForm.title,
@@ -1751,14 +1886,59 @@ export default function CreatePaperPage() {
                     <p className="text-white/60 text-sm mb-4">
                       Supports handwritten papers with OCR technology
                       <br />
-                      Accepted formats: PDF, JPG, PNG, DOCX
+                      Accepted formats: PDF, DOC, DOCX, PPT, PPTX, PNG, JPEG, JPG (Max 10MB)
                     </p>
-                    <Button
-                      data-testid="button-upload-paper-file"
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                    >
-                      Choose File to Upload
-                    </Button>
+                    
+                    {/* File Input */}
+                    <div className="mb-4">
+                      <Input
+                        id="paper-file"
+                        type="file"
+                        onChange={handleFileUpload}
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpeg,.jpg"
+                        className="hidden"
+                      />
+                      <Label
+                        htmlFor="paper-file"
+                        className="cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium inline-flex items-center gap-2 transition-colors"
+                      >
+                        <Upload size={20} />
+                        Choose File to Upload
+                      </Label>
+                    </div>
+
+                    {/* Selected File Display */}
+                    {uploadedFile && (
+                      <div className="bg-emerald-500/20 border border-emerald-400/30 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileText className="text-emerald-300" size={24} />
+                            <div>
+                              <p className="text-white font-medium">{uploadedFile.name}</p>
+                              <p className="text-emerald-200 text-sm">
+                                {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setUploadedFile(null)}
+                            className="text-red-300 hover:text-red-200 hover:bg-red-500/20"
+                          >
+                            <X size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upload Status */}
+                    {isUploading && (
+                      <div className="flex items-center justify-center gap-2 text-emerald-300 mt-4">
+                        <Loader2 className="animate-spin" size={20} />
+                        <span>Uploading paper...</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1785,15 +1965,20 @@ export default function CreatePaperPage() {
               <Button
                 data-testid="button-generate-paper"
                 onClick={handleCreatePaper}
-                disabled={createPaperMutation.isPending || (paperForm.creationMethod === "generate" && !paperForm.template_id)}
+                disabled={
+                  createPaperMutation.isPending || 
+                  uploadComposedPaperMutation.isPending ||
+                  (paperForm.creationMethod === "generate" && !paperForm.template_id) ||
+                  (paperForm.creationMethod === "upload" && !uploadedFile)
+                }
                 className="w-full emerald-gradient text-white font-semibold py-4 rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {createPaperMutation.isPending
+                {createPaperMutation.isPending || uploadComposedPaperMutation.isPending
                   ? "Creating..."
                   : paperForm.creationMethod === "generate"
                     ? "Generate Paper"
                     : paperForm.creationMethod === "upload"
-                      ? "Create Paper"
+                      ? "Upload Paper"
                       : "Create Paper"}
               </Button>
             </CardContent>
