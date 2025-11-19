@@ -690,7 +690,7 @@ export default function CreatePaperPage() {
       });
 
       if (paperForm.creationMethod === "manual") {
-        navigate(`/teacher/paper-builder/${data.data.paper.id}`);
+        navigate(`/teacher/paper-builder/${data?.data?.paper?.id}`);
       }else if (paperForm.creationMethod === "generate") {
         navigate(`/teacher/paper-builder/${data.data.paper_id}`);
       }
