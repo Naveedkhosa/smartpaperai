@@ -58,14 +58,25 @@ interface Paper {
     };
 }
 
-interface PapersData {
-    current_page: number;
-    data: Paper[];
-    from: number;
-    last_page: number;
-    per_page: number;
-    to: number;
-    total: number;
+interface PapersResponse {
+    status: boolean;
+    data: {
+        stats: {
+            total_papers: number;
+            ai_generated_papers: number;
+            ai_composed_papers: number;
+            manual_papers: number;
+        };
+        papers: {
+            current_page: number;
+            data: Paper[];
+            from: number;
+            last_page: number;
+            per_page: number;
+            to: number;
+            total: number;
+        };
+    };
 }
 
 interface ClassItem {
@@ -87,13 +98,12 @@ const PapersPage = () => {
     const { toast } = useToast();
     const { token } = useAuth();
 
-    const [papersData, setPapersData] = useState<PapersData | null>(null);
-    const [allPapersData, setAllPapersData] = useState<Paper[]>([]); // New state for ALL papers (Task 1)
+    const [papersData, setPapersData] = useState<PapersResponse['data']['papers'] | null>(null);
+    const [paperStats, setPaperStats] = useState<PapersResponse['data']['stats'] | null>(null); // New state for stats from API
     const [classes, setClasses] = useState<ClassItem[]>([]);
     const [filteredSubjects, setFilteredSubjects] = useState<SubjectItem[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
-    const [isStatsLoading, setIsStatsLoading] = useState(true); // New loading state for stats (Task 1)
     const [currentPage, setCurrentPage] = useState(1);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -137,26 +147,7 @@ const PapersPage = () => {
         }
     };
 
-    // Task 1: Fetch ALL papers for stats (high per_page)
-    const fetchAllPapersForStats = useCallback(async () => {
-        setIsStatsLoading(true);
-        try {
-            const params = { per_page: '10000' };
-            const response = await api.get('/user/papers', { params });
-
-            if (response.data?.status && response.data.data?.papers) {
-                setAllPapersData(response.data.data.papers.data || []);
-            } else {
-                setAllPapersData([]);
-            }
-        } catch (error) {
-            console.error('Error fetching all papers for stats:', error);
-        } finally {
-            setIsStatsLoading(false);
-        }
-    }, []);
-
-    // Fetch paginated papers for the grid view
+    // Updated function to fetch papers with stats
     const fetchPaginatedPapers = useCallback(async (page: number, search: string) => {
         try {
             setIsLoading(true);
@@ -169,9 +160,12 @@ const PapersPage = () => {
 
             const response = await api.get('/user/papers', { params });
 
-            if (response.data?.status && response.data.data?.papers) {
+            if (response.data?.status && response.data.data) {
+                // Set both papers data and stats from the API response
                 setPapersData(response.data.data.papers);
+                setPaperStats(response.data.data.stats);
             } else {
+                // Set default empty data
                 setPapersData({
                     current_page: 1,
                     data: [],
@@ -180,6 +174,12 @@ const PapersPage = () => {
                     per_page: PAPERS_PER_PAGE,
                     to: 0,
                     total: 0
+                });
+                setPaperStats({
+                    total_papers: 0,
+                    ai_generated_papers: 0,
+                    ai_composed_papers: 0,
+                    manual_papers: 0
                 });
             }
         } catch (error) {
@@ -216,9 +216,8 @@ const PapersPage = () => {
             });
             
             if (response.data?.status) {
-                // Refresh both the stats and the current page
+                // Refresh the current page (which will also refresh stats)
                 fetchPaginatedPapers(currentPage, searchTerm);
-                fetchAllPapersForStats(); 
                 setIsEditDialogOpen(false);
                 setEditingPaper(null);
                 toast({ title: 'Success', description: 'Paper updated successfully' });
@@ -238,9 +237,8 @@ const PapersPage = () => {
             const response = await api.delete(`/user/papers/${id}`);
 
             if (response.data?.status) {
-                // Refresh both the stats and the current page
+                // Refresh the current page (which will also refresh stats)
                 fetchPaginatedPapers(currentPage, searchTerm);
-                fetchAllPapersForStats();
                 toast({ title: 'Success', description: 'Paper deleted successfully' });
             } else {
                 throw new Error(response.data?.message || 'Failed to delete paper');
@@ -293,9 +291,8 @@ const PapersPage = () => {
             const response = await api.get(`/user/paper/duplicate/${id}`);
 
             if (response.data?.status) {
-                // Refresh both the stats and the current page
+                // Refresh the current page (which will also refresh stats)
                 fetchPaginatedPapers(currentPage, searchTerm);
-                fetchAllPapersForStats();
                 toast({ title: 'Success', description: 'Paper duplicated successfully' });
             } else {
                 throw new Error(response.data?.message || 'Failed to duplicate paper');
@@ -338,7 +335,6 @@ const PapersPage = () => {
 
     useEffect(() => {
         fetchClasses();
-        fetchAllPapersForStats(); // Initial fetch for stats (Task 1)
     }, []);
 
     useEffect(() => {
@@ -375,24 +371,18 @@ const PapersPage = () => {
         return () => document.removeEventListener('click', closeDropdown);
     }, [activeDropdown]); // Re-run effect when dropdown state changes
 
-    // --- Data Calculation for Stats (Task 1) ---
-    const stats = useMemo(() => {
-        const total = allPapersData.length;
-        const totalQuestions = allPapersData.reduce((sum, p) => sum + (p.questions_count || 0), 0);
-        const totalMarks = allPapersData.reduce((sum, p) => sum + p.total_marks, 0);
-
-        return {
-            totalPapers: total,
-            totalQuestions,
-            totalMarks,
-            activePapers: total, // Assuming all created papers are 'Active' for simplicity
-        };
-    }, [allPapersData]);
-
     // --- Data for Paginated View ---
     const papersDataSafe = papersData || { data: [], total: 0, last_page: 1, from: 0, to: 0, per_page: PAPERS_PER_PAGE, current_page: 1 };
     const currentPapers = papersDataSafe.data;
     const totalPages = papersDataSafe.last_page;
+    
+    // Use stats from API, fallback to defaults if not loaded yet
+    const statsSafe = paperStats || {
+        total_papers: 0,
+        ai_generated_papers: 0,
+        ai_composed_papers: 0,
+        manual_papers: 0
+    };
     
     // --- Render Logic ---
 
@@ -444,7 +434,7 @@ const PapersPage = () => {
         </div>
     );
 
-    if (isLoading && isStatsLoading) {
+    if (isLoading) {
         return (
             <GlassmorphismLayout>
                 <div className="flex">
@@ -479,54 +469,50 @@ const PapersPage = () => {
                                 </button>
                             </div>
                             
-                            {/* Stats Cards (Task 1: Load All Data) */}
+                            {/* Stats Cards - Updated with new API stats */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                                 {/* Total Papers */}
                                 <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="text-sm text-slate-300 mb-1">Total Papers</p>
-                                            <p className="text-2xl font-bold text-white">{stats.totalPapers}</p>
+                                            <p className="text-2xl font-bold text-white">{statsSafe.total_papers}</p>
                                         </div>
                                         <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
                                             <FileText className="text-blue-400" size={24} />
                                         </div>
                                     </div>
                                 </div>
-                                {/* Active Papers (Using Total for now, as API doesn't define status explicitly) */}
+                                {/* AI Generated Papers */}
                                 <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="text-sm text-slate-300 mb-1">Active Papers</p>
-                                            <p className="text-2xl font-bold text-white">{stats.activePapers}</p>
+                                            <p className="text-sm text-slate-300 mb-1">AI Generated</p>
+                                            <p className="text-2xl font-bold text-white">{statsSafe.ai_generated_papers}</p>
                                         </div>
                                         <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
                                             <BookOpen className="text-green-400" size={24} />
                                         </div>
                                     </div>
                                 </div>
-                                {/* Total Questions */}
+                                {/* AI Composed Papers */}
                                 <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="text-sm text-slate-300 mb-1">Total Questions</p>
-                                            <p className="text-2xl font-bold text-white">
-                                                {stats.totalQuestions}
-                                            </p>
+                                            <p className="text-sm text-slate-300 mb-1">AI Composed</p>
+                                            <p className="text-2xl font-bold text-white">{statsSafe.ai_composed_papers}</p>
                                         </div>
                                         <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
                                             <FileDigit className="text-purple-400" size={24} />
                                         </div>
                                     </div>
                                 </div>
-                                {/* Total Marks */}
+                                {/* Manual Composed Papers */}
                                 <div className="bg-white/5 backdrop-blur-lg rounded-xl p-5 border border-white/10">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="text-sm text-slate-300 mb-1">Total Marks</p>
-                                            <p className="text-2xl font-bold text-white">
-                                                {stats.totalMarks}
-                                            </p>
+                                            <p className="text-sm text-slate-300 mb-1">Manual Composed</p>
+                                            <p className="text-2xl font-bold text-white">{statsSafe.manual_papers}</p>
                                         </div>
                                         <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center">
                                             <Award className="text-amber-400" size={24} />
@@ -580,7 +566,7 @@ const PapersPage = () => {
                                                             <div className="paper-dropdown-menu absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl border border-white/20 z-10">
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => { setActiveDropdown(null); navigate(`/teacher/papers/${paper.id}`); }}
+                                                                    onClick={() => { setActiveDropdown(null); navigate(`/teacher/preview/${paper.id}`); }}
                                                                     className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2 first:rounded-t-lg"
                                                                 >
                                                                     <Eye size={16} className="text-blue-400" />
@@ -674,7 +660,7 @@ const PapersPage = () => {
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <button
                                                         type="button"
-                                                        onClick={() => navigate(`/teacher/papers/${paper.id}`)}
+                                                        onClick={() => navigate(`/teacher/preview/${paper.id}`)}
                                                         className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                                                     >
                                                         <Eye size={16} />
