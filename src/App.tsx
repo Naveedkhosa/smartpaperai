@@ -29,6 +29,8 @@ import CreatePersonalDb from './pages/CreatePersonalDb';
 import ClassesManagement from './pages/ClassesManagement';
 import SubjectManagement from './pages/SubjectManagement';
 import CreditBuyPage from "./pages/CreditBuyPage"; // Add this import
+import PaperPreviewPage from './pages/PaperPreviewPage';
+
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole }: { 
@@ -149,6 +151,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="teacher">
             <PapersPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/teacher/preview/:paperId" 
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <PaperPreviewPage />
           </ProtectedRoute>
         } 
       />

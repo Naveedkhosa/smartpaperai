@@ -566,7 +566,7 @@ const PapersPage = () => {
                                                             <div className="paper-dropdown-menu absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-xl border border-white/20 z-10">
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => { setActiveDropdown(null); navigate(`/teacher/papers/${paper.id}`); }}
+                                                                    onClick={() => { setActiveDropdown(null); navigate(`/teacher/preview/${paper.id}`); }}
                                                                     className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2 first:rounded-t-lg"
                                                                 >
                                                                     <Eye size={16} className="text-blue-400" />
@@ -660,7 +660,7 @@ const PapersPage = () => {
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <button
                                                         type="button"
-                                                        onClick={() => navigate(`/teacher/papers/${paper.id}`)}
+                                                        onClick={() => navigate(`/teacher/preview/${paper.id}`)}
                                                         className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                                                     >
                                                         <Eye size={16} />
