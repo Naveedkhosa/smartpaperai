@@ -104,7 +104,7 @@ export default function SubjectManagement() {
     queryKey: ['subjects'],
     queryFn: async () => {
       // NOTE: Assuming /user/subjects fetches ALL subjects as per previous logic.
-      const response = await fetch(`${API_BASE_URL}/user/classes/all-subjects`, {
+      const response = await fetch(`${API_BASE_URL}/user/subjects`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',

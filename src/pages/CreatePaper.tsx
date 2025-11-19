@@ -1583,7 +1583,7 @@ export default function CreatePaperPage() {
                               <span className="text-red-400 text-lg">*</span>
                             </div>
                             <Button
-                              onClick={() => navigate("/templates")}
+                              onClick={() => navigate("/teacher/templates")}
                               className="emerald-gradient"
                               size="sm"
                             >

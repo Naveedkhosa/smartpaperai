@@ -148,7 +148,7 @@ interface Section {
 
 interface QuestionGroup {
     id: string;
-    type: 'mcq' | 'true-false' | 'short-answer' | 'long-answer' | 'fill-blanks' | 'paragraph' | 'conditional';
+    type: string; // Now using dynamic question type IDs
     instruction: string;
     numberingStyle: 'numeric' | 'alphabetic' | 'roman';
     questionsCount: number;
@@ -156,17 +156,36 @@ interface QuestionGroup {
     optionsCount?: number;
 }
 
-// Paper Preview Modal Component - FIXED for True/False and Conditional
-const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
+interface QuestionType {
+    id: string;
+    name: string;
+    slug: string;
+    description: string;
+    has_options: boolean;
+    has_correct_answer: boolean;
+    can_have_sub_questions: boolean;
+    has_paragraph: boolean;
+}
+
+// Paper Preview Modal Component - UPDATED for dynamic question types
+const PaperPreviewModal = ({ isOpen, onClose, templateData, sections, questionTypes }) => {
     const [isPrinting, setIsPrinting] = useState(false);
     const [generatedPaper, setGeneratedPaper] = useState(null);
 
     // Generate random paper data based on template
     useEffect(() => {
-        if (isOpen && templateData && sections) {
+        if (isOpen && templateData && sections && questionTypes.length > 0) {
             generateRandomPaper();
         }
-    }, [isOpen, templateData, sections]);
+    }, [isOpen, templateData, sections, questionTypes]);
+
+    const getQuestionTypeBySlug = (slug) => {
+        return questionTypes.find(type => type.slug === slug) || questionTypes[0];
+    };
+
+    const getQuestionTypeById = (id) => {
+        return questionTypes.find(type => type.id.toString() === id.toString()) || questionTypes[0];
+    };
 
     const generateRandomPaper = () => {
         const randomPaper = {
@@ -184,26 +203,28 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                 id: `section-${sIndex}`,
                 title: section.title,
                 instructions: section.instruction,
-                section_groups: section.groups.map((group, gIndex) => ({
-                    id: `group-${sIndex}-${gIndex}`,
-                    instructions: group.instruction,
-                    question_type: { 
-                        slug: group.type,
-                        name: getQuestionTypeName(group.type)
-                    },
-                    questions: generateQuestionsForGroup(group, sIndex, gIndex)
-                }))
+                section_groups: section.groups.map((group, gIndex) => {
+                    const questionType = getQuestionTypeById(group.type);
+                    return {
+                        id: `group-${sIndex}-${gIndex}`,
+                        instructions: group.instruction,
+                        question_type: questionType,
+                        questions: generateQuestionsForGroup(group, questionType, sIndex, gIndex)
+                    };
+                })
             }))
         };
         setGeneratedPaper(randomPaper);
     };
 
-    const generateQuestionsForGroup = (group, sIndex, gIndex) => {
-        switch (group.type) {
+    const generateQuestionsForGroup = (group, questionType, sIndex, gIndex) => {
+        const typeSlug = questionType.slug;
+
+        switch (typeSlug) {
             case 'true-false':
                 return Array.from({ length: group.questionsCount }, (_, qIndex) => ({
                     id: `question-${sIndex}-${gIndex}-${qIndex}`,
-                    question_text: generateRandomQuestion(group.type, qIndex + 1),
+                    question_text: generateRandomQuestion(typeSlug, qIndex + 1),
                     marks: group.marksPerQuestion,
                     options: [
                         { id: `opt-${sIndex}-${gIndex}-${qIndex}-0`, option_text: 'True', is_correct: Math.random() > 0.5 },
@@ -236,30 +257,32 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                 }];
             
             default:
-                return Array.from({ length: group.questionsCount }, (_, qIndex) => ({
+                const questions = Array.from({ length: group.questionsCount }, (_, qIndex) => ({
                     id: `question-${sIndex}-${gIndex}-${qIndex}`,
-                    question_text: generateRandomQuestion(group.type, qIndex + 1),
+                    question_text: generateRandomQuestion(typeSlug, qIndex + 1),
                     marks: group.marksPerQuestion,
-                    options: group.type === 'mcq' ? 
+                    options: questionType.has_options ? 
                         Array.from({ length: group.optionsCount || 4 }, (_, optIndex) => ({
                             id: `opt-${sIndex}-${gIndex}-${qIndex}-${optIndex}`,
                             option_text: generateRandomOption(optIndex)
                         })) : []
                 }));
-        }
-    };
 
-    const getQuestionTypeName = (type) => {
-        const typeMap = {
-            'mcq': 'Multiple Choice',
-            'true-false': 'True/False',
-            'short-answer': 'Short Answer',
-            'long-answer': 'Long Answer',
-            'fill-blanks': 'Fill in the Blanks',
-            'paragraph': 'Paragraph',
-            'conditional': 'Conditional'
-        };
-        return typeMap[type] || 'Question';
+                // For question types that require correct answers
+                if (questionType.has_correct_answer && questions.length > 0 && questions[0].options.length > 0) {
+                    questions.forEach(question => {
+                        if (question.options.length > 0) {
+                            const correctIndex = Math.floor(Math.random() * question.options.length);
+                            question.options = question.options.map((opt, idx) => ({
+                                ...opt,
+                                is_correct: idx === correctIndex
+                            }));
+                        }
+                    });
+                }
+
+                return questions;
+        }
     };
 
     const generateRandomQuestion = (type, index) => {
@@ -292,7 +315,7 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                 `Write a comprehensive essay on the impact of technology on modern education.`,
                 `Explain the water cycle in detail with appropriate diagrams and examples.`
             ],
-            'fill-blanks': [
+            'fill-in-blanks': [
                 `The process of liquid turning into gas is called __________.`,
                 `The capital of Japan is __________.`,
                 `The chemical formula for water is __________.`,
@@ -339,7 +362,10 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
     };
 
     const renderQuestionContent = (question, group, qNumber) => {
-        switch (group.question_type?.slug) {
+        const questionType = group.question_type;
+        const typeSlug = questionType?.slug;
+
+        switch (typeSlug) {
             case 'true-false':
                 return (
                     <div className="mb-4">
@@ -447,10 +473,10 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                             )}
                         </div>
 
-                        {/* MCQs */}
-                        {group.question_type?.slug === "mcq" && (
+                        {/* Options for question types that have them */}
+                        {questionType?.has_options && question.options && question.options.length > 0 && (
                             <div className="ml-4 sm:ml-8 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-10 gap-y-1 text-sm sm:text-[15px]">
-                                {question.options.map((opt: any, i: number) => (
+                                {question.options.map((opt, i) => (
                                     <div key={opt.id} className="flex items-center">
                                         <span className="font-semibold mr-2">
                                             {String.fromCharCode(65 + i)}.
@@ -588,7 +614,7 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                             </div>
 
                             {/* Body */}
-                            {generatedPaper.sections.map((section: any, sIndex: number) => (
+                            {generatedPaper.sections.map((section, sIndex) => (
                                 <div key={section.id} className="mb-6 sm:mb-8">
                                     <h2 className="text-base sm:text-lg font-bold underline mb-2">
                                         {section.title}
@@ -597,13 +623,13 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
                                         <p className="mb-4 text-sm sm:text-[15px] italic">{section.instructions}</p>
                                     )}
 
-                                    {section.section_groups.map((group: any, gIndex: number) => (
+                                    {section.section_groups.map((group, gIndex) => (
                                         <div key={group.id}>
                                             {group.instructions && (
                                                 <p className="font-semibold mb-3 text-sm sm:text-base">{group.instructions}</p>
                                             )}
 
-                                            {group.questions.map((question: any, qIndex: number) => {
+                                            {group.questions.map((question, qIndex) => {
                                                 const qNumber = getQuestionNumber(sIndex, gIndex, qIndex);
                                                 return (
                                                     <div key={question.id}>
@@ -663,50 +689,33 @@ const PaperPreviewModal = ({ isOpen, onClose, templateData, sections }) => {
     );
 };
 
-// Mobile-Optimized Collapsible Question Group Component - FIXED arrow visibility
-const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, onDelete, onMoveUp, onMoveDown }) => {
+// Mobile-Optimized Collapsible Question Group Component - UPDATED for dynamic question types
+const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, onDelete, onMoveUp, onMoveDown, questionTypes }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const groupTypes = {
-        'mcq': {
-            label: 'Multiple Choice',
-            icon: '📝',
-            color: 'blue'
-        },
-        'true-false': {
-            label: 'True/False',
-            icon: '✓',
-            color: 'green'
-        },
-        'short-answer': {
-            label: 'Short Answer',
-            icon: '💭',
-            color: 'purple'
-        },
-        'long-answer': {
-            label: 'Long Answer',
-            icon: '📄',
-            color: 'orange'
-        },
-        'fill-blanks': {
-            label: 'Fill Blanks',
-            icon: '___',
-            color: 'pink'
-        },
-        'paragraph': {
-            label: 'Paragraph',
-            icon: '📖',
-            color: 'indigo'
-        },
-        'conditional':{
-            label: 'Conditional',
-            icon: 'OR',
-            color: 'green'
-        }
+    const getQuestionTypeById = (id) => {
+        return questionTypes.find(type => type.id.toString() === id.toString()) || questionTypes[0];
     };
 
-    const currentType = groupTypes[group.type];
+    const currentType = getQuestionTypeById(group.type);
     const totalMarks = group.questionsCount * group.marksPerQuestion;
+
+    // Get icon and color based on question type
+    const getTypeDisplay = (questionType) => {
+        const typeMap = {
+            'mcq': { icon: '📝', color: 'blue', label: 'MCQ' },
+            'true-false': { icon: '✓', color: 'green', label: 'True/False' },
+            'fill-in-blanks': { icon: '___', color: 'purple', label: 'Fill Blanks' },
+            'short-answer': { icon: '💭', color: 'orange', label: 'Short Answer' },
+            'long-answer': { icon: '📄', color: 'red', label: 'Long Answer' },
+            'paragraph': { icon: '📖', color: 'indigo', label: 'Paragraph' },
+            'conditional': { icon: 'OR', color: 'teal', label: 'Conditional' }
+        };
+        
+        return typeMap[questionType.slug] || { icon: '❓', color: 'gray', label: questionType.name };
+    };
+
+    const typeDisplay = getTypeDisplay(currentType);
 
     return (
         <Card className="mb-4 overflow-hidden">
@@ -718,7 +727,7 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                 <div className="flex items-center justify-between gap-2 sm:gap-3">
                     {/* Left Side - Group Info */}
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                        {/* Order Controls - FIXED: Made arrows more visible */}
+                        {/* Order Controls */}
                         <div className="flex flex-col gap-1 rounded-lg p-1">
                             <Button
                                 variant="ghost"
@@ -753,8 +762,8 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                         <div className="flex-1 min-w-0">
                             {/* Question Type and Count - Mobile First */}
                             <div className="flex items-center gap-1 sm:gap-2 mb-1">
-                                <span className="text-base sm:text-lg flex-shrink-0">{currentType.icon}</span>
-                                <span className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{currentType.label}</span>
+                                <span className="text-base sm:text-lg flex-shrink-0">{typeDisplay.icon}</span>
+                                <span className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{typeDisplay.label}</span>
                             </div>
 
                             {/* Question Count Display - Simplified */}
@@ -802,13 +811,11 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                                     value={group.type}
                                     onValueChange={(value) => onUpdate({ ...group, type: value })}
                                 >
-                                    <SelectItem value="mcq">📝 Multiple Choice</SelectItem>
-                                    <SelectItem value="true-false">✓ True/False</SelectItem>
-                                    <SelectItem value="short-answer">💭 Short Answer</SelectItem>
-                                    <SelectItem value="long-answer">📄 Long Answer</SelectItem>
-                                    <SelectItem value="fill-blanks">___ Fill Blanks</SelectItem>
-                                    <SelectItem value="paragraph">📖 Paragraph</SelectItem>
-                                    <SelectItem value="conditional">x/y Conditional</SelectItem>
+                                    {questionTypes.map((type) => (
+                                        <SelectItem key={type.id} value={type.id.toString()}>
+                                            {getTypeDisplay(type).icon} {type.name}
+                                        </SelectItem>
+                                    ))}
                                 </Select>
                             </div>
 
@@ -873,8 +880,8 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                                 </Select>
                             </div>
 
-                            {/* Options Count for MCQ */}
-                            {group.type === 'mcq' && (
+                            {/* Options Count for question types that have options */}
+                            {currentType.has_options && (
                                 <div>
                                     <Label>Number of Options</Label>
                                     <Input
@@ -887,6 +894,18 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
                                     />
                                 </div>
                             )}
+
+                            {/* Question Type Information */}
+                            <div className="bg-blue-50 rounded-xl p-3 sm:p-4 border border-blue-200">
+                                <div className="text-sm font-semibold text-blue-800 mb-2">Question Type Info</div>
+                                <div className="text-xs text-blue-700 space-y-1">
+                                    <div>• {currentType.description}</div>
+                                    {currentType.has_options && <div>• Has multiple options</div>}
+                                    {currentType.has_correct_answer && <div>• Requires correct answer</div>}
+                                    {currentType.can_have_sub_questions && <div>• Can have sub-questions</div>}
+                                    {currentType.has_paragraph && <div>• Includes paragraph</div>}
+                                </div>
+                            </div>
 
                             {/* Total Display */}
                             <div className="bg-blue-50 rounded-xl p-3 sm:p-4 text-center border border-blue-200">
@@ -904,8 +923,8 @@ const QuestionGroupComponent = ({ group, groupIndex, sectionGroups, onUpdate, on
     );
 };
 
-// Mobile-Optimized Section Component with Order Controls - FIXED arrow visibility
-const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onAddGroup, onMoveUp, onMoveDown }) => {
+// Mobile-Optimized Section Component with Order Controls - UPDATED for dynamic question types
+const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onAddGroup, onMoveUp, onMoveDown, questionTypes }) => {
     const [isExpanded, setIsExpanded] = useState(true);
 
     const sectionStats = useMemo(() => {
@@ -930,7 +949,7 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
 
     return (
         <Card className="mb-4 sm:mb-6 overflow-hidden">
-            {/* Mobile-First Section Header with Order Controls - FIXED: Made arrows more visible */}
+            {/* Mobile-First Section Header with Order Controls */}
             <div
                 className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-4 border-b border-gray-200 cursor-pointer hover:bg-blue-100/50 transition-colors touch-manipulation"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -938,7 +957,7 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
                 <div className="flex items-center justify-between gap-2 sm:gap-3">
                     {/* Left Side - Section Info */}
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                        {/* Order Controls - FIXED: Added background and border for better visibility */}
+                        {/* Order Controls */}
                         <div className="flex flex-col gap-1  rounded-lg p-1">
                             <Button
                                 variant="ghost"
@@ -1097,6 +1116,7 @@ const SectionComponent = ({ section, index, totalSections, onEdit, onDelete, onA
                                         }}
                                         onMoveUp={moveGroupUp}
                                         onMoveDown={moveGroupDown}
+                                        questionTypes={questionTypes}
                                     />
                                 ))}
                             </div>
@@ -1123,23 +1143,36 @@ const TemplateBuilder = () => {
         }
     ]);
 
-    const [templateDetails, setTemplateDetails] = useState({
-        name: '',
-        class: '',
-        subject: ''
-    });
-
+    const [questionTypes, setQuestionTypes] = useState<QuestionType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [templateData, setTemplateData] = useState(null);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
 
-    // Fetch template data if editing
+    // Fetch question types and template data
     useEffect(() => {
+        fetchQuestionTypes();
         if (templateId) {
             fetchTemplateData();
         }
     }, [templateId]);
+
+    const fetchQuestionTypes = async () => {
+        try {
+            const response = await ApiService.request('/user/question-types', {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (response.status && response.data.question_types) {
+                setQuestionTypes(response.data.question_types);
+            }
+        } catch (error) {
+            console.error('Error fetching question types:', error);
+            // Fallback to empty array if API fails
+            setQuestionTypes([]);
+        }
+    };
 
     const fetchTemplateData = async () => {
         try {
@@ -1161,11 +1194,11 @@ const TemplateBuilder = () => {
                         instruction: section.instruction || '',
                         groups: section.groups.map((group: any, groupIndex: number) => ({
                             id: group.id || `group-${index}-${groupIndex}`,
-                            type: mapQuestionType(group.question_type_id),
+                            type: group.question_type_id.toString(),
                             instruction: group.instruction || '',
-                            numberingStyle: group.numbering_style,
-                            questionsCount: group.questions_count,
-                            marksPerQuestion: group.marks_per_question,
+                            numberingStyle: group.numbering_style || 'numeric',
+                            questionsCount: group.questions_count || 1,
+                            marksPerQuestion: group.marks_per_question || 1,
                             optionsCount: group.options_count || 4
                         }))
                     }));
@@ -1178,34 +1211,6 @@ const TemplateBuilder = () => {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    // Helper function to map question type IDs to type strings
-    const mapQuestionType = (typeId: string): string => {
-        const typeMap: { [key: string]: string } = {
-            '1': 'mcq',
-            '2': 'true-false',
-            '3': 'short-answer',
-            '4': 'long-answer',
-            '5': 'fill-blanks',
-            '6': 'paragraph',
-            '7':'conditional'
-        };
-        return typeMap[typeId] || 'mcq';
-    };
-
-    // Helper function to map type strings back to question type IDs
-    const mapTypeToId = (type: string): string => {
-        const typeMap: { [key: string]: string } = {
-            'mcq': '1',
-            'true-false': '2',
-            'short-answer': '3',
-            'long-answer': '4',
-            'fill-blanks': '5',
-            'paragraph': '6',
-            'conditional':'7'
-        };
-        return typeMap[type] || '1';
     };
 
     const totals = useMemo(() => {
@@ -1250,9 +1255,12 @@ const TemplateBuilder = () => {
     };
 
     const addQuestionGroup = (sectionId: string) => {
+        // Use the first question type as default if available
+        const defaultType = questionTypes.length > 0 ? questionTypes[0].id.toString() : '1';
+        
         const group = {
             id: Date.now().toString(),
-            type: 'mcq' as const,
+            type: defaultType,
             instruction: '',
             numberingStyle: 'numeric' as const,
             questionsCount: 5,
@@ -1315,12 +1323,12 @@ const TemplateBuilder = () => {
                 instruction: section.instruction,
                 order: index,
                 groups: section.groups.map((group, groupIndex) => ({
-                    question_type_id: mapTypeToId(group.type),
+                    question_type_id: parseInt(group.type),
                     instruction: group.instruction,
                     numbering_style: group.numberingStyle,
                     questions_count: group.questionsCount,
                     marks_per_question: group.marksPerQuestion,
-                    options_count: group.type === 'mcq' ? (group.optionsCount || 4) : null,
+                    options_count: group.optionsCount || null,
                     order: groupIndex
                 }))
             }));
@@ -1378,12 +1386,12 @@ const TemplateBuilder = () => {
                                 </Button>
 
                                 <div className="flex items-center gap-1 sm:gap-2">
-                                    {/* Preview Button - ALWAYS SHOW (Task 2) */}
+                                    {/* Preview Button - ALWAYS SHOW */}
                                     <Button
                                         onClick={handlePreviewPaper}
                                         className="bg-white/10 border-white/30 text-white hover:bg-white/20 shadow-lg"
                                         size="sm"
-                                        disabled={sections.length === 0}
+                                        disabled={sections.length === 0 || questionTypes.length === 0}
                                     >
                                         <Eye size={14} className="mr-1 sm:mr-2 sm:w-4 sm:h-4" />
                                         <span className="hidden sm:inline">Preview</span>
@@ -1445,6 +1453,19 @@ const TemplateBuilder = () => {
                     </div>
                 </Card>
 
+                {/* Question Types Info */}
+                {questionTypes.length > 0 && (
+                    <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200">
+                        <div className="flex items-center gap-2 mb-2">
+                            <BookOpen size={16} className="text-green-600 sm:w-5 sm:h-5" />
+                            <h3 className="font-semibold text-green-800 text-sm sm:text-base">Available Question Types</h3>
+                        </div>
+                        <div className="text-xs sm:text-sm text-green-700">
+                            {questionTypes.length} question types loaded from API
+                        </div>
+                    </div>
+                )}
+
                 {/* Add Section Button - Above Sections */}
                 <div className="mb-4 sm:mb-6">
                     <Button
@@ -1504,6 +1525,7 @@ const TemplateBuilder = () => {
                                 onAddGroup={addQuestionGroup}
                                 onMoveUp={moveSectionUp}
                                 onMoveDown={moveSectionDown}
+                                questionTypes={questionTypes}
                             />
                         ))}
                     </div>
@@ -1523,12 +1545,13 @@ const TemplateBuilder = () => {
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-3 items-center">
-                                {/* Preview Paper Button - ALWAYS SHOW (Task 2) */}
+                                {/* Preview Paper Button - ALWAYS SHOW */}
                                 <Button 
                                     onClick={handlePreviewPaper}
                                     variant="outline" 
                                     size="lg" 
                                     className="w-full sm:w-auto min-w-[120px] border-blue-600 text-blue-600 hover:bg-blue-50"
+                                    disabled={questionTypes.length === 0}
                                 >
                                     <Eye className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                                     Preview Paper
@@ -1575,6 +1598,7 @@ const TemplateBuilder = () => {
                     onClose={() => setShowPreviewModal(false)}
                     templateData={templateData}
                     sections={sections}
+                    questionTypes={questionTypes}
                 />
             </div>
         </div>
