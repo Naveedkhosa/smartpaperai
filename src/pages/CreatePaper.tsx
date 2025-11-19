@@ -662,11 +662,11 @@ export default function CreatePaperPage() {
   // Mutations
   const createPaperMutation = useMutation({
     mutationFn: async (paperData: any) => {
-      console.log("paper data : ", paperData);
-
       let api_endpoint = `${API_BASE_URL}/user/papers`;
       if (paperData?.created_by === "generate") {
         api_endpoint = `${API_BASE_URL}/user/papers-ai`;
+      }else if(paperData?.created_by === "upload"){
+        api_endpoint = `${API_BASE_URL}/user/composed/papers-ai`;
       }
 
       let response = await api.post(api_endpoint, paperData);

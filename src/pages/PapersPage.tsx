@@ -288,16 +288,9 @@ const PapersPage = () => {
         }
     };
 
-    const handleDuplicatePaper = async (paper: Paper) => {
+    const handleDuplicatePaper = async (id: any) => {
         try {
-            const response = await api.post('/user/papers', {
-                title: `${paper.title} (Copy)`,
-                class_id: paper.class_id,
-                subject_id: paper.subject_id,
-                duration: paper.duration,
-                created_by: 'manual',
-                data_source: 'personal'
-            });
+            const response = await api.get(`/user/paper/duplicate/${id}`);
 
             if (response.data?.status) {
                 // Refresh both the stats and the current page
@@ -619,7 +612,7 @@ const PapersPage = () => {
                                                                 </button>
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => handleDuplicatePaper(paper)}
+                                                                    onClick={() => handleDuplicatePaper(paper?.id)}
                                                                     className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-white/10 flex items-center gap-2"
                                                                 >
                                                                     <Copy size={16} className="text-cyan-400" />
