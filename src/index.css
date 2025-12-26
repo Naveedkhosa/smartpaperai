@@ -120,7 +120,9 @@
   * {
     @apply border-border;
   }
-
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply font-sans antialiased bg-background text-foreground;
     font-family: 'Inter', sans-serif;
@@ -128,6 +130,102 @@
 }
 
 @layer components {
+  /* Glassmorphism helpers for super admin */
+  .glass-bg {
+    background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 35%),
+                radial-gradient(circle at 80% 10%, rgba(74,108,247,0.12), transparent 40%),
+                radial-gradient(circle at 30% 80%, rgba(16,185,129,0.12), transparent 45%),
+                #f5f6fa;
+  }
+  .glass-card {
+    background: rgba(255, 255, 255, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .glass-compact {
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 14px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .glass-pill {
+    background: rgba(255, 255, 255, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 9999px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Unified SaaS design tokens */
+  .sa-card {
+    @apply bg-white border border-slate-200 rounded-[16px] shadow-sm p-6;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  }
+  .sa-card-compact {
+    @apply bg-white border border-slate-200 rounded-[14px] shadow-sm p-4;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  }
+  .sa-section {
+    @apply space-y-4;
+  }
+  .sa-title-row {
+    @apply flex items-center justify-between gap-3;
+  }
+  .sa-title {
+    @apply text-lg font-semibold text-slate-900;
+  }
+  .sa-subtitle {
+    @apply text-sm text-slate-500;
+  }
+  .sa-table {
+    @apply w-full text-sm rounded-[12px] overflow-hidden border border-slate-200 bg-white;
+  }
+  .sa-table thead {
+    @apply bg-slate-100 text-slate-500;
+  }
+  .sa-table th {
+    @apply px-4 py-3 text-left font-semibold;
+  }
+  .sa-table tbody tr {
+    @apply border-t border-slate-200;
+  }
+  .sa-table tbody tr:hover {
+    @apply bg-slate-50;
+  }
+  .sa-table td {
+    @apply px-4 py-3 align-middle;
+  }
+  .sa-badge {
+    @apply inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold;
+  }
+  .sa-badge-success { @apply bg-emerald-50 text-emerald-700; }
+  .sa-badge-muted { @apply bg-slate-100 text-slate-600; }
+  .sa-btn {
+    @apply inline-flex items-center justify-center gap-2 px-3 h-[42px] text-sm font-semibold rounded-[10px] transition border border-transparent;
+  }
+  .sa-btn-primary {
+    @apply sa-btn bg-[#2563eb] text-white hover:bg-[#1d4ed8];
+  }
+  .sa-btn-secondary {
+    @apply sa-btn bg-[#e5e7eb] text-slate-800 hover:bg-slate-300;
+  }
+  .sa-btn-ghost {
+    @apply sa-btn bg-white text-slate-800 border border-slate-200 hover:border-emerald-400 hover:text-emerald-700;
+  }
+  .sa-input {
+    @apply w-full h-12 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-300;
+  }
+  .sa-filter-bar {
+    @apply flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-[12px] p-3 shadow-sm;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  }
+
   /* Professional Glassmorphism effects with better contrast */
   .glassmorphism {
     background: rgba(255, 255, 255, 0.12);

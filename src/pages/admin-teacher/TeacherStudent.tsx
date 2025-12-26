@@ -1,22 +1,22 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import TeacherSidebar from '../components/TeacherSidebar';
-import GlassmorphismLayout from "../components/GlassmorphismLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import TeacherSidebar from '../../components/TeacherSidebar';
+import GlassmorphismLayout from "../../components/GlassmorphismLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select";
-import { Label } from "../components/ui/label";
-import { useToast } from "../hooks/use-toast";
-import { queryClient } from "../lib/queryClient";
+} from "../../components/ui/select";
+import { Label } from "../../components/ui/label";
+import { useToast } from "../../hooks/use-toast";
+import { queryClient } from "../../lib/queryClient";
 import {
   Plus,
   Search,
@@ -41,7 +41,7 @@ import {
 } from "lucide-react";
 
 // Import the API instance
-import api from '../lib/axios';
+import api from '../../lib/axios';
 
 // --- Interface Definitions ---
 interface Student {

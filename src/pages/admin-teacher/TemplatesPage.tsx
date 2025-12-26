@@ -2,15 +2,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, FileText, MoreVertical, Edit, Trash2, Download, BookOpen, FileDigit, X } from 'lucide-react';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
-import GlassmorphismLayout from "../components/GlassmorphismLayout";
-import TeacherSidebar from '../components/TeacherSidebar';
-import { ApiService } from "../lib/api";
-import { useAuth } from "../contexts/AuthContext";
+import { Input } from '../../components/ui/input';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
+import GlassmorphismLayout from "../../components/GlassmorphismLayout";
+import TeacherSidebar from '../../components/TeacherSidebar';
+import { ApiService } from "../../lib/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface Class {
   id: string;

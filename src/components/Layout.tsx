@@ -14,14 +14,16 @@ export default function Layout({ children }: LayoutProps) {
 
   // Set theme based on user role
   useEffect(() => {
+    const publicPaths = ['/', '/home', '/login', '/register', '/unauthorized', '/privacy', '/terms', '/contact'];
+
     if (user) {
       setTheme(user.role === 'admin' ? 'admin' : 'glassmorphism');
-      
-      // Redirect to appropriate dashboard if on login page
-      if (location === '/' || location === '/login') {
+
+      // Redirect authenticated users away from auth/public landing pages
+      if (publicPaths.includes(location)) {
         setLocation(`/${user.role}`);
       }
-    } else if (!isLoading && location !== '/login') {
+    } else if (!isLoading && !publicPaths.includes(location)) {
       setLocation('/login');
     }
   }, [user, location, setTheme, setLocation, isLoading]);

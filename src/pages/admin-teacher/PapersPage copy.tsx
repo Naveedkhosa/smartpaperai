@@ -6,9 +6,9 @@ import {
 import GlassmorphismLayout from "@/components/GlassmorphismLayout";
 import TeacherSidebar from '@/components/TeacherSidebar';
 import { useNavigate } from "react-router-dom";
-import { ApiService } from "../lib/api";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/use-toast";
+import { ApiService } from "../../lib/api";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/use-toast";
 
 interface Paper {
   id: string;

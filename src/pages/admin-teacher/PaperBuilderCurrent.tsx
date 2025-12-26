@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ApiService } from "../lib/api";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/use-toast";
+import { ApiService } from "../../lib/api";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/use-toast";
 
 import {
     DndContext,

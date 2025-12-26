@@ -16,12 +16,12 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ApiService } from '../lib/api';
-import { useAuth } from '../contexts/AuthContext';
+import { ApiService } from '../../lib/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
-import api from '../lib/axios';
-import { toast } from '../hooks/use-toast';
-import PageLoader from '../components/PageLoader';
+import api from '../../lib/axios';
+import { toast } from '../../hooks/use-toast';
+import PageLoader from '../../components/PageLoader';
 
 // ---------- Types ----------
 export interface Question {

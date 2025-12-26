@@ -8,9 +8,9 @@ import GlassmorphismLayout from "@/components/GlassmorphismLayout";
 import TeacherSidebar from '@/components/TeacherSidebar';
 import { useNavigate } from "react-router-dom";
 // Assuming 'api' is your configured axios instance
-import api from '../lib/axios'; 
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/use-toast";
+import api from '../../lib/axios'; 
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/use-toast";
 import {
     Dialog,
     DialogContent,

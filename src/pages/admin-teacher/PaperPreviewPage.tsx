@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Printer, Download, ArrowLeft, Loader2, FileText, Clock, BookOpen, Target } from 'lucide-react';
-import { ApiService } from "../lib/api";
-import { useAuth } from "../contexts/AuthContext";
+import { ApiService } from "../../lib/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 const PaperPreviewPage = () => {
   const { paperId } = useParams();

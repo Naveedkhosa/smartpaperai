@@ -5,8 +5,8 @@ import {
     BarChart3, AlertCircle, Settings, ChevronDown, ChevronUp,
     ArrowUp, ArrowDown, Eye, X, Download, Printer, Loader2, FileText
 } from 'lucide-react';
-import { ApiService } from "../lib/api";
-import { useAuth } from "../contexts/AuthContext";
+import { ApiService } from "../../lib/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Mobile-First UI Components
 const Button = ({ children, onClick, className = "", variant = "default", size = "default", disabled = false, ...props }) => (

@@ -11,9 +11,9 @@ import {
 } from "lucide-react";
 import GlassmorphismLayout from "@/components/GlassmorphismLayout";
 import TeacherSidebar from "@/components/TeacherSidebar";
-import { ApiService } from "../lib/api";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../hooks/use-toast";
+import { ApiService } from "../../lib/api";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../hooks/use-toast";
 
 const PaperViewer = () => {
   const { id } = useParams<{ id: string }>();

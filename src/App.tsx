@@ -6,30 +6,50 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import Login from "./pages/admin-teacher/Login";
+import Register from "./pages/admin-teacher/Register";
 import AdminDashboard from "./pages/AdminDashboard";
-import TeacherDashboard from "./pages/TeacherDashboard";
+import TeacherDashboard from "./pages/admin-teacher/TeacherDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import TeacherStudent from "./pages/TeacherStudent";
-import AddStudent from "./pages/AddStudent";
+import TeacherStudent from "./pages/admin-teacher/TeacherStudent";
+import AddStudent from "./pages/admin-teacher/AddStudent";
 import Layout from "./components/Layout";
-import NotFound from "./pages/not-found";
-import CreatePaper from "./pages/CreatePaper";
-import PapersPage from "./pages/PapersPage";
+import NotFound from "./pages/admin-teacher/not-found";
+import CreatePaper from "./pages/admin-teacher/CreatePaper";
+import PapersPage from "./pages/admin-teacher/PapersPage";
 
-import PaperBuilder from "./pages/PaperBuilder";
-import TemplatesPage from './pages/TemplatesPage';
-import TemplateBuilder from './pages/TemplateBuilder';
-import GradePapers from "./pages/GradePapers";
-import PaperViewer from "./pages/PaperViewer";
-import Manage from "./pages/Manage";
-import StudyMaterials from './pages/StudyMaterials';
-import CreatePersonalDb from './pages/CreatePersonalDb';
-import ClassesManagement from './pages/ClassesManagement';
-import SubjectManagement from './pages/SubjectManagement';
-import CreditBuyPage from "./pages/CreditBuyPage"; // Add this import
-import PaperPreviewPage from './pages/PaperPreviewPage';
+import PaperBuilder from "./pages/admin-teacher/PaperBuilder";
+import TemplatesPage from './pages/admin-teacher/TemplatesPage';
+import TemplateBuilder from './pages/admin-teacher/TemplateBuilder';
+import GradePapers from "./pages/admin-teacher/GradePapers";
+import PaperViewer from "./pages/admin-teacher/PaperViewer";
+import Manage from "./pages/admin-teacher/Manage";
+import StudyMaterials from './pages/admin-teacher/StudyMaterials';
+import CreatePersonalDb from './pages/admin-teacher/CreatePersonalDb';
+import ClassesManagement from './pages/admin-teacher/ClassesManagement';
+import SubjectManagement from './pages/admin-teacher/SubjectManagement';
+import CreditBuyPage from "./pages/admin-teacher/CreditBuyPage"; // Add this import
+import PaperPreviewPage from './pages/admin-teacher/PaperPreviewPage';
+import Home from "./pages/Home";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Contact from "./pages/Contact";
+import {
+  SuperAdminDashboard,
+  SuperAdminManageUsers,
+  SuperAdminProfile,
+  SuperAdminRolesPermissions,
+  SuperAdminReports,
+  SuperAdminSubscriptions,
+  SuperAdminStudyMaterials,
+  SuperAdminTemplates,
+  SuperAdminClasses,
+  SuperAdminSubjects,
+  SuperAdminPlans,
+  SuperAdminCMS,
+  SuperAdminSettings,
+  SuperAdminActivityLogs
+} from "./pages/super-admin";
 
 
 // Protected Route Component
@@ -288,8 +308,27 @@ function AppRoutes() {
       />
       
       {/* Additional routes */}
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/contact" element={<Contact />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Home />} />
+
+      {/* Temporary public routes for Super Admin previews */}
+      <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
+      <Route path="/super-admin/users" element={<SuperAdminManageUsers />} />
+      <Route path="/super-admin/profile" element={<SuperAdminProfile />} />
+      <Route path="/super-admin/roles" element={<SuperAdminRolesPermissions />} />
+      <Route path="/super-admin/reports" element={<SuperAdminReports />} />
+      <Route path="/super-admin/subscriptions" element={<SuperAdminSubscriptions />} />
+      <Route path="/super-admin/study-materials" element={<SuperAdminStudyMaterials />} />
+      <Route path="/super-admin/templates" element={<SuperAdminTemplates />} />
+      <Route path="/super-admin/classes" element={<SuperAdminClasses />} />
+      <Route path="/super-admin/subjects" element={<SuperAdminSubjects />} />
+      <Route path="/super-admin/plans" element={<SuperAdminPlans />} />
+      <Route path="/super-admin/cms" element={<SuperAdminCMS />} />
+      <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
+      <Route path="/super-admin/activity-logs" element={<SuperAdminActivityLogs />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
