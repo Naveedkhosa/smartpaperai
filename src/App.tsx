@@ -1,3 +1,4 @@
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -34,23 +35,6 @@ import Home from "./pages/Home";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
-import {
-  SuperAdminDashboard,
-  SuperAdminManageUsers,
-  SuperAdminProfile,
-  SuperAdminRolesPermissions,
-  SuperAdminReports,
-  SuperAdminSubscriptions,
-  SuperAdminStudyMaterials,
-  SuperAdminTemplates,
-  SuperAdminClasses,
-  SuperAdminSubjects,
-  SuperAdminPlans,
-  SuperAdminCMS,
-  SuperAdminSettings,
-  SuperAdminActivityLogs
-} from "./pages/super-admin";
-
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole }: { 
@@ -314,21 +298,6 @@ function AppRoutes() {
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route path="/" element={<Home />} />
 
-      {/* Temporary public routes for Super Admin previews */}
-      <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
-      <Route path="/super-admin/users" element={<SuperAdminManageUsers />} />
-      <Route path="/super-admin/profile" element={<SuperAdminProfile />} />
-      <Route path="/super-admin/roles" element={<SuperAdminRolesPermissions />} />
-      <Route path="/super-admin/reports" element={<SuperAdminReports />} />
-      <Route path="/super-admin/subscriptions" element={<SuperAdminSubscriptions />} />
-      <Route path="/super-admin/study-materials" element={<SuperAdminStudyMaterials />} />
-      <Route path="/super-admin/templates" element={<SuperAdminTemplates />} />
-      <Route path="/super-admin/classes" element={<SuperAdminClasses />} />
-      <Route path="/super-admin/subjects" element={<SuperAdminSubjects />} />
-      <Route path="/super-admin/plans" element={<SuperAdminPlans />} />
-      <Route path="/super-admin/cms" element={<SuperAdminCMS />} />
-      <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
-      <Route path="/super-admin/activity-logs" element={<SuperAdminActivityLogs />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
